@@ -142,6 +142,7 @@ button {
   display: flex;
   height: 100vh;
   overflow: hidden;
+  flex-direction: row;
 }
 
 .sidebar {
@@ -209,6 +210,59 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    flex-direction: row;
+    overflow-x: auto;
+    align-items: center;
+  }
+  
+  .sidebar-header {
+    padding: 1rem;
+    border-bottom: none;
+    border-right: 1px solid var(--glass-border);
+  }
+  
+  .sidebar-nav {
+    display: flex;
+    flex-direction: row;
+    padding: 0.5rem;
+    overflow-x: auto;
+  }
+  
+  .nav-item {
+    margin-bottom: 0;
+    margin-right: 0.5rem;
+    white-space: nowrap;
+  }
+  
+  .nav-item.active {
+    border-left: none;
+    border-bottom: 3px solid var(--accent-blue);
+  }
+  
+  .topbar {
+    padding: 0 1rem;
+    flex-wrap: wrap;
+    height: auto;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .dashboard-grid {
+    padding: 1rem;
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Scrollbars */
