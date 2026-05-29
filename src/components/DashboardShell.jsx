@@ -1,46 +1,40 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import GameCard from './GameCard';
-
-const DUMMY_GAMES = [
-  {
-    id: '1',
-    name: 'Helldivers 2',
-    price: '$39.99',
-    isOnSale: false,
-    thumbnail: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/553850/header.jpg',
-    matchScore: 95,
-    ruDeveloperAlert: false,
-    coopSpecs: { onlineCoop: true },
-    tags: ['replayable', 'shooter']
-  },
-  {
-    id: '2',
-    name: 'Lethal Company',
-    price: '$9.99',
-    isOnSale: true,
-    thumbnail: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1966720/header.jpg',
-    matchScore: 40,
-    ruDeveloperAlert: false,
-    coopSpecs: { onlineCoop: true },
-    tags: ['horror']
-  },
-  {
-    id: '3',
-    name: 'Suspicious Game',
-    price: '$19.99',
-    isOnSale: false,
-    thumbnail: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/105600/header.jpg',
-    matchScore: 0,
-    ruDeveloperAlert: true,
-    coopSpecs: { onlineCoop: true },
-    tags: ['survival']
-  }
-];
+import AddGameModal from './AddGameModal';
+import { useGames, seedTestData } from '../services/db';
 
 export default function DashboardShell() {
   const { currentUser, userIndex, logout } = useAuth();
+  const { games, loading } = useGames('default_app');
+  
   const [activeTab, setActiveTab] = useState('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  // Dynamic Filtering Logic based on Manifest F2
+  const filteredGames = games.filter(game => {
+    if (game.abandoned) return false;
+    
+    if (activeTab === 'ready') {
+      return game.owned.user0 && game.owned.user1 && !game.finished;
+    }
+    if (activeTab === 'finished') {
+      return game.finished;
+    }
+    return true; // 'all' active
+  });
+
+  const handleSeed = async () => {
+    setIsSeeding(true);
+    try {
+      await seedTestData('default_app');
+    } catch (err) {
+      console.error("Failed to seed:", err);
+      alert("Failed to seed DB. Check console and Firebase Permissions.");
+    }
+    setIsSeeding(false);
+  };
 
   return (
     <div className="app-layout">
@@ -76,7 +70,12 @@ export default function DashboardShell() {
       {/* Main Content */}
       <main className="main-content">
         <header className="topbar">
-          <h3 style={{ fontWeight: 500 }}>Library Overview</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <h3 style={{ fontWeight: 500 }}>Library Overview</h3>
+            <button className="btn-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.85rem' }} onClick={() => setIsModalOpen(true)}>
+              + Add Game
+            </button>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               User {userIndex} ({currentUser?.email})
@@ -86,11 +85,30 @@ export default function DashboardShell() {
         </header>
 
         <div className="dashboard-grid">
-          {DUMMY_GAMES.map(game => (
-            <GameCard key={game.id} game={game} />
-          ))}
+          {loading ? (
+            <p style={{ color: 'var(--text-muted)' }}>Loading games from Firestore...</p>
+          ) : filteredGames.length > 0 ? (
+            filteredGames.map(game => (
+              <GameCard key={game.id} game={game} />
+            ))
+          ) : (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+              <p style={{ marginBottom: '1rem' }}>No games found in this view.</p>
+              {games.length === 0 && (
+                <button 
+                  className="btn-primary" 
+                  onClick={handleSeed}
+                  disabled={isSeeding}
+                >
+                  {isSeeding ? 'Seeding...' : 'Seed Test Data (Divinity, ARC, Cult)'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </main>
+
+      <AddGameModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
