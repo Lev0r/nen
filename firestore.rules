@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only allow access to the specific app ID path (we can use a wildcard or strict name depending on final config)
+    match /artifacts/{appId}/public/data/games/{gameId} {
+      // Allow read and write if authenticated and email matches one of our two users
+      // Note: In production, you'd likely want to keep the list of allowed emails either
+      // in a config doc or rely on custom claims if we want to avoid hardcoding here.
+      // But since we are allowed to use environment variables for the app, we can also 
+      // check against a small allowed users list or check if they are authenticated.
+      // Wait, the manifest_of_understanding says:
+      // allow read, write: if request.auth != null && 
+      //  (request.auth.token.email == 'user0_email@gmail.com' || request.auth.token.email == 'user1_email@gmail.com');
+      // For now, we will leave placeholders that the user will replace during deployment, 
+      // or we can allow if request.auth != null, since our app gate will prevent others from logging in anyway,
+      // but the manifest strictly required mirroring validation.
+      
+      allow read, write: if request.auth != null && (
+        request.auth.token.email == 'YOUR_USER0_EMAIL' || 
+        request.auth.token.email == 'YOUR_USER1_EMAIL'
+      );
+    }
+  }
+}
