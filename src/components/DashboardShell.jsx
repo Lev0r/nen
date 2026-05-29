@@ -2,63 +2,50 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
-import { useGames, seedTestData } from '../services/db';
+import { useGames } from '../services/db';
+import { getNickname } from '../utils/userConfig';
 
 export default function DashboardShell() {
   const { currentUser, userIndex, logout } = useAuth();
   const { games, loading } = useGames('default_app');
-  
+
   const [activeTab, setActiveTab] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
 
-  // Dynamic Filtering Logic based on Manifest F2
-  const filteredGames = games.filter(game => {
+  const filteredGames = games.filter((game) => {
     if (game.abandoned) return false;
-    
+
     if (activeTab === 'ready') {
       return game.owned.user0 && game.owned.user1 && !game.finished;
     }
     if (activeTab === 'finished') {
       return game.finished;
     }
-    return true; // 'all' active
+    return true;
   });
-
-  const handleSeed = async () => {
-    setIsSeeding(true);
-    try {
-      await seedTestData('default_app');
-    } catch (err) {
-      console.error("Failed to seed:", err);
-      alert("Failed to seed DB. Check console and Firebase Permissions.");
-    }
-    setIsSeeding(false);
-  };
 
   return (
     <div className="app-layout">
-      {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2 style={{ color: 'var(--accent-mint)' }}>Nen?</h2>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Co-op Tracker</p>
         </div>
-        
+
         <nav className="sidebar-nav">
-          <div 
+          <div
             className={`nav-item ${activeTab === 'all' ? 'active' : ''}`}
             onClick={() => setActiveTab('all')}
           >
             All Active
           </div>
-          <div 
+          <div
             className={`nav-item ${activeTab === 'ready' ? 'active' : ''}`}
             onClick={() => setActiveTab('ready')}
           >
             Ready to Play
           </div>
-          <div 
+          <div
             className={`nav-item ${activeTab === 'finished' ? 'active' : ''}`}
             onClick={() => setActiveTab('finished')}
           >
@@ -67,20 +54,25 @@ export default function DashboardShell() {
         </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="main-content">
         <header className="topbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <h3 style={{ fontWeight: 500 }}>Library Overview</h3>
-            <button className="btn-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.85rem' }} onClick={() => setIsModalOpen(true)}>
+            <button
+              className="btn-primary"
+              style={{ padding: '0.3rem 0.8rem', fontSize: '0.85rem' }}
+              onClick={() => setIsModalOpen(true)}
+            >
               + Add Game
             </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-              User {userIndex} ({currentUser?.email})
+              {getNickname(userIndex)} ({currentUser?.email})
             </span>
-            <button className="btn-secondary" onClick={logout}>Sign Out</button>
+            <button className="btn-secondary" onClick={logout}>
+              Sign Out
+            </button>
           </div>
         </header>
 
@@ -88,21 +80,18 @@ export default function DashboardShell() {
           {loading ? (
             <p style={{ color: 'var(--text-muted)' }}>Loading games from Firestore...</p>
           ) : filteredGames.length > 0 ? (
-            filteredGames.map(game => (
-              <GameCard key={game.id} game={game} />
-            ))
+            filteredGames.map((game) => <GameCard key={game.id} game={game} />)
           ) : (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-              <p style={{ marginBottom: '1rem' }}>No games found in this view.</p>
-              {games.length === 0 && (
-                <button 
-                  className="btn-primary" 
-                  onClick={handleSeed}
-                  disabled={isSeeding}
-                >
-                  {isSeeding ? 'Seeding...' : 'Seed Test Data (Divinity, ARC, Cult)'}
-                </button>
-              )}
+            <div
+              style={{
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: '3rem',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <p style={{ marginBottom: '1rem' }}>No games in this view.</p>
+              <p style={{ fontSize: '0.9rem' }}>Use + Add Game to import from Steam.</p>
             </div>
           )}
         </div>

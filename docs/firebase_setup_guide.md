@@ -49,25 +49,57 @@ To deploy the app from your terminal, you need the Firebase CLI tools.
    ```
    Select the project you created in Step 1 and alias it as `default`.
 
-## 5. Setting Production Environment Variables
+## 5. Upgrade to Blaze (required for Cloud Functions)
 
-For the frontend (React), Vite bakes your `.env.local` variables into the static HTML/JS files when you run `npm run build`. 
-However, for our secure Cloud Functions (Steam Scraper & Gemini API in Phase 5), we must store secrets natively in Firebase.
+Cloud Functions (and Add Game) require the **Blaze (pay-as-you-go)** plan. You still get generous free tiers; a two-user tracker usually stays at **$0**.
 
-Run these commands in your terminal to securely store your emails and API keys on Google's servers:
+1. Open [Firebase Console → Usage and billing](https://console.firebase.google.com/project/_/usage/details) (pick project **nen-tracker**).
+2. Click **Modify plan** / **Upgrade** → **Blaze**.
+3. Link a billing account (Google Cloud). Set a [budget alert](https://console.cloud.google.com/billing) (e.g. $5/month) if you want peace of mind.
+
+You do **not** need `firebase functions:secrets:set` for this project — the Gemini key lives in `functions/.env` instead.
+
+## 6. Cloud Functions (Phase 5 — Add Game)
+
+Install function dependencies once:
 
 ```bash
-firebase functions:secrets:set ALLOWED_EMAIL_0
-# (Type your user0 email and hit enter)
-
-firebase functions:secrets:set ALLOWED_EMAIL_1
-# (Type your user1 email and hit enter)
-
-firebase functions:secrets:set GEMINI_API_KEY
-# (Type your Gemini API key and hit enter)
+cd functions
+npm install
+cd ..
 ```
 
-## 6. Building and Deploying
+### Allowed emails (functions runtime)
+
+Copy `functions/.env.example` to `functions/.env`:
+
+```env
+GEMINI_API_KEY=AIza...   # from https://aistudio.google.com/apikey (free tier)
+ALLOWED_EMAIL_0=you@gmail.com
+ALLOWED_EMAIL_1=friend@gmail.com
+```
+
+Firebase loads `functions/.env` when you deploy. **Never commit `functions/.env` to git.**
+
+### Deploy functions only (first test)
+
+```bash
+firebase deploy --only functions
+```
+
+After deploy, use **+ Add Game** in the app with a Steam URL. Cold start can take 15–30 seconds.
+
+### Optional: local emulator
+
+```bash
+# Terminal 1
+firebase emulators:start --only functions
+
+# In .env.local set:
+# VITE_USE_FUNCTIONS_EMULATOR=true
+```
+
+## 7. Building and Deploying
 
 Whenever you are ready to publish the app to the live web:
 

@@ -21,7 +21,7 @@ This document outlines the strict rules and constraints that any AI coding assis
 
 ## 4. Feature-Specific Rules
 
-- **Match Score Formula:** Do not alter the Match Score formula without explicit user permission. The Gemini "Russian Developer" vetting override (`ruDeveloperAlert === true` -> Score = 0%) is non-negotiable.
+- **Total Hype Formula:** Do not alter the Total Hype formula (documented in `manifest_of_understanding.md` F3) without explicit user permission. The Gemini "Russian Developer" vetting override (`ruDeveloperAlert === true` -> Total Hype = 0) is non-negotiable.
 - **API integrations:** Always handle Steam API and Gemini API failures gracefully. Provide clear UI feedback if scraping fails or the API limit is reached.
 
 ## 5. Development Workflow

@@ -79,9 +79,11 @@ The database structure is designed to keep static app configurations decoupled f
 {
   "id": "steam_app_id_or_uuid",
   "name": "Game Title",
-  "price": "$39.99",
-  "originalPrice": "$39.99",
+  "price": "1 199₴",
+  "originalPrice": "1 199₴",
+  "currency": "UAH",
   "isOnSale": false,
+  "discountPercent": 0,
   "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/APP_ID/header.jpg",
   "url": "https://store.steampowered.com/app/APP_ID/",
   "developers": ["Developer Name"],
@@ -93,10 +95,12 @@ The database structure is designed to keep static app configurations decoupled f
     "user0": false,
     "user1": false
   },
-  "hype": {
-    "user0": 5,
-    "user1": 5
+  "hypeTier": {
+    "user0": "morkite_found",
+    "user1": "morkite_found"
   },
+  "steamOverview": "Short Steam store description shown on the card.",
+  "steamReviewPercent": 94,
   "finished": false,
   "abandoned": false,
   "tags": ["replayable", "waiting for next update"],
@@ -119,7 +123,9 @@ The database structure is designed to keep static app configurations decoupled f
 * **`developmentStatus`**: Enum restricted to `released` | `early_access` | `tba`.
 * **`currentVersion`**: Semantic version string (e.g. `v1.0.2`, `v0.8.4-beta`) or `null`/empty string for `tba`.
 * **`owned`**: Map tracking dynamic ownership for User 0 and User 1.
-* **`hype`**: Map tracking interest level on a scale from `0` to `10` for User 0 and User 1.
+* **`hypeTier`**: Per-user personal hype tier: `worthless_crystal` | `morkite_found` | `we_rich` (default `morkite_found`). Each tier applies a multiplier to a shared base of `5` for that user's contribution to Total Hype.
+* **`steamOverview`**: Short description from Steam (`short_description`) displayed on the game card.
+* **`steamReviewPercent`**: Steam positive review percentage (`0`–`100`), used as a minor factor in Total Hype (less impact than `developmentStatus`).
 * **`finished`**: Boolean flag indicating if the game has been completed.
 * **`abandoned`**: Boolean archive flag to soft-delete games from main listings.
 
@@ -155,33 +161,55 @@ Standard views must dynamically filter the game library (always omitting games w
 
 ---
 
-### F3: Match Score Algorithm
+### F3: Total Hype Algorithm (Match Ring)
 
-The Match Score measures the desirability of playing the game together. It is calculated dynamically in the client-side UI according to the following formulas:
+**Total Hype** is the single desirability number shown on the card's radial ring (no `%` suffix). It combines every factor below. Each user's personal tier only affects their portion of the tier base—ownership, release status, and Steam reviews apply to the combined result.
 
-$$\text{Match Score} = \left( \frac{\text{hype.user0} + \text{hype.user1}}{20} \right) \times 100 \times \text{Multiplier} \times \text{StatusFactor}$$
+$$\text{Total Hype} = \text{TierBase} \times \text{OwnershipFactor} \times \text{StatusFactor} \times \text{SteamOverviewFactor}$$
+
+All factors are rounded to an integer for display (`0`–`100` scale on the ring).
 
 #### Parameter Breakdown
 
-##### 1. Base Score
-Computed by normalizing the sum of both users' hype levels (each out of 10) to a percentage:
-$$\text{Base Score} = \frac{\text{hype.user0} + \text{hype.user1}}{20} \times 100$$
+##### 1. Personal tier contributions (partial per-user influence)
+Each user selects one tier per game (Deep Rock Galactic themed labels in UI):
 
-##### 2. Multiplier (Ownership Factor)
-Reflects game accessibility for the duo:
-* **`1.0`** if both own the game (`owned.user0 && owned.user1`)
-* **`0.5`** if only one owns the game (`owned.user0 || owned.user1` but not both)
-* **`0.25`** if neither owns the game (`!owned.user0 && !owned.user1`)
+| `hypeTier` value | UI label | Multiplier on base `5` |
+| :--- | :--- | :--- |
+| `worthless_crystal` | Worthless Crystal | `0.5` → effective `2.5` |
+| `morkite_found` | Morkite Found | `1.0` → effective `5` |
+| `we_rich` | We're Rich! | `1.5` → effective `7.5` |
 
-##### 3. StatusFactor (Development State)
-Penalizes unreleased or incomplete games:
-* **`1.0`** if `developmentStatus === "released"`
-* **`0.75`** if `developmentStatus === "early_access"`
-* **`0.10`** if `developmentStatus === "tba"`
+$$\text{TierBase} = \frac{\text{effective}(user0) + \text{effective}(user1)}{15} \times 100$$
+
+Maximum pair sum is `15` (both users at We're Rich!).
+
+##### 2. OwnershipFactor
+* **`1.0`** — both own (`owned.user0 && owned.user1`)
+* **`0.5`** — exactly one owns
+* **`0.25`** — neither owns
+
+##### 3. StatusFactor (Development State) — **high impact**
+* **`1.0`** — `released`
+* **`0.75`** — `early_access`
+* **`0.10`** — `tba`
+
+##### 4. SteamOverviewFactor — **low impact** (secondary to status)
+Derived from `steamReviewPercent` when present:
+
+$$\text{SteamOverviewFactor} = 0.9 + \left(\frac{\text{steamReviewPercent}}{100}\right) \times 0.15$$
+
+Range approximately `0.90` (0% reviews) to `1.05` (100% positive). Defaults to **`1.0`** if review data is missing.
+
+##### 5. Library sort order
+Games sort **descending by Total Hype** (highest first).
+
+##### 6. Hover breakdown (required UX)
+Hovering the Total Hype ring shows how the number was built: each user's nickname, tier label, personal effective value, then multipliers for ownership, status, and Steam reviews, then the final Total Hype.
 
 > [!WARNING]
 > **Vetting Override**
-> If a game is flagged with Russian ties (`ruDeveloperAlert === true`), the Match Score calculation is **fully overridden** and forced directly to **`0%`**.
+> If `ruDeveloperAlert === true`, Total Hype is **forced to `0`** (ring empty, red neon border).
 
 ---
 
@@ -226,11 +254,14 @@ To bypass CORS restrictions on client-side requests, the app will attempt a wate
 Extract details from the API response payload (`data[appId].data`):
 
 * **`name`** $\rightarrow$ `name`
-* **`price`** $\rightarrow$ `price_overview.final_formatted` || `Free to Play`
-* **`originalPrice`** $\rightarrow$ `price_overview.initial_formatted` || `Free to Play`
+* **`price`** $\rightarrow$ `price_overview.final_formatted` from Steam with `cc=ua` (UAH, English labels) || `Free to Play`
+* **`originalPrice`** $\rightarrow$ `price_overview.initial_formatted` (UA store, UAH) || `Free to Play`
+* **`currency`** $\rightarrow$ always `UAH` for scraped games
 * **`isOnSale`** $\rightarrow$ `price_overview.discount_percent > 0`
 * **`thumbnail`** $\rightarrow$ `header_image` (e.g. `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/header.jpg`)
 * **`developers`** $\rightarrow$ `developers` (Triggers AI Russian screening)
+* **`steamOverview`** $\rightarrow$ `short_description`
+* **`steamReviewPercent`** $\rightarrow$ positive review % from Steam review summary when available (else omit → factor `1.0`)
 * **`screenshots`** $\rightarrow$ `screenshots.slice(0, 5).map(s => s.path_full)`
 * **`developmentStatus`** $\rightarrow$ Evaluate categories and genres.
   * If `genres` contains ID `70` (Early Access) $\rightarrow$ `"early_access"`
@@ -253,8 +284,12 @@ The dashboard should feel like a premium, sleek gaming platform (similar to Stea
 
 * **Color Palette**: Sleek obsidian dark mode (`#0B0F19`), neon mint accent for match scores, crimson red for RU alerts, and vibrant blue for interactive elements.
 * **Aero Glassmorphism**: Cards use translucent backdrop filters (`backdrop-filter: blur(12px) bg-opacity-40`).
-* **Visualizing Match Score**: Render score in a circular radial progress ring. Color scales from red (low score) to yellow (moderate) to neon green (high).
-* **Screenshots Carousel**: Hovering over a game card displays a miniature automated thumbnail slider/carousel cycling through screenshots dynamically.
+* **Total Hype ring**: Bottom-right on the card thumbnail; shows the Total Hype integer **without a `%` symbol**. Color scales red → yellow → mint by score. Click opens a small tier picker for the **active user only**. Hover shows the full score breakdown tooltip.
+* **Owned indicator**: Bottom-left on the thumbnail; three-stage icon (none / one owner / both). Click toggles ownership for the active user. Hover tooltip lists each nickname and owned state.
+* **Steam overview**: Truncated `steamOverview` text in the card body (from Steam `short_description` when scraped).
+* **Development status**: Color-coded — green (`released`), yellow (`early_access`), red (`tba`).
+* **Screenshots**: Dedicated button opens a modal carousel (not hover-on-card).
+* **Identity labels**: Resolved from `VITE_USER0_NICKNAME` / `VITE_USER1_NICKNAME` in `.env` — never "Me", "Friend", or hardcoded names. Active user suffix: `(You)`.
 * **Actionable Badges**: Visual indicators showing Co-op specs (e.g. `Online 4-Player`, `Crossplay Ready`) at a glance.
 
 ---

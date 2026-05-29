@@ -202,6 +202,9 @@ button {
   border-bottom: 1px solid var(--glass-border);
   background: rgba(11, 15, 25, 0.8);
   backdrop-filter: blur(12px);
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
 }
 
 .dashboard-grid {
@@ -288,4 +291,469 @@ button {
 
 .animate-fade-in {
   animation: fadeIn 0.4s ease forwards;
+}
+
+/* Game card */
+.game-card {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  position: relative;
+}
+
+.game-card:hover {
+  z-index: 50;
+}
+
+.game-card-thumb {
+  position: relative;
+  height: 160px;
+  width: 100%;
+  overflow: visible;
+}
+
+.game-card-thumb-link {
+  display: block;
+  height: 100%;
+  width: 100%;
+  text-decoration: none;
+}
+
+.game-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.game-card-thumb-link:hover .game-card-img {
+  transform: scale(1.05);
+}
+
+
+.floating-tooltip-anchor {
+  position: absolute;
+  z-index: 10;
+}
+
+.floating-tooltip-anchor.card-indicator--owned {
+  left: 12px;
+  bottom: 12px;
+  width: 36px;
+  height: 36px;
+}
+
+.floating-tooltip-anchor.card-indicator--hype {
+  right: 12px;
+  bottom: 12px;
+  width: 56px;
+  height: 56px;
+}
+
+.card-indicator-btn {
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  border-radius: 50%;
+  background: rgba(11, 15, 25, 0.75);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-indicator-btn--hype {
+  padding: 0;
+}
+
+.floating-tooltip {
+  position: fixed;
+  min-width: 200px;
+  max-width: 280px;
+  padding: 0.75rem 1rem;
+  background: rgba(5, 8, 15, 0.98);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: left;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
+  z-index: 200000;
+  pointer-events: none;
+}
+
+.floating-tooltip--wide {
+  min-width: 260px;
+  max-width: 320px;
+}
+
+.card-tooltip-heading {
+  color: #fff;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.card-tooltip-line {
+  margin-bottom: 0.2rem;
+  line-height: 1.4;
+}
+
+.card-tooltip-final {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--glass-border);
+  color: var(--accent-mint);
+  font-weight: 600;
+}
+
+.card-tooltip-line--owned-yes {
+  color: var(--accent-mint);
+}
+
+.card-tooltip-line--owned-no {
+  color: var(--accent-red);
+}
+
+.card-tooltip-line--status,
+.card-tooltip-line--steam,
+.card-tooltip-line--ownership {
+  font-weight: 500;
+}
+
+.steam-reviews-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.owned-icon-ring {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+}
+
+.owned-icon-fill {
+  fill: var(--accent-mint);
+}
+
+.owned-icon--none .owned-icon-fill {
+  display: none;
+}
+
+.hype-ring-outer {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hype-ring-inner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bg-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.game-card--ru-alert {
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.ru-alert-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(239, 68, 68, 0.95);
+  color: #fff;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  z-index: 12;
+  box-shadow: var(--shadow-neon-red);
+}
+
+.game-card-body {
+  padding: 1.25rem 1.5rem 1.5rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-card-title-link {
+  text-decoration: none;
+}
+
+.game-card-title {
+  margin-bottom: 0.25rem;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.game-card-price {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.sale-price {
+  color: var(--accent-mint);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.sale-original {
+  text-decoration: line-through;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.sale-discount {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.game-card-overview {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-bottom: 0.75rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.game-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.game-card-version {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ru-alert-text {
+  font-size: 0.8rem;
+  color: #fca5a5;
+  margin-bottom: 0.75rem;
+}
+
+.game-card-actions {
+  margin-bottom: 0.75rem;
+}
+
+.game-card-screenshots-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.game-card-tags {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.tag {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* Hype picker */
+.hype-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.hype-picker {
+  padding: 0.75rem;
+  min-width: 200px;
+}
+
+.hype-picker-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hype-picker-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.35rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.hype-picker-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hype-picker-option.active {
+  border-color: var(--accent-mint);
+  color: var(--accent-mint);
+}
+
+/* Screenshots modal */
+.screenshots-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+  padding: 1rem;
+}
+
+.screenshots-modal {
+  max-width: 900px;
+  width: 100%;
+  padding: 1.25rem;
+}
+
+.screenshots-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.screenshots-modal-header h3 {
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.screenshots-modal-body {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.screenshots-modal-img {
+  flex: 1;
+  max-height: 70vh;
+  width: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.carousel-nav {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 1.5rem;
+  line-height: 1;
+  border: 1px solid var(--glass-border);
+}
+
+.carousel-nav:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.screenshots-modal-counter {
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+  padding: 1rem;
+}
+
+.add-game-modal {
+  padding: 2rem;
+  width: 100%;
+  max-width: 500px;
+}
+
+.add-game-modal-title {
+  margin-bottom: 1rem;
+  color: #fff;
+}
+
+.add-game-modal-desc {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.add-game-input {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  margin-bottom: 1.5rem;
+  outline: none;
+}
+
+.add-game-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.add-game-loading-hint {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--accent-yellow);
 }
