@@ -70,13 +70,13 @@ export default function DashboardShell() {
     return counts;
   }, {});
 
-  const isGlobalSearch = Boolean(gameFilters.searchText?.trim());
   const lifecycleGames = games.filter(
     (game) => resolveLibraryState(game) === activeTab
   );
-  const filterSourceGames = isGlobalSearch ? games : lifecycleGames;
+  const filtersScopeGlobal = hasActiveFilters(gameFilters);
+  const filterSourceGames = filtersScopeGlobal ? games : lifecycleGames;
   const filteredGames = filterGames(filterSourceGames, gameFilters, gfnSteamAppIds);
-  const availableTags = collectSteamTags(filterSourceGames);
+  const availableTags = collectSteamTags(games);
   const filtersActive = hasActiveFilters(gameFilters);
 
   return (

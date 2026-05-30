@@ -9,43 +9,59 @@ export function isDynamicBackgroundEnabled() {
   return import.meta.env.VITE_ENABLE_DYNAMIC_BG !== 'false';
 }
 
-function buildThumbnailPool(games) {
+function pickScreenshotUrl(game) {
+  const screenshots = game.screenshots;
+  if (Array.isArray(screenshots)) {
+    const url = screenshots.find(
+      (item) => typeof item === 'string' && item.trim()
+    );
+    if (url) return url.trim();
+  }
+
+  if (typeof game.thumbnail === 'string' && game.thumbnail.trim()) {
+    return game.thumbnail.trim();
+  }
+
+  return null;
+}
+
+function buildBackgroundPool(games) {
   if (!Array.isArray(games) || games.length === 0) return [];
 
   return games
     .filter((game) => resolveLibraryState(game) !== 'banned')
-    .filter((game) => typeof game.thumbnail === 'string' && game.thumbnail.trim())
     .map((game) => ({
-      thumbnail: game.thumbnail.trim(),
+      imageUrl: pickScreenshotUrl(game),
       hype: calculateTotalHype(game).total,
     }))
+    .filter((entry) => entry.imageUrl)
     .sort((a, b) => b.hype - a.hype)
     .slice(0, 5)
-    .map(({ thumbnail }) => thumbnail);
+    .map(({ imageUrl }) => imageUrl);
 }
 
 export default function DynamicBackground({ games }) {
-  const thumbnails = useMemo(() => buildThumbnailPool(games), [games]);
+  const images = useMemo(() => buildBackgroundPool(games), [games]);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    thumbnails.forEach((url) => {
+    images.forEach((url) => {
       const img = new Image();
       img.src = url;
     });
-  }, [thumbnails]);
+  }, [images]);
 
   useEffect(() => {
-    if (thumbnails.length <= 1) return undefined;
+    if (images.length <= 1) return undefined;
 
     const timer = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % thumbnails.length);
+      setActiveIndex((current) => (current + 1) % images.length);
     }, SLIDE_DURATION_MS);
 
     return () => window.clearInterval(timer);
-  }, [thumbnails.length]);
+  }, [images.length]);
 
-  if (!isDynamicBackgroundEnabled() || thumbnails.length === 0) {
+  if (!isDynamicBackgroundEnabled() || images.length === 0) {
     return null;
   }
 
@@ -55,7 +71,7 @@ export default function DynamicBackground({ games }) {
       aria-hidden="true"
       style={{ '--dynamic-bg-fade-ms': `${CROSSFADE_DURATION_MS}ms` }}
     >
-      {thumbnails.map((url, index) => (
+      {images.map((url, index) => (
         <div
           key={url}
           className={`dynamic-bg-layer${index === activeIndex ? ' dynamic-bg-layer--active' : ''}`}

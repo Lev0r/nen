@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { DEFAULT_GAME_FILTERS, hasActiveFilters } from '../utils/gameFilters';
 import { LIBRARY_STATES, getLibraryStateLabel } from '../utils/libraryState';
 
@@ -18,8 +18,40 @@ const OWNERSHIP_OPTIONS = [
 
 export default function GameFiltersBar({ filters, onChange, availableTags, resultCount, totalCount }) {
   const active = hasActiveFilters(filters);
+  const barRef = useRef(null);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (active) {
+      setExpanded(true);
+    }
+  }, [active]);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (barRef.current && !barRef.current.contains(event.target)) {
+        if (!hasActiveFilters(filters)) {
+          setExpanded(false);
+        }
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setExpanded(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [filters]);
 
   const updateFilter = (patch) => {
+    setExpanded(true);
     onChange({ ...filters, ...patch });
   };
 
@@ -41,11 +73,16 @@ export default function GameFiltersBar({ filters, onChange, availableTags, resul
 
   const clearFilters = () => {
     onChange({ ...DEFAULT_GAME_FILTERS });
+    setExpanded(false);
+  };
+
+  const toggleBooleanFilter = (key) => {
+    updateFilter({ [key]: !Boolean(filters[key]) });
   };
 
   return (
-    <div className="game-filters-bar glass-panel">
-      <div className="game-filters-focus-wrapper">
+    <div className="game-filters-bar glass-panel" ref={barRef}>
+      <div className="game-filters-header">
         <div className="game-filters-search-row">
           <svg
             className="game-filters-search-icon"
@@ -74,135 +111,138 @@ export default function GameFiltersBar({ filters, onChange, availableTags, resul
             placeholder="Search"
             value={filters.searchText}
             onChange={(event) => updateFilter({ searchText: event.target.value })}
+            onFocus={() => setExpanded(true)}
             aria-label="Search games by name"
+            aria-expanded={expanded}
           />
         </div>
 
-        <div className="game-filters-expanded">
-          <div className="game-filters-expanded-inner">
-            <div className="game-filters-groups">
-              <div className="game-filters-group">
-                <span className="game-filters-label">Lifecycle</span>
-                <div className="game-filters-chips">
-                  {LIBRARY_STATES.map((state) => (
+        <div className="game-filters-header-actions">
+          <span className="game-filters-count">
+            {resultCount} of {totalCount}
+          </span>
+          {active && (
+            <button
+              type="button"
+              className="btn-secondary game-filters-clear"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className={`game-filters-expanded${expanded ? ' game-filters-expanded--open' : ''}`}>
+        <div className="game-filters-expanded-inner">
+          <div className="game-filters-groups">
+            <div className="game-filters-group">
+              <span className="game-filters-label">Lifecycle</span>
+              <div className="game-filters-chips">
+                {LIBRARY_STATES.map((state) => (
+                  <button
+                    key={state}
+                    type="button"
+                    className={`filter-chip ${
+                      filters.libraryStates?.includes(state) ? 'filter-chip--active' : ''
+                    }`}
+                    onClick={() => toggleLibraryState(state)}
+                  >
+                    {getLibraryStateLabel(state)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="game-filters-group">
+              <span className="game-filters-label">Status</span>
+              <div className="game-filters-chips">
+                {DEVELOPMENT_STATUS_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`filter-chip ${filters.developmentStatus === option.value ? 'filter-chip--active' : ''}`}
+                    onClick={() => updateFilter({ developmentStatus: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="game-filters-group">
+              <span className="game-filters-label">Ownership</span>
+              <div className="game-filters-chips">
+                {OWNERSHIP_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`filter-chip ${filters.ownership === option.value ? 'filter-chip--active' : ''}`}
+                    onClick={() => updateFilter({ ownership: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {availableTags.length > 0 && (
+              <div className="game-filters-group game-filters-group--tags">
+                <span className="game-filters-label">Steam tags</span>
+                <div className="game-filters-chips game-filters-chips--tags">
+                  {availableTags.map((tag) => (
                     <button
-                      key={state}
+                      key={tag}
                       type="button"
-                      className={`filter-chip ${
-                        filters.libraryStates?.includes(state) ? 'filter-chip--active' : ''
+                      className={`filter-chip filter-chip--tag ${
+                        filters.steamTags?.includes(tag) ? 'filter-chip--active' : ''
                       }`}
-                      onClick={() => toggleLibraryState(state)}
+                      onClick={() => toggleSteamTag(tag)}
                     >
-                      {getLibraryStateLabel(state)}
+                      {tag}
                     </button>
                   ))}
                 </div>
               </div>
+            )}
+          </div>
 
-              <div className="game-filters-group">
-                <span className="game-filters-label">Status</span>
-                <div className="game-filters-chips">
-                  {DEVELOPMENT_STATUS_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={`filter-chip ${filters.developmentStatus === option.value ? 'filter-chip--active' : ''}`}
-                      onClick={() => updateFilter({ developmentStatus: option.value })}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="game-filters-group">
-                <span className="game-filters-label">Ownership</span>
-                <div className="game-filters-chips">
-                  {OWNERSHIP_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={`filter-chip ${filters.ownership === option.value ? 'filter-chip--active' : ''}`}
-                      onClick={() => updateFilter({ ownership: option.value })}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {availableTags.length > 0 && (
-                <div className="game-filters-group game-filters-group--tags">
-                  <span className="game-filters-label">Steam tags</span>
-                  <div className="game-filters-chips game-filters-chips--tags">
-                    {availableTags.map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        className={`filter-chip filter-chip--tag ${
-                          filters.steamTags?.includes(tag) ? 'filter-chip--active' : ''
-                        }`}
-                        onClick={() => toggleSteamTag(tag)}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="game-filters-footer">
-              <label className="game-filters-switch">
-                <span className="game-filters-switch-label">On sale only</span>
-                <input
-                  type="checkbox"
-                  className="game-filters-switch-input"
-                  checked={Boolean(filters.onSaleOnly)}
-                  onChange={(event) => updateFilter({ onSaleOnly: event.target.checked })}
-                />
-                <span className="game-filters-switch-track" aria-hidden="true">
-                  <span className="game-filters-switch-thumb" />
-                </span>
-              </label>
-
-              <label className="game-filters-switch">
-                <span className="game-filters-switch-label">GeForce NOW</span>
-                <input
-                  type="checkbox"
-                  className="game-filters-switch-input"
-                  checked={Boolean(filters.gfnOnly)}
-                  onChange={(event) => updateFilter({ gfnOnly: event.target.checked })}
-                />
-                <span className="game-filters-switch-track" aria-hidden="true">
-                  <span className="game-filters-switch-thumb" />
-                </span>
-              </label>
-
-              <label className="game-filters-switch">
-                <span className="game-filters-switch-label">Update available</span>
-                <input
-                  type="checkbox"
-                  className="game-filters-switch-input"
-                  checked={Boolean(filters.updateAvailableOnly)}
-                  onChange={(event) =>
-                    updateFilter({ updateAvailableOnly: event.target.checked })
-                  }
-                />
-                <span className="game-filters-switch-track" aria-hidden="true">
-                  <span className="game-filters-switch-thumb" />
-                </span>
-              </label>
-
-              <span className="game-filters-count">
-                {resultCount} of {totalCount}
+          <div className="game-filters-footer">
+            <button
+              type="button"
+              className={`game-filters-switch${filters.onSaleOnly ? ' game-filters-switch--on' : ''}`}
+              aria-pressed={Boolean(filters.onSaleOnly)}
+              onClick={() => toggleBooleanFilter('onSaleOnly')}
+            >
+              <span className="game-filters-switch-label">On sale only</span>
+              <span className="game-filters-switch-track" aria-hidden="true">
+                <span className="game-filters-switch-thumb" />
               </span>
-              {active && (
-                <button type="button" className="btn-secondary game-filters-clear" onClick={clearFilters}>
-                  Clear filters
-                </button>
-              )}
-            </div>
+            </button>
+
+            <button
+              type="button"
+              className={`game-filters-switch${filters.gfnOnly ? ' game-filters-switch--on' : ''}`}
+              aria-pressed={Boolean(filters.gfnOnly)}
+              onClick={() => toggleBooleanFilter('gfnOnly')}
+            >
+              <span className="game-filters-switch-label">GeForce NOW</span>
+              <span className="game-filters-switch-track" aria-hidden="true">
+                <span className="game-filters-switch-thumb" />
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`game-filters-switch${filters.updateAvailableOnly ? ' game-filters-switch--on' : ''}`}
+              aria-pressed={Boolean(filters.updateAvailableOnly)}
+              onClick={() => toggleBooleanFilter('updateAvailableOnly')}
+            >
+              <span className="game-filters-switch-label">Update available</span>
+              <span className="game-filters-switch-track" aria-hidden="true">
+                <span className="game-filters-switch-thumb" />
+              </span>
+            </button>
           </div>
         </div>
       </div>

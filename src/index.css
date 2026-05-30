@@ -360,13 +360,25 @@ button {
   -webkit-backdrop-filter: blur(16px);
 }
 
-.game-filters-focus-wrapper {
-  width: 100%;
+.game-filters-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.game-filters-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .game-filters-search-row {
   position: relative;
-  width: 100%;
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
 .game-filters-search-icon {
@@ -390,9 +402,13 @@ button {
     opacity 0.3s ease;
 }
 
-.game-filters-focus-wrapper:focus-within .game-filters-expanded {
+.game-filters-expanded--open {
   grid-template-rows: 1fr;
   opacity: 1;
+}
+
+.game-filters-expanded--open .game-filters-expanded-inner {
+  overflow: visible;
 }
 
 .game-filters-expanded-inner {
@@ -474,6 +490,11 @@ button {
   gap: 0.6rem;
   cursor: pointer;
   user-select: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
 }
 
 .game-filters-switch-label {
@@ -481,14 +502,6 @@ button {
   font-weight: 500;
   color: var(--text-main);
   white-space: nowrap;
-}
-
-.game-filters-switch-input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
 }
 
 .game-filters-switch-track {
@@ -513,19 +526,20 @@ button {
   transition: transform 0.2s ease, background 0.2s ease;
 }
 
-.game-filters-switch-input:checked + .game-filters-switch-track {
+.game-filters-switch--on .game-filters-switch-track {
   background: rgba(16, 185, 129, 0.25);
   border-color: rgba(16, 185, 129, 0.55);
 }
 
-.game-filters-switch-input:checked + .game-filters-switch-track .game-filters-switch-thumb {
+.game-filters-switch--on .game-filters-switch-track .game-filters-switch-thumb {
   transform: translateX(18px);
   background: var(--accent-mint);
 }
 
-.game-filters-switch-input:focus-visible + .game-filters-switch-track {
+.game-filters-switch:focus-visible {
   outline: 2px solid var(--accent-mint);
   outline-offset: 2px;
+  border-radius: 8px;
 }
 
 .game-filters-count {
@@ -547,8 +561,9 @@ button {
 }
 
 .game-filters-chips--tags {
-  max-height: 6.5rem;
+  max-height: min(40vh, 18rem);
   overflow-y: auto;
+  padding-right: 0.25rem;
 }
 
 .filter-chip {
@@ -666,6 +681,17 @@ button {
   
   .game-filters-bar {
     padding: 0.85rem 1rem 1rem;
+  }
+
+  .game-filters-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .game-filters-header-actions {
+    margin-left: 0;
+    justify-content: space-between;
+    width: 100%;
   }
 
   .game-filters-footer {
@@ -1139,6 +1165,9 @@ button {
 .hype-picker {
   padding: 0.75rem;
   min-width: 200px;
+  background: rgba(10, 14, 22, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
 }
 
 .hype-picker-title {
@@ -1155,9 +1184,9 @@ button {
   text-align: left;
   padding: 0.55rem 0.75rem;
   margin-bottom: 0.35rem;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-main);
-  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   font-size: 0.9rem;
 }
@@ -1263,6 +1292,7 @@ button {
   padding: 0;
   width: 100%;
   max-width: 720px;
+  height: min(90vh, 820px);
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -1275,7 +1305,7 @@ button {
 }
 
 .game-edit-modal-body {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
