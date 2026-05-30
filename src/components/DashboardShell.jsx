@@ -2,27 +2,47 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
+import GameFiltersBar from './GameFiltersBar';
 import { useGames } from '../services/db';
 import { getNickname } from '../utils/userConfig';
+import {
+  LIBRARY_STATES,
+  resolveLibraryState,
+  getLibraryStateLabel,
+} from '../utils/libraryState';
+import {
+  DEFAULT_GAME_FILTERS,
+  filterGames,
+  collectSteamTags,
+  hasActiveFilters,
+} from '../utils/gameFilters';
+
+const LIFECYCLE_TABS = LIBRARY_STATES.map((id) => ({
+  id,
+  label: getLibraryStateLabel(id),
+}));
 
 export default function DashboardShell() {
   const { currentUser, userIndex, logout } = useAuth();
   const { games, loading } = useGames('default_app');
 
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [gameFilters, setGameFilters] = useState(DEFAULT_GAME_FILTERS);
 
-  const filteredGames = games.filter((game) => {
-    if (game.abandoned) return false;
+  const tabCounts = LIFECYCLE_TABS.reduce((counts, tab) => {
+    counts[tab.id] = games.filter(
+      (game) => resolveLibraryState(game) === tab.id
+    ).length;
+    return counts;
+  }, {});
 
-    if (activeTab === 'ready') {
-      return game.owned.user0 && game.owned.user1 && !game.finished;
-    }
-    if (activeTab === 'finished') {
-      return game.finished;
-    }
-    return true;
-  });
+  const lifecycleGames = games.filter(
+    (game) => resolveLibraryState(game) === activeTab
+  );
+  const filteredGames = filterGames(lifecycleGames, gameFilters);
+  const availableTags = collectSteamTags(lifecycleGames);
+  const filtersActive = hasActiveFilters(gameFilters);
 
   return (
     <div className="app-layout">
@@ -33,24 +53,19 @@ export default function DashboardShell() {
         </div>
 
         <nav className="sidebar-nav">
-          <div
-            className={`nav-item ${activeTab === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveTab('all')}
-          >
-            All Active
-          </div>
-          <div
-            className={`nav-item ${activeTab === 'ready' ? 'active' : ''}`}
-            onClick={() => setActiveTab('ready')}
-          >
-            Ready to Play
-          </div>
-          <div
-            className={`nav-item ${activeTab === 'finished' ? 'active' : ''}`}
-            onClick={() => setActiveTab('finished')}
-          >
-            Finished
-          </div>
+          {LIFECYCLE_TABS.map((tab) => (
+            <div
+              key={tab.id}
+              className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setGameFilters(DEFAULT_GAME_FILTERS);
+              }}
+            >
+              <span>{tab.label}</span>
+              <span className="nav-item-badge">{tabCounts[tab.id]}</span>
+            </div>
+          ))}
         </nav>
       </aside>
 
@@ -76,28 +91,58 @@ export default function DashboardShell() {
           </div>
         </header>
 
+        {!loading && lifecycleGames.length > 0 && (
+          <GameFiltersBar
+            filters={gameFilters}
+            onChange={setGameFilters}
+            availableTags={availableTags}
+            resultCount={filteredGames.length}
+            totalCount={lifecycleGames.length}
+          />
+        )}
+
         <div className="dashboard-grid">
           {loading ? (
             <p style={{ color: 'var(--text-muted)' }}>Loading games from Firestore...</p>
           ) : filteredGames.length > 0 ? (
             filteredGames.map((game) => <GameCard key={game.id} game={game} />)
           ) : (
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                textAlign: 'center',
-                padding: '3rem',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <p style={{ marginBottom: '1rem' }}>No games in this view.</p>
-              <p style={{ fontSize: '0.9rem' }}>Use + Add Game to import from Steam.</p>
+            <div className="dashboard-empty">
+              {lifecycleGames.length === 0 ? (
+                <>
+                  <p>No games in this view.</p>
+                  <p className="dashboard-empty-hint">Use + Add Game to import from Steam.</p>
+                </>
+              ) : filtersActive ? (
+                <>
+                  <p>No games match your filters.</p>
+                  <p className="dashboard-empty-hint">
+                    Try clearing filters or adjusting your search.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-secondary dashboard-empty-action"
+                    onClick={() => setGameFilters(DEFAULT_GAME_FILTERS)}
+                  >
+                    Clear filters
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p>No games in this view.</p>
+                  <p className="dashboard-empty-hint">Use + Add Game to import from Steam.</p>
+                </>
+              )}
             </div>
           )}
         </div>
       </main>
 
-      <AddGameModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <AddGameModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        games={games}
+      />
     </div>
   );
 }

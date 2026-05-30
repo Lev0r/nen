@@ -14,17 +14,86 @@ import {
 import { updateGame } from '../services/db';
 import HypePicker from './HypePicker';
 import ScreenshotsModal from './ScreenshotsModal';
+import LifecycleModal from './LifecycleModal';
 import FloatingTooltip from './FloatingTooltip';
+import {
+  resolveLibraryState,
+  getLibraryStateLabel,
+  getLibraryStateColor,
+} from '../utils/libraryState';
 
 const APP_ID = 'default_app';
 
 function OwnedIcon({ stage }) {
-  const fill = stage === 0 ? 'none' : stage === 1 ? 'half' : 'full';
+  if (stage === 0) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="owned-icon owned-icon--none"
+        aria-hidden="true"
+      >
+        <path
+          d="M8 10h8l1.5 4v7H6.5v-7L8 10z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9 10V8a3 3 0 016 0v2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+        />
+        <path
+          d="M8 14.5h8"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  if (stage === 1) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="owned-icon owned-icon--half"
+        aria-hidden="true"
+      >
+        <path d="M12 2.5L18.5 9 15.5 21.5h-7L5.5 9 12 2.5z" fill="currentColor" />
+        <path
+          d="M12 2.5v19M5.5 9h13M8.5 15.5h7"
+          fill="none"
+          stroke="rgba(0,0,0,0.25)"
+          strokeWidth="1"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
   return (
-    <svg width="28" height="28" viewBox="0 0 28 28" className={`owned-icon owned-icon--${fill}`}>
-      <circle cx="14" cy="14" r="12" className="owned-icon-ring" />
-      {fill === 'half' && <path d="M14 2 A12 12 0 0 1 14 26 Z" className="owned-icon-fill" />}
-      {fill === 'full' && <circle cx="14" cy="14" r="10" className="owned-icon-fill" />}
+    <svg
+      viewBox="0 0 24 24"
+      className="owned-icon owned-icon--full"
+      aria-hidden="true"
+    >
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M4.5 19.5l9.5-9.5" />
+        <path d="M12.5 8.5l2-3.5 2.5 1.5-2 3.5" />
+        <path d="M19.5 19.5l-9.5-9.5" />
+        <path d="M11.5 8.5l-2-3.5-2.5 1.5 2 3.5" />
+      </g>
     </svg>
   );
 }
@@ -94,13 +163,16 @@ export default function GameCard({ game }) {
   const { userIndex } = useAuth();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [screenshotsOpen, setScreenshotsOpen] = useState(false);
+  const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
   const hypeRingRef = useRef(null);
 
   const { total, breakdown } = calculateTotalHype(game);
   const scoreColor = getScoreColor(total);
   const steamUrl = game.url || `https://store.steampowered.com/app/${game.id}/`;
+  const steamDbUrl = `https://steamdb.info/app/${game.id}/`;
   const ownedStage = getOwnershipStage(game.owned);
+  const bothOwn = game.owned?.user0 && game.owned?.user1;
   const statusColor = getStatusColor(game.developmentStatus);
   const currentTier = getTier(game, `user${userIndex}`);
   const hasScreenshots = game.screenshots?.length > 0;
@@ -108,6 +180,10 @@ export default function GameCard({ game }) {
   const hasReviews = game.steamReviewPercent != null && game.steamReviewPercent !== '';
   const ruAlert = isRuDeveloperAlert(game);
   const salePercent = game.discountPercent ?? (game.isOnSale ? null : 0);
+  const libraryState = resolveLibraryState(game);
+  const lifecycleColor = getLibraryStateColor(libraryState);
+  const lifecycleLabel = getLibraryStateLabel(libraryState);
+  const hasUpdateSinceState = game.hasUpdateSinceState === true;
 
   const toggleOwned = async () => {
     const key = `owned.user${userIndex}`;
@@ -186,6 +262,37 @@ export default function GameCard({ game }) {
             </button>
           </FloatingTooltip>
 
+          {hasScreenshots && (
+            <button
+              type="button"
+              className="card-thumb-overlay-btn game-card-screenshots-btn"
+              onClick={() => setScreenshotsOpen(true)}
+              aria-label="View screenshots"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect
+                  x="3"
+                  y="5"
+                  width="18"
+                  height="14"
+                  rx="2"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                />
+                <circle cx="8.5" cy="10.5" r="1.75" fill="currentColor" stroke="none" />
+                <path
+                  d="M3 16l4.5-4.5 3 3L15 10l6 6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
+
           {ruAlert && (
             <span
               className="ru-alert-badge"
@@ -201,25 +308,48 @@ export default function GameCard({ game }) {
             <h3 className="game-card-title">{game.name}</h3>
           </a>
 
-          <p className="game-card-price">
-            {game.isOnSale ? (
-              <span className="sale-price">
-                <span className="sale-original">{game.originalPrice}</span>
-                {game.price}
-                {salePercent > 0 && (
-                  <span className="sale-discount">-{salePercent}%</span>
-                )}
-              </span>
-            ) : (
-              game.price
-            )}
-          </p>
+          {!bothOwn && (
+            <p className="game-card-price">
+              {game.isOnSale ? (
+                <span className="sale-price">
+                  <span className="sale-original">{game.originalPrice}</span>
+                  {game.price}
+                  {salePercent > 0 && (
+                    <span className="sale-discount">-{salePercent}%</span>
+                  )}
+                </span>
+              ) : (
+                game.price
+              )}
+            </p>
+          )}
 
           {game.steamOverview && (
             <p className="game-card-overview">{game.steamOverview}</p>
           )}
 
           <div className="game-card-meta">
+            <button
+              type="button"
+              className={`lifecycle-badge lifecycle-badge--${libraryState}`}
+              style={{
+                color: lifecycleColor,
+                borderColor: lifecycleColor,
+                background: `${lifecycleColor}22`,
+              }}
+              onClick={() => setLifecycleOpen(true)}
+              title="Change library lifecycle state"
+            >
+              {lifecycleLabel}
+            </button>
+            {hasUpdateSinceState && (
+              <span
+                className="update-available-badge"
+                title="Version changed since this state was set. Re-assign the lifecycle state to mute."
+              >
+                Update
+              </span>
+            )}
             <span
               className="status-badge"
               style={{
@@ -245,6 +375,11 @@ export default function GameCard({ game }) {
             {game.currentVersion && (
               <span className="game-card-version">{game.currentVersion}</span>
             )}
+            {game.geforceNowReady && (
+              <span className="gfn-badge" title="Available on GeForce NOW">
+                GFN
+              </span>
+            )}
           </div>
 
           {ruAlert && (
@@ -254,25 +389,19 @@ export default function GameCard({ game }) {
           )}
 
           <div className="game-card-actions">
-            {hasScreenshots && (
-              <button
-                type="button"
-                className="btn-secondary game-card-screenshots-btn"
-                onClick={() => setScreenshotsOpen(true)}
-              >
-                Screenshots
-              </button>
-            )}
+            <a
+              href={steamDbUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-secondary game-card-link-btn"
+            >
+              SteamDB
+            </a>
           </div>
 
           <div className="game-card-tags">
             {game.coopSpecs?.splitScreen && <span className="tag">Split Screen</span>}
             {game.coopSpecs?.crossPlay && <span className="tag">Cross-play</span>}
-            {game.tags?.map((tag) => (
-              <span key={tag} className="tag">
-                {tag}
-              </span>
-            ))}
           </div>
         </div>
       </div>
@@ -291,6 +420,14 @@ export default function GameCard({ game }) {
           images={game.screenshots}
           gameName={game.name}
           onClose={() => setScreenshotsOpen(false)}
+        />
+      )}
+
+      {lifecycleOpen && (
+        <LifecycleModal
+          game={game}
+          isOpen={lifecycleOpen}
+          onClose={() => setLifecycleOpen(false)}
         />
       )}
     </>

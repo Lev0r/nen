@@ -16,7 +16,7 @@ The application is architected as a lightweight, reactive, single-page applicati
 | **Authentication** | Firebase Auth | Secure Google Sign-In only; mapped to strict allowed user indexes. |
 | **Hosting Platform** | Firebase Hosting | Free tier SSL-enabled static asset edge hosting. |
 | **AI Integration** | Gemini API (`gemini-2.5-flash`) | Asynchronous, automated vetting for developer screening. |
-| **CORS Engine** | Proxy Helper / Scrapers | Frontend-only fetches bypassed via CORS proxy or client-side fallbacks. |
+| **Backend API** | Firebase Cloud Functions | Steam scrape, Gemini vetting, scheduled refreshes — `europe-west1`. Client does not call Steam directly. |
 
 ```mermaid
 graph TD
@@ -101,9 +101,16 @@ The database structure is designed to keep static app configurations decoupled f
   },
   "steamOverview": "Short Steam store description shown on the card.",
   "steamReviewPercent": 94,
-  "finished": false,
-  "abandoned": false,
-  "tags": ["replayable", "waiting for next update"],
+  "libraryState": "active",
+  "stateMeta": {
+    "versionAtEntry": "v1.4.2",
+    "enteredAt": "Firestore Timestamp",
+    "note": ""
+  },
+  "hasUpdateSinceState": false,
+  "lastVersionCheck": "Firestore Timestamp",
+  "steamTags": ["Action", "Co-op", "Early Access"],
+  "geforceNowReady": false,
   "playerCount": 12432,
   "screenshots": [
     "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/APP_ID/ss_1.jpg",
@@ -126,8 +133,14 @@ The database structure is designed to keep static app configurations decoupled f
 * **`hypeTier`**: Per-user personal hype tier: `worthless_crystal` | `morkite_found` | `we_rich` (default `morkite_found`). Each tier applies a multiplier to a shared base of `5` for that user's contribution to Total Hype.
 * **`steamOverview`**: Short description from Steam (`short_description`) displayed on the game card.
 * **`steamReviewPercent`**: Steam positive review percentage (`0`–`100`), used as a minor factor in Total Hype (less impact than `developmentStatus`).
-* **`finished`**: Boolean flag indicating if the game has been completed.
-* **`abandoned`**: Boolean archive flag to soft-delete games from main listings.
+* **`libraryState`**: Primary lifecycle enum — `active` | `replayable` | `waiting_for_updates` | `finished` | `banned`. Replaces legacy `finished`, `abandoned`, and custom user `tags`.
+* **`stateMeta`**: Snapshot when entering (or re-entering) a lifecycle state. `versionAtEntry` copies `currentVersion` at that moment; `enteredAt` is a timestamp; `note` is optional text (encouraged for `banned`). Re-assigning the **same** state refreshes the snapshot and clears update alerts ("mute").
+* **`hasUpdateSinceState`**: Set by scheduled refresh when Steam `currentVersion` differs from `stateMeta.versionAtEntry`. Drives an update badge on the card — no news feed UI.
+* **`lastVersionCheck`**: Timestamp of last background version check; `finished` games checked ~weekly, others daily.
+* **`steamTags`**: Steam genres/categories (from scrape) — used for **search/filter only**, not lifecycle management.
+* **`geforceNowReady`**: Boolean — true when the game is verified available on GeForce NOW.
+
+**Legacy fields** (`finished`, `abandoned`, `tags`): no longer written. Read fallback maps `abandoned` → `banned`, `finished` → `finished`, else `active`.
 
 ---
 
@@ -149,15 +162,33 @@ The database structure is designed to keep static app configurations decoupled f
   }
   ```
 
-### F2: Dynamic Views & Filtering
-Standard views must dynamically filter the game library (always omitting games where `abandoned === true` unless inside the Archive tab):
+### F2: Library Views, Lifecycle & Search
 
-* **All Active**: `abandoned === false`
-* **Ready to Play**: `owned.user0 === true && owned.user1 === true && finished === false && abandoned === false`
-* **Finished**: `finished === true && abandoned === false`
-* **On Sale**: `isOnSale === true && abandoned === false`
-* **Replayable**: `tags.includes("replayable") && abandoned === false`
-* **Abandoned (Hidden Archive)**: `abandoned === true`. Showable *only* in a dedicated, passcode-secured or tucked-away Settings/Archive view.
+#### Sidebar lifecycle tabs (primary navigation)
+Each tab filters by `libraryState`:
+
+| Tab | Filter |
+| :--- | :--- |
+| **Active** | `libraryState === 'active'` |
+| **Replayable** | `libraryState === 'replayable'` |
+| **Waiting for updates** | `libraryState === 'waiting_for_updates'` |
+| **Finished** | `libraryState === 'finished'` |
+| **Banned** | `libraryState === 'banned'` |
+
+Lifecycle is changed via a **modal** on the game card (all states visible, optional note). Re-selecting the current state re-baselines `stateMeta` and clears `hasUpdateSinceState`.
+
+#### Search & secondary filters (dashboard toolbar)
+Within the active sidebar tab, users can search/filter by:
+* Game **name** (text)
+* **Steam tags** (`steamTags` from scrape)
+* **Development status** (`released` / `early_access` / `tba`)
+* **Ownership** (neither / one / both own) — optional chips
+* **On sale** — secondary filter (`isOnSale`), not a lifecycle tab
+
+**Deferred:** "Ready to Play" preset filter (both own + active lifecycle). Archive passcode for Banned tab.
+
+#### Update notifications (no news feed)
+Scheduled Cloud Function compares Steam `currentVersion` to `stateMeta.versionAtEntry`. When they differ, set `hasUpdateSinceState = true` and show a badge on the card. User mutes by re-assigning the same lifecycle state.
 
 ---
 
@@ -208,8 +239,11 @@ Games sort **descending by Total Hype** (highest first).
 Hovering the Total Hype ring shows how the number was built: each user's nickname, tier label, personal effective value, then multipliers for ownership, status, and Steam reviews, then the final Total Hype.
 
 > [!WARNING]
-> **Vetting Override**
-> If `ruDeveloperAlert === true`, Total Hype is **forced to `0`** (ring empty, red neon border).
+> **Total Hype overrides (non-negotiable)**
+> Total Hype is **forced to `0`** (tier picker disabled) when any of:
+> * `ruDeveloperAlert === true` — red neon border
+> * `libraryState === 'finished'`
+> * `libraryState === 'banned'`
 
 ---
 
@@ -244,11 +278,10 @@ const parseAppId = (input) => {
 };
 ```
 
-#### 2. Crawling Strategy
-To bypass CORS restrictions on client-side requests, the app will attempt a waterfall fetching model:
-1. **Primary Request**: Dispatch request to the Steam Store API via a configured CORS helper:
-   `https://api.allorigins.win/get?url=${encodeURIComponent('https://store.steampowered.com/api/appdetails?appids=' + appId)}`
-2. **Fallback Scraper**: Parse raw HTML metadata of the Steam Store page using a client-side parser if the API limit or proxy is offline.
+#### 2. Crawling Strategy (Cloud Functions)
+All Steam HTTP calls run server-side in Cloud Functions (`functions/steam.js`). Responses must be **cached** (in-memory or Firestore cache collection with TTL) to respect rate limits and reduce Blaze cost. The client calls `addGameFromSteam` and scheduled refresh functions only.
+
+**Duplicate guard:** `addGameFromSteam` must reject (or return a clear error) if a document with the same Steam App ID already exists.
 
 #### 3. Field Extractor Mapping
 Extract details from the API response payload (`data[appId].data`):
@@ -275,6 +308,18 @@ Extract details from the API response payload (`data[appId].data`):
   * **Split Screen** $\rightarrow$ Presence of ID `39` (Shared/Split Screen)
   * **Cross-Play** $\rightarrow$ Presence of ID `48` (Cross-Platform Multiplayer)
   * **Max Players** $\rightarrow$ Scraped or fallback defaults based on genre (default `4`).
+* **`steamTags`** $\rightarrow$ `genres[].description` and relevant `categories[].description` (lowercase), for search/filter.
+* **`geforceNowReady`** $\rightarrow$ Verify against NVIDIA GeForce NOW catalog/API for the Steam App ID; store boolean, show badge on card when true.
+* **`libraryState`** $\rightarrow$ Default `"active"` on import; set `stateMeta.versionAtEntry` to scraped `currentVersion`.
+
+---
+
+### F6: Card display rules
+
+* **Price hidden** when both users own the game (`owned.user0 && owned.user1`).
+* **GeForce NOW badge** when `geforceNowReady === true`.
+* **SteamDB link** — `https://steamdb.info/app/{appId}/` in card actions.
+* **Owned indicator** — three distinct icons (not circles): backpack / crystal / crossed pickaxes with gray → amber → green.
 
 ---
 
@@ -285,7 +330,10 @@ The dashboard should feel like a premium, sleek gaming platform (similar to Stea
 * **Color Palette**: Sleek obsidian dark mode (`#0B0F19`), neon mint accent for match scores, crimson red for RU alerts, and vibrant blue for interactive elements.
 * **Aero Glassmorphism**: Cards use translucent backdrop filters (`backdrop-filter: blur(12px) bg-opacity-40`).
 * **Total Hype ring**: Bottom-right on the card thumbnail; shows the Total Hype integer **without a `%` symbol**. Color scales red → yellow → mint by score. Click opens a small tier picker for the **active user only**. Hover shows the full score breakdown tooltip.
-* **Owned indicator**: Bottom-left on the thumbnail; three-stage icon (none / one owner / both). Click toggles ownership for the active user. Hover tooltip lists each nickname and owned state.
+* **Owned indicator**: Bottom-left on the thumbnail; three distinct icons (backpack / crystal / pickaxes). Click toggles ownership for the active user. Hover tooltip lists each nickname and owned state.
+* **Price**: Hidden when both users own the game.
+* **GeForce NOW**: Small badge/icon when `geforceNowReady`.
+* **Lifecycle badge**: Opens lifecycle modal; update pulse badge when `hasUpdateSinceState`.
 * **Steam overview**: Truncated `steamOverview` text in the card body (from Steam `short_description` when scraped).
 * **Development status**: Color-coded — green (`released`), yellow (`early_access`), red (`tba`).
 * **Screenshots**: Dedicated button opens a modal carousel (not hover-on-card).

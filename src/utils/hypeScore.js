@@ -1,4 +1,5 @@
 import { getNickname } from './userConfig';
+import { resolveLibraryState } from './libraryState';
 
 export const HYPE_TIERS = {
   worthless_crystal: { label: 'Worthless Crystal', multiplier: 0.5 },
@@ -95,6 +96,26 @@ export function calculateTotalHype(game) {
       breakdown: {
         override: true,
         message: 'Russian developer alert — Total Hype locked to 0',
+      },
+    };
+  }
+
+  const libraryState = resolveLibraryState(game);
+  if (libraryState === 'finished') {
+    return {
+      total: 0,
+      breakdown: {
+        override: true,
+        message: 'Finished — Total Hype locked to 0',
+      },
+    };
+  }
+  if (libraryState === 'banned') {
+    return {
+      total: 0,
+      breakdown: {
+        override: true,
+        message: 'Banned — Total Hype locked to 0',
       },
     };
   }

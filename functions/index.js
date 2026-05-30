@@ -3,6 +3,7 @@ const { getFirestore } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { fetchSteamGame } = require('./steam');
 const { vetAllDevelopers } = require('./gemini');
+const { refreshLibraryVersions } = require('./versionRefresh');
 
 initializeApp();
 
@@ -48,6 +49,11 @@ exports.addGameFromSteam = onCall(
     const db = getFirestore();
     const gameRef = db.doc(`artifacts/${appId}/public/data/games/${game.id}`);
 
+    const existing = await gameRef.get();
+    if (existing.exists) {
+      throw new HttpsError('already-exists', 'This game is already in your library.');
+    }
+
     await gameRef.set(game);
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -69,3 +75,5 @@ exports.addGameFromSteam = onCall(
     }
   }
 );
+
+exports.refreshLibraryVersions = refreshLibraryVersions;

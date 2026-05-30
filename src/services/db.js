@@ -2,10 +2,16 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { calculateTotalHype } from '../utils/hypeScore';
+import { buildStateMetaUpdates } from '../utils/libraryState';
 
 export function updateGame(appId, gameId, updates) {
   const gameRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
   return updateDoc(gameRef, updates);
+}
+
+export function setGameLifecycle(appId, gameId, state, note, currentVersion) {
+  const gameRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
+  return updateDoc(gameRef, buildStateMetaUpdates(state, note, currentVersion));
 }
 
 export function useGames(appId = 'default_app') {

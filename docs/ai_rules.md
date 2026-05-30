@@ -17,12 +17,14 @@ This document outlines the strict rules and constraints that any AI coding assis
 ## 3. Database Interactions
 
 - **Schema Strictness:** Adhere exactly to the Firestore schema defined in `manifest_of_understanding.md`.
+- **Lifecycle:** Games are organized by `libraryState` only — no custom user tags. Optional notes live in `stateMeta.note`.
+- **Progress tracking:** Check off items in `docs/Implementation Steps.md` when completing features.
 - **Security First:** Never bypass the Firestore Security Rules in client code. Ensure all queries filter based on the active user's permissions where applicable.
 
 ## 4. Feature-Specific Rules
 
-- **Total Hype Formula:** Do not alter the Total Hype formula (documented in `manifest_of_understanding.md` F3) without explicit user permission. The Gemini "Russian Developer" vetting override (`ruDeveloperAlert === true` -> Total Hype = 0) is non-negotiable.
-- **API integrations:** Always handle Steam API and Gemini API failures gracefully. Provide clear UI feedback if scraping fails or the API limit is reached.
+- **Total Hype Formula:** Do not alter the Total Hype formula coefficients (documented in `manifest_of_understanding.md` F3) without explicit user permission. These overrides are non-negotiable: `ruDeveloperAlert`, `libraryState === 'finished'`, and `libraryState === 'banned'` all force Total Hype to `0`.
+- **API integrations:** Always handle Steam API and Gemini API failures gracefully. Cache Steam responses in Cloud Functions. Provide clear UI feedback if scraping fails or the API limit is reached.
 
 ## 5. Development Workflow
 
