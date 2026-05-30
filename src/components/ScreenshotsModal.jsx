@@ -27,7 +27,13 @@ export default function ScreenshotsModal({ images, gameName, onClose }) {
           <button type="button" className="carousel-nav" onClick={prev} aria-label="Previous">
             ‹
           </button>
-          <img src={list[index]} alt={`Screenshot ${index + 1}`} className="screenshots-modal-img" />
+          <div className="screenshots-modal-viewport">
+            <img
+              src={list[index]}
+              alt={`Screenshot ${index + 1}`}
+              className="screenshots-modal-img"
+            />
+          </div>
           <button type="button" className="carousel-nav" onClick={next} aria-label="Next">
             ›
           </button>

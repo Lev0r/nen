@@ -1,12 +1,11 @@
-const { FieldValue } = require('firebase-admin/firestore');
+const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 const { cachedFetchJson } = require('./steamCache');
+const { getConfigDocPath } = require('./gfnSync');
 
 // Ukraine store region — UAH prices, English text from Steam
 const STEAM_CC = 'ua';
 const STEAM_LANG = 'english';
 const APP_DETAILS_URL = `https://store.steampowered.com/api/appdetails?appids=APPID&cc=${STEAM_CC}&l=${STEAM_LANG}`;
-const GFN_GAMES_URL =
-  'https://static.nvidiagrid.net/supported-public-game-list/locales/gfnpc-en-US.json';
 const REVIEW_URLS = (appId) => [
   `https://store.steampowered.com/appreviews/${appId}?json=1&language=english&filter=summary&purchase_type=all`,
   `https://store.steampowered.com/appreviews/${appId}?json=1&language=english&filter=summary&review_type=all`,
@@ -15,7 +14,7 @@ const REVIEW_URLS = (appId) => [
 
 const COOP_CATEGORY_IDS = new Set([9, 38, 39, 48]);
 
-let gfnSteamAppIdsPromise = null;
+let gfnCatalogPromise = null;
 
 function parseAppId(input) {
   const trimmed = String(input || '').trim();
@@ -25,34 +24,32 @@ function parseAppId(input) {
   return digits || trimmed;
 }
 
-function extractSteamAppId(steamUrl) {
-  const match = String(steamUrl || '').match(/\/app\/(\d+)/);
-  return match ? match[1] : null;
-}
-
-async function loadGeForceNowSteamAppIds() {
-  if (!gfnSteamAppIdsPromise) {
-    gfnSteamAppIdsPromise = cachedFetchJson(GFN_GAMES_URL)
-      .then((games) => {
-        const ids = new Set();
-        for (const game of games || []) {
-          if (game.store !== 'Steam' || game.status !== 'AVAILABLE') continue;
-          const appId = extractSteamAppId(game.steamUrl);
-          if (appId) ids.add(appId);
+async function loadGfnCatalogSteamAppIds(appId = 'default_app') {
+  if (!gfnCatalogPromise) {
+    gfnCatalogPromise = getFirestore()
+      .doc(getConfigDocPath(appId))
+      .get()
+      .then((snapshot) => {
+        const steamAppIds = snapshot.data()?.gfnCatalog?.steamAppIds;
+        if (!Array.isArray(steamAppIds)) {
+          return null;
         }
-        return ids;
+        return new Set(steamAppIds.map(String));
       })
       .catch((err) => {
-        gfnSteamAppIdsPromise = null;
+        gfnCatalogPromise = null;
         throw err;
       });
   }
-  return gfnSteamAppIdsPromise;
+  return gfnCatalogPromise;
 }
 
-async function fetchGeForceNowReady(appId) {
+async function fetchGeForceNowReady(appId, configAppId = 'default_app') {
   try {
-    const ids = await loadGeForceNowSteamAppIds();
+    const ids = await loadGfnCatalogSteamAppIds(configAppId);
+    if (!ids) {
+      return false;
+    }
     return ids.has(String(appId));
   } catch (err) {
     console.warn('GeForce NOW lookup failed:', err.message);
@@ -222,6 +219,7 @@ async function fetchSteamGame(steamInput) {
     developmentStatus,
     currentVersion: developmentStatus === 'tba' ? null : currentVersion,
     owned: { user0: false, user1: false },
+    userNotes: { user0: '', user1: '' },
     hypeTier: { user0: 'morkite_found', user1: 'morkite_found' },
     libraryState: 'active',
     stateMeta: {
@@ -246,5 +244,4 @@ module.exports = {
   fetchCurrentVersion,
   fetchPriceAndReviews,
   fetchGeForceNowReady,
-  GFN_GAMES_URL,
 };

@@ -49,6 +49,19 @@ export default function GameFiltersBar({ filters, onChange, availableTags, resul
         </label>
 
         <div className="game-filters-meta">
+          <label className="game-filters-switch">
+            <span className="game-filters-switch-label">On sale only</span>
+            <input
+              type="checkbox"
+              className="game-filters-switch-input"
+              checked={Boolean(filters.onSaleOnly)}
+              onChange={(event) => updateFilter({ onSaleOnly: event.target.checked })}
+            />
+            <span className="game-filters-switch-track" aria-hidden="true">
+              <span className="game-filters-switch-thumb" />
+            </span>
+          </label>
+
           <span className="game-filters-count">
             {resultCount} of {totalCount}
           </span>
@@ -60,67 +73,58 @@ export default function GameFiltersBar({ filters, onChange, availableTags, resul
         </div>
       </div>
 
-      <div className="game-filters-row">
-        <span className="game-filters-label">Status</span>
-        <div className="game-filters-chips">
-          {DEVELOPMENT_STATUS_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={`filter-chip ${filters.developmentStatus === option.value ? 'filter-chip--active' : ''}`}
-              onClick={() => updateFilter({ developmentStatus: option.value })}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="game-filters-row">
-        <span className="game-filters-label">Ownership</span>
-        <div className="game-filters-chips">
-          {OWNERSHIP_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={`filter-chip ${filters.ownership === option.value ? 'filter-chip--active' : ''}`}
-              onClick={() => updateFilter({ ownership: option.value })}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {availableTags.length > 0 && (
-        <div className="game-filters-row">
-          <span className="game-filters-label">Steam tags</span>
-          <div className="game-filters-chips game-filters-chips--tags">
-            {availableTags.map((tag) => (
+      <div className="game-filters-groups">
+        <div className="game-filters-group">
+          <span className="game-filters-label">Status</span>
+          <div className="game-filters-chips">
+            {DEVELOPMENT_STATUS_OPTIONS.map((option) => (
               <button
-                key={tag}
+                key={option.value}
                 type="button"
-                className={`filter-chip filter-chip--tag ${
-                  filters.steamTags?.includes(tag) ? 'filter-chip--active' : ''
-                }`}
-                onClick={() => toggleSteamTag(tag)}
+                className={`filter-chip ${filters.developmentStatus === option.value ? 'filter-chip--active' : ''}`}
+                onClick={() => updateFilter({ developmentStatus: option.value })}
               >
-                {tag}
+                {option.label}
               </button>
             ))}
           </div>
         </div>
-      )}
 
-      <div className="game-filters-row game-filters-row--compact">
-        <label className="game-filters-toggle">
-          <input
-            type="checkbox"
-            checked={Boolean(filters.onSaleOnly)}
-            onChange={(event) => updateFilter({ onSaleOnly: event.target.checked })}
-          />
-          <span>On sale only</span>
-        </label>
+        <div className="game-filters-group">
+          <span className="game-filters-label">Ownership</span>
+          <div className="game-filters-chips">
+            {OWNERSHIP_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`filter-chip ${filters.ownership === option.value ? 'filter-chip--active' : ''}`}
+                onClick={() => updateFilter({ ownership: option.value })}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {availableTags.length > 0 && (
+          <div className="game-filters-group game-filters-group--tags">
+            <span className="game-filters-label">Steam tags</span>
+            <div className="game-filters-chips game-filters-chips--tags">
+              {availableTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`filter-chip filter-chip--tag ${
+                    filters.steamTags?.includes(tag) ? 'filter-chip--active' : ''
+                  }`}
+                  onClick={() => toggleSteamTag(tag)}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

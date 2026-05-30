@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
 import GameFiltersBar from './GameFiltersBar';
-import { useGames } from '../services/db';
+import { useGames, useAppConfig } from '../services/db';
+import { syncGfnCatalog } from '../services/cloudFunctions';
 import { getNickname } from '../utils/userConfig';
 import {
   LIBRARY_STATES,
@@ -16,6 +17,8 @@ import {
   collectSteamTags,
   hasActiveFilters,
 } from '../utils/gameFilters';
+import { reportError } from '../utils/errorReport';
+import ErrorBanner from './ErrorBanner';
 
 const LIFECYCLE_TABS = LIBRARY_STATES.map((id) => ({
   id,
@@ -25,10 +28,39 @@ const LIFECYCLE_TABS = LIBRARY_STATES.map((id) => ({
 export default function DashboardShell() {
   const { currentUser, userIndex, logout } = useAuth();
   const { games, loading } = useGames('default_app');
+  const { config } = useAppConfig('default_app');
 
   const [activeTab, setActiveTab] = useState('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [gameFilters, setGameFilters] = useState(DEFAULT_GAME_FILTERS);
+  const [syncingGfn, setSyncingGfn] = useState(false);
+  const [gfnSyncError, setGfnSyncError] = useState(null);
+
+  const gfnSteamAppIds = useMemo(() => {
+    const ids = config?.gfnCatalog?.steamAppIds;
+    return new Set(Array.isArray(ids) ? ids.map(String) : []);
+  }, [config?.gfnCatalog?.steamAppIds]);
+
+  const gfnSyncedAtLabel = useMemo(() => {
+    const syncedAt = config?.gfnCatalog?.syncedAt;
+    if (!syncedAt) {
+      return null;
+    }
+    const date = syncedAt.toDate ? syncedAt.toDate() : new Date(syncedAt.seconds * 1000);
+    return date.toLocaleDateString();
+  }, [config?.gfnCatalog?.syncedAt]);
+
+  async function handleSyncGfn() {
+    setSyncingGfn(true);
+    setGfnSyncError(null);
+    try {
+      await syncGfnCatalog();
+    } catch (err) {
+      reportError('Sync GeForce', err, setGfnSyncError);
+    } finally {
+      setSyncingGfn(false);
+    }
+  }
 
   const tabCounts = LIFECYCLE_TABS.reduce((counts, tab) => {
     counts[tab.id] = games.filter(
@@ -80,6 +112,23 @@ export default function DashboardShell() {
             >
               + Add Game
             </button>
+            <button
+              className="btn-secondary"
+              style={{ padding: '0.3rem 0.8rem', fontSize: '0.85rem' }}
+              onClick={handleSyncGfn}
+              disabled={syncingGfn}
+            >
+              {syncingGfn ? 'Syncing…' : 'Sync GeForce'}
+            </button>
+            {gfnSyncedAtLabel && (
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                GFN synced {gfnSyncedAtLabel}
+              </span>
+            )}
+            <ErrorBanner
+              message={gfnSyncError}
+              onDismiss={() => setGfnSyncError(null)}
+            />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
@@ -105,7 +154,9 @@ export default function DashboardShell() {
           {loading ? (
             <p style={{ color: 'var(--text-muted)' }}>Loading games from Firestore...</p>
           ) : filteredGames.length > 0 ? (
-            filteredGames.map((game) => <GameCard key={game.id} game={game} />)
+            filteredGames.map((game) => (
+              <GameCard key={game.id} game={game} gfnSteamAppIds={gfnSteamAppIds} />
+            ))
           ) : (
             <div className="dashboard-empty">
               {lifecycleGames.length === 0 ? (

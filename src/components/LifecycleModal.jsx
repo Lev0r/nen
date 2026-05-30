@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { setGameLifecycle } from '../services/db';
+import { reportError } from '../utils/errorReport';
 import {
   LIBRARY_STATES,
   STATE_DESCRIPTIONS,
@@ -46,8 +47,7 @@ export default function LifecycleModal({ game, isOpen, onClose }) {
       );
       onClose();
     } catch (err) {
-      console.error('Lifecycle update failed:', err);
-      setError(err?.message || 'Failed to update lifecycle state.');
+      reportError('Lifecycle save', err, setError);
     } finally {
       setSaving(false);
     }

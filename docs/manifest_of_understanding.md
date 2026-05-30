@@ -64,8 +64,8 @@ The user interface must resolve display labels dynamically:
 The database structure is designed to keep static app configurations decoupled from the games directory. Paths are relative to the root collection path:
 
 ### Configuration & Static Data Path
-* **Path:** `/artifacts/{appId}/public/data/config`
-* **Purpose:** Stores application global configs, user nicknames, and global metadata.
+* **Path:** `/artifacts/{appId}/public/data/config/default` (singleton document id `default`)
+* **Purpose:** Stores application global configs (e.g. `gfnCatalog`), user nicknames, and global metadata.
 
 ### Games Collection Path
 * **Path:** `/artifacts/{appId}/public/data/games`
@@ -94,6 +94,10 @@ The database structure is designed to keep static app configurations decoupled f
   "owned": {
     "user0": false,
     "user1": false
+  },
+  "userNotes": {
+    "user0": "",
+    "user1": ""
   },
   "hypeTier": {
     "user0": "morkite_found",
@@ -130,6 +134,7 @@ The database structure is designed to keep static app configurations decoupled f
 * **`developmentStatus`**: Enum restricted to `released` | `early_access` | `tba`.
 * **`currentVersion`**: Semantic version string (e.g. `v1.0.2`, `v0.8.4-beta`) or `null`/empty string for `tba`.
 * **`owned`**: Map tracking dynamic ownership for User 0 and User 1.
+* **`userNotes`**: Optional per-user free-text notes (`user0`, `user1`) shown on the card — separate from lifecycle `stateMeta.note`.
 * **`hypeTier`**: Per-user personal hype tier: `worthless_crystal` | `morkite_found` | `we_rich` (default `morkite_found`). Each tier applies a multiplier to a shared base of `5` for that user's contribution to Total Hype.
 * **`steamOverview`**: Short description from Steam (`short_description`) displayed on the game card.
 * **`steamReviewPercent`**: Steam positive review percentage (`0`–`100`), used as a minor factor in Total Hype (less impact than `developmentStatus`).

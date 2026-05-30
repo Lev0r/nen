@@ -4,6 +4,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { fetchSteamGame } = require('./steam');
 const { vetAllDevelopers } = require('./gemini');
 const { refreshLibraryVersions } = require('./versionRefresh');
+const { syncGfnCatalog, syncGfnCatalogScheduled } = require('./gfnSync');
 
 initializeApp();
 
@@ -77,3 +78,5 @@ exports.addGameFromSteam = onCall(
 );
 
 exports.refreshLibraryVersions = refreshLibraryVersions;
+exports.syncGfnCatalog = syncGfnCatalog;
+exports.syncGfnCatalogScheduled = syncGfnCatalogScheduled;

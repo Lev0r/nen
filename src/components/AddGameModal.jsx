@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { addGameFromSteam } from '../services/cloudFunctions';
 import { parseSteamAppId } from '../utils/steamInput';
+import { reportError } from '../utils/errorReport';
 
 const DUPLICATE_MESSAGE = 'This game is already in your library.';
 
@@ -36,12 +37,11 @@ export default function AddGameModal({ isOpen, onClose, games = [] }) {
       }
       onClose();
     } catch (err) {
-      console.error('Add game failed:', err);
-      const message =
-        err?.code === 'functions/already-exists'
-          ? DUPLICATE_MESSAGE
-          : err?.message || 'Failed to add game. Deploy functions and configure secrets.';
-      setError(message);
+      if (err?.code === 'functions/already-exists') {
+        setError(DUPLICATE_MESSAGE);
+      } else {
+        reportError('Add game', err, setError);
+      }
     } finally {
       setLoading(false);
     }

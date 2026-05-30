@@ -140,6 +140,15 @@ Console navigation: `artifacts` → `default_app` → `public` → `data` → `g
 - **Ready to Play** sidebar tab removed (may return as a search preset later).
 - **`steamTags`** from Steam scrape used for search/filter only (not lifecycle).
 
+### Phase 7 — GFN GraphQL sync, errors, card polish, full edit (2026-05-30) ✅
+
+- **GFN catalog:** GraphQL sync via `NP-WAW-01` (Warsaw), Firestore `config.gfnCatalog`, Sync GeForce button, weekly schedule
+- **Errors:** `reportError` + `ErrorBanner` — console details + minimal user message
+- **Cards:** footer icon bar (SteamDB, Edit), shadows, calmer thumbnail hover, screenshots modal fix, filter panel restyle
+- **Edit modal:** full field editor, manual RU flag, per-user `userNotes` on cards
+
+Deploy: `firebase deploy --only functions,firestore:rules,hosting`
+
 ### Phase 6 — Lifecycle, cards, search (2026-05-30) ✅
 
 - **Lifecycle:** `libraryState`, modal, 5 sidebar tabs, update badge UI, hype overrides, legacy fallback

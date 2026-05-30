@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserLabel } from '../utils/userConfig';
+import { getUserLabel, getNickname } from '../utils/userConfig';
 import { isRuDeveloperAlert } from '../utils/gameHelpers';
 import {
   calculateTotalHype,
@@ -14,6 +14,7 @@ import {
 import { updateGame } from '../services/db';
 import HypePicker from './HypePicker';
 import ScreenshotsModal from './ScreenshotsModal';
+import GameEditModal from './GameEditModal';
 import LifecycleModal from './LifecycleModal';
 import FloatingTooltip from './FloatingTooltip';
 import {
@@ -159,10 +160,11 @@ function OwnedTooltip({ owned, userIndex }) {
   );
 }
 
-export default function GameCard({ game }) {
+export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
   const { userIndex } = useAuth();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [screenshotsOpen, setScreenshotsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
   const hypeRingRef = useRef(null);
@@ -179,6 +181,7 @@ export default function GameCard({ game }) {
   const reviewColor = getSteamReviewColor(game.steamReviewPercent);
   const hasReviews = game.steamReviewPercent != null && game.steamReviewPercent !== '';
   const ruAlert = isRuDeveloperAlert(game);
+  const showGfnBadge = gfnSteamAppIds.has(String(game.id));
   const salePercent = game.discountPercent ?? (game.isOnSale ? null : 0);
   const libraryState = resolveLibraryState(game);
   const lifecycleColor = getLibraryStateColor(libraryState);
@@ -208,11 +211,6 @@ export default function GameCard({ game }) {
     <>
       <div
         className={`glass-panel animate-fade-in game-card ${ruAlert ? 'game-card--ru-alert' : ''}`}
-        style={{
-          boxShadow: ruAlert
-            ? 'var(--shadow-neon-red)'
-            : '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
-        }}
       >
         <div className="game-card-thumb">
           <a
@@ -328,6 +326,21 @@ export default function GameCard({ game }) {
             <p className="game-card-overview">{game.steamOverview}</p>
           )}
 
+          {(game.userNotes?.user0 || game.userNotes?.user1) && (
+            <div className="game-card-user-notes">
+              {game.userNotes?.user0 && (
+                <p className="game-card-user-note">
+                  {getNickname(0)}: <em>&ldquo;{game.userNotes.user0}&rdquo;</em>
+                </p>
+              )}
+              {game.userNotes?.user1 && (
+                <p className="game-card-user-note">
+                  {getNickname(1)}: <em>&ldquo;{game.userNotes.user1}&rdquo;</em>
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="game-card-meta">
             <button
               type="button"
@@ -375,7 +388,7 @@ export default function GameCard({ game }) {
             {game.currentVersion && (
               <span className="game-card-version">{game.currentVersion}</span>
             )}
-            {game.geforceNowReady && (
+            {showGfnBadge && (
               <span className="gfn-badge" title="Available on GeForce NOW">
                 GFN
               </span>
@@ -388,20 +401,65 @@ export default function GameCard({ game }) {
             </p>
           )}
 
-          <div className="game-card-actions">
+          <div className="game-card-tags">
+            {game.coopSpecs?.splitScreen && <span className="tag">Split Screen</span>}
+            {game.coopSpecs?.crossPlay && <span className="tag">Cross-play</span>}
+          </div>
+        </div>
+
+        <div className="game-card-footer">
+          <div className="game-card-footer-group">
             <a
               href={steamDbUrl}
               target="_blank"
               rel="noreferrer"
-              className="btn-secondary game-card-link-btn"
+              className="game-card-footer-btn"
+              aria-label="Open on SteamDB"
             >
-              SteamDB
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M14 5h5v5M10 14L19 5M19 5h-5M19 5v5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M5 9v10h10"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </a>
-          </div>
-
-          <div className="game-card-tags">
-            {game.coopSpecs?.splitScreen && <span className="tag">Split Screen</span>}
-            {game.coopSpecs?.crossPlay && <span className="tag">Cross-play</span>}
+            <button
+              type="button"
+              className="game-card-footer-btn"
+              onClick={() => setEditOpen(true)}
+              aria-label="Edit game"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4 20h4l10.5-10.5a2.1 2.1 0 00-3-3L5 17v3z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M13.5 6.5l3 3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -420,6 +478,14 @@ export default function GameCard({ game }) {
           images={game.screenshots}
           gameName={game.name}
           onClose={() => setScreenshotsOpen(false)}
+        />
+      )}
+
+      {editOpen && (
+        <GameEditModal
+          game={game}
+          isOpen={editOpen}
+          onClose={() => setEditOpen(false)}
         />
       )}
 

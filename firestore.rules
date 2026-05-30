@@ -9,5 +9,13 @@ service cloud.firestore {
         request.auth.token.email == 'xalex.yavorskiyx@gmail.com'
       );
     }
+
+    match /artifacts/{appId}/public/data/config/{configDocId} {
+      allow read: if request.auth != null && (
+        request.auth.token.email == 'kir.matienko@gmail.com' ||
+        request.auth.token.email == 'xalex.yavorskiyx@gmail.com'
+      );
+      allow write: if false;
+    }
   }
 }
