@@ -1,6 +1,8 @@
 # Manifest of Understanding: Co-op Gaming Tracker
 
-This document serves as the **single source of truth** and **system context prompt** for scaffolding, developing, and deploying the **Co-op Gaming Tracker** application. It is designed to be read directly by AI coding assistants (e.g., Cursor, Windsurf, PearAI) and developers to ensure perfect alignment with system constraints, schemas, and architectural patterns.
+This document serves as the **single source of truth** and **system context prompt** for scaffolding, developing, and deploying the **Nen?** co-op gaming tracker. It is designed to be read directly by AI coding assistants and developers to ensure alignment with system constraints, schemas, and architectural patterns.
+
+> **Progress, handoff, deploy runbook, and remaining tasks:** see [`docs/AGENT_TODO.md`](./AGENT_TODO.md).
 
 ---
 
@@ -185,12 +187,22 @@ Each tab filters by `libraryState`:
 Lifecycle is changed via a **modal** on the game card (all states visible, optional note). Re-selecting the current state re-baselines `stateMeta` and clears `hasUpdateSinceState`.
 
 #### Search & secondary filters (dashboard toolbar)
-Within the active sidebar tab, users can search/filter by:
-* Game **name** (text)
-* **Steam tags** (`steamTags` from scrape)
+
+**Scope rules (implemented):**
+
+* **No filters active:** search/filters apply only to games in the **current sidebar lifecycle tab**.
+* **Any filter active** (`hasActiveFilters` — search text, lifecycle chips, tags, status, ownership, sale/GFN/update toggles): pool becomes the **entire library**; sidebar tab is ignored until filters are cleared.
+* **Sidebar tab click** resets all filters to defaults.
+
+Within the active pool, users can filter by:
+* Game **name** (text search)
+* **Lifecycle** multi-select chips (Active / Replayable / Waiting for updates / Finished / Banned)
+* **Steam tags** (`steamTags` from scrape — tag list shows tags from **full library**)
 * **Development status** (`released` / `early_access` / `tba`)
-* **Ownership** (neither / one / both own) — optional chips
-* **On sale** — secondary filter (`isOnSale`), not a lifecycle tab
+* **Ownership** (neither / one / both own)
+* **On sale**, **GeForce NOW** (catalog match), **Update available** (`hasUpdateSinceState`)
+
+Filter panel expands via search focus or active filters; use React state (not CSS `:focus-within`) so toggles do not collapse the panel.
 
 **Deferred:** "Ready to Play" preset filter (both own + active lifecycle). Archive passcode for Banned tab.
 
@@ -256,7 +268,7 @@ Hovering the Total Hype ring shows how the number was built: each user's nicknam
 
 ### F4: Automated Russian Developer Screening
 
-This feature ensures local developer transparency. When a game is added to the system, an asynchronous background check is executed via the Gemini API.
+This feature ensures local developer transparency. When a game is added with **`libraryState === 'active'`** (default on UI add, or explicit in bulk import), an asynchronous Gemini check runs. **Skip vetting** for games saved as `replayable`, `waiting_for_updates`, `finished`, or `banned`.
 
 #### Prompt Template & Response Mapping
 * **Model:** `gemini-2.5-flash`
@@ -316,7 +328,7 @@ Extract details from the API response payload (`data[appId].data`):
   * **Cross-Play** $\rightarrow$ Presence of ID `48` (Cross-Platform Multiplayer)
   * **Max Players** $\rightarrow$ Scraped or fallback defaults based on genre (default `4`).
 * **`steamTags`** $\rightarrow$ `genres[].description` and relevant `categories[].description` (lowercase), for search/filter.
-* **`geforceNowReady`** $\rightarrow$ Verify against NVIDIA GeForce NOW catalog/API for the Steam App ID; store boolean, show badge on card when true.
+* **`geforceNowReady`** $\rightarrow$ Set at scrape time; **UI badge** primarily checks global `config/default.gfnCatalog.steamAppIds` (synced via `syncGfnCatalog`). New games get correct badge without per-game GFN re-sync.
 * **`libraryState`** $\rightarrow$ Default `"active"` on import; set `stateMeta.versionAtEntry` to scraped `currentVersion`.
 
 ---
@@ -334,57 +346,23 @@ Extract details from the API response payload (`data[appId].data`):
 
 The dashboard should feel like a premium, sleek gaming platform (similar to Steam Deck UI or modern launchers).
 
-* **Color Palette**: Sleek obsidian dark mode (`#0B0F19`), neon mint accent for match scores, crimson red for RU alerts, and vibrant blue for interactive elements.
-* **Aero Glassmorphism**: Cards use translucent backdrop filters (`backdrop-filter: blur(12px) bg-opacity-40`).
-* **Total Hype ring**: Bottom-right on the card thumbnail; shows the Total Hype integer **without a `%` symbol**. Color scales red → yellow → mint by score. Click opens a small tier picker for the **active user only**. Hover shows the full score breakdown tooltip.
-* **Owned indicator**: Bottom-left on the thumbnail; three distinct icons (backpack / crystal / pickaxes). Click toggles ownership for the active user. Hover tooltip lists each nickname and owned state.
+* **Color Palette**: Dark obsidian base (`#121620`), **mint accent** (`#14e8a0`) for scores and primary actions — **no blue** in primary UI. Crimson red for RU alerts; yellow for early access / warnings.
+* **Layout**: Lifecycle navigation and actions live in the **left sidebar** (no top header bar). Browser tab title: **`Nen?`**.
+* **Dynamic background**: Full-viewport slideshow of **Steam screenshots** from top 5 non-banned games by Total Hype (~60s per slide). Disable via `VITE_ENABLE_DYNAMIC_BG=false` at build time (default on).
+* **Aero Glassmorphism**: Cards and panels use translucent backdrop filters.
+* **Total Hype ring**: Bottom-right on the card thumbnail; shows the Total Hype integer **without a `%` symbol**. Color scales red → yellow → mint by score. Click opens a small tier picker for the **active user only** (opaque panel for readability). Hover shows the full score breakdown tooltip.
+* **Owned indicator**: Bottom-left on the thumbnail; three distinct icons (hands → sword → crossed swords). Click toggles ownership for the active user.
 * **Price**: Hidden when both users own the game.
-* **GeForce NOW**: Small badge/icon when `geforceNowReady`.
-* **Lifecycle badge**: Opens lifecycle modal; update pulse badge when `hasUpdateSinceState`.
-* **Steam overview**: Truncated `steamOverview` text in the card body (from Steam `short_description` when scraped).
-* **Development status**: Color-coded — green (`released`), yellow (`early_access`), red (`tba`).
-* **Screenshots**: Dedicated button opens a modal carousel (not hover-on-card).
-* **Identity labels**: Resolved from `VITE_USER0_NICKNAME` / `VITE_USER1_NICKNAME` in `.env` — never "Me", "Friend", or hardcoded names. Active user suffix: `(You)`.
-* **Actionable Badges**: Visual indicators showing Co-op specs (e.g. `Online 4-Player`, `Crossplay Ready`) at a glance.
+* **GeForce NOW**: Badge on thumbnail (dark pill); reads global GFN catalog in Firestore.
+* **Lifecycle badge**: Opens lifecycle modal; optional **finished rating** stars (1–5); update pulse badge when `hasUpdateSinceState`.
+* **Steam overview**: Truncated `steamOverview` on card.
+* **Development status**: Color-coded — mint (`released`), yellow (`early_access`), red (`tba`).
+* **Screenshots**: Footer action opens fullscreen viewer with zone navigation (← / → / ✕).
+* **Identity labels**: Resolved from `VITE_USER0_NICKNAME` / `VITE_USER1_NICKNAME` — never "Me", "Friend", or hardcoded names. Active user suffix: `(You)`.
+* **Filters**: Collapsible panel under search; **Clear filters** in header when any filter active.
 
 ---
 
-## 6. Detailed Step-by-Step Implementation Roadmap
+## 6. Progress & remaining work
 
-```mermaid
-gantt
-    title Co-op Gaming Tracker Implementation Plan
-    dateFormat  YYYY-MM-DD
-    section Phase 1: Foundation
-    Scaffold React Vite App       :active, p1_1, 2026-06-01, 2d
-    Firebase Auth & Setup         :active, p1_2, after p1_1, 2d
-    Firestore Path Setup          :active, p1_3, after p1_2, 1d
-    section Phase 2: Shell & UI
-    Base CSS & Design System      :p2_1, after p1_3, 2d
-    Interactive Game Cards        :p2_2, after p2_1, 2d
-    Match Score Components        :p2_3, after p2_2, 1d
-    Dynamic Views & Filtering     :p2_4, after p2_3, 2d
-    section Phase 3: Integration
-    Steam API Crawling & Parser   :p3_1, after p2_4, 3d
-    Gemini Developer Vetting      :p3_2, after p3_1, 2d
-    Firestore State Syncing       :p3_3, after p3_2, 2d
-    JSON Data Export & Polish     :p3_4, after p3_3, 2d
-```
-
-### Phase 1: Setup & Scaffolding
-* Initialize the React + Vite template in the target workspace directory.
-* Set up standard configuration hooks inside a centralized context provider (`AuthContext`).
-* Write the `onAuthStateChanged` auth listener. Validate standard user index mappings (User 0 / User 1) using the `ALLOWED_EMAILS` config.
-* Build the login gate view. Block unauthenticated access completely.
-
-### Phase 2: Design System & Mock Shell
-* Create a dedicated `/src/index.css` file housing custom HSL utility variables, glassy animation rules, and smooth scaling card transitions.
-* Develop mock state files to pre-render the system. Validate the correct mathematical computation of the Match Score formula.
-* Construct the Filter Sidebar and Dashboard view grid. Ensure responsiveness on mobile formats.
-* Create a simple local mock database bypass toggle for offline testing.
-
-### Phase 3: APIs & Real-time Integration
-* Program the Steam parser service using the CORS proxy pipeline.
-* Integrate the Gemini API connection string, creating safe prompt sanitizers to prevent injection attacks or format breakage.
-* Hook up interactive state buttons (e.g. "Toggle Owned", "Update Hype Slider") to write directly to Firestore using dynamic path references `/games/{gameId}` updated under `owned.userX` (where X is the active session index).
-* Integrate client-side JSON serialization to export database tables dynamically.
+See **`docs/AGENT_TODO.md`** for the live checklist, deploy runbook, bulk import instructions, key decisions, and agent workflow. Do not maintain a separate implementation roadmap in this file.

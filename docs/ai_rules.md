@@ -18,7 +18,7 @@ This document outlines the strict rules and constraints that any AI coding assis
 
 - **Schema Strictness:** Adhere exactly to the Firestore schema defined in `manifest_of_understanding.md`.
 - **Lifecycle:** Games are organized by `libraryState` only — no custom user tags. Optional notes live in `stateMeta.note`.
-- **Progress tracking:** Check off items in `docs/Implementation Steps.md` when completing features.
+- **Progress tracking:** Check off items in `docs/AGENT_TODO.md` when completing features. Update that file with new decisions or remaining work.
 - **Security First:** Never bypass the Firestore Security Rules in client code. Ensure all queries filter based on the active user's permissions where applicable.
 
 ## 4. Feature-Specific Rules

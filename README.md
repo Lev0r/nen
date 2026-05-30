@@ -29,5 +29,5 @@ A lightweight, premium React SPA built with Vite and Firebase to track, rate, an
    ```
 
 ## Development Guidelines
-- Read `docs/manifest_of_understanding.md` and `docs/ai_rules.md` for architecture rules and strict constraints.
+- Read `docs/AGENT_TODO.md` (handoff & progress), `docs/manifest_of_understanding.md` (spec), and `docs/ai_rules.md` (constraints).
 - No personal names or static emails should be hardcoded in the source code.
