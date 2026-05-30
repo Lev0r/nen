@@ -1,9 +1,14 @@
+import { resolveLibraryState } from './libraryState';
+
 export const DEFAULT_GAME_FILTERS = {
   searchText: '',
   steamTags: [],
   developmentStatus: 'all',
   ownership: 'all',
   onSaleOnly: false,
+  gfnOnly: false,
+  updateAvailableOnly: false,
+  libraryStates: [],
 };
 
 export function getOwnershipCategory(owned) {
@@ -21,16 +26,22 @@ export function hasActiveFilters(filters) {
     (filters.steamTags?.length ?? 0) > 0 ||
     (filters.developmentStatus && filters.developmentStatus !== 'all') ||
     (filters.ownership && filters.ownership !== 'all') ||
-    Boolean(filters.onSaleOnly)
+    Boolean(filters.onSaleOnly) ||
+    Boolean(filters.gfnOnly) ||
+    Boolean(filters.updateAvailableOnly) ||
+    (filters.libraryStates?.length ?? 0) > 0
   );
 }
 
-export function filterGames(games, filters) {
+export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
   const searchText = filters.searchText?.trim().toLowerCase() ?? '';
   const selectedTags = filters.steamTags ?? [];
   const developmentStatus = filters.developmentStatus ?? 'all';
   const ownership = filters.ownership ?? 'all';
   const onSaleOnly = Boolean(filters.onSaleOnly);
+  const gfnOnly = Boolean(filters.gfnOnly);
+  const updateAvailableOnly = Boolean(filters.updateAvailableOnly);
+  const libraryStates = filters.libraryStates ?? [];
 
   return games.filter((game) => {
     if (searchText && !game.name?.toLowerCase().includes(searchText)) {
@@ -52,6 +63,21 @@ export function filterGames(games, filters) {
     }
 
     if (onSaleOnly && !game.isOnSale) {
+      return false;
+    }
+
+    if (gfnOnly && !gfnSteamAppIds.has(String(game.id))) {
+      return false;
+    }
+
+    if (updateAvailableOnly && game.hasUpdateSinceState !== true) {
+      return false;
+    }
+
+    if (
+      libraryStates.length > 0 &&
+      !libraryStates.includes(resolveLibraryState(game))
+    ) {
       return false;
     }
 

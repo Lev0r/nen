@@ -18,7 +18,7 @@ const STATE_LABELS = {
 
 const STATE_COLORS = {
   active: 'var(--accent-mint)',
-  replayable: 'var(--accent-blue)',
+  replayable: 'var(--accent-teal)',
   waiting_for_updates: 'var(--accent-yellow)',
   finished: 'var(--text-muted)',
   banned: 'var(--accent-red)',
@@ -49,8 +49,15 @@ export function getLibraryStateColor(state) {
   return STATE_COLORS[state] || STATE_COLORS.active;
 }
 
-export function buildStateMetaUpdates(state, note, currentVersion) {
-  return {
+/** @returns {null | 1 | 2 | 3 | 4 | 5} */
+export function normalizeFinishedRating(value) {
+  const n = Number(value);
+  if (Number.isInteger(n) && n >= 1 && n <= 5) return n;
+  return null;
+}
+
+export function buildStateMetaUpdates(state, note, currentVersion, finishedRating) {
+  const updates = {
     libraryState: state,
     hasUpdateSinceState: false,
     stateMeta: {
@@ -59,4 +66,12 @@ export function buildStateMetaUpdates(state, note, currentVersion) {
       enteredAt: serverTimestamp(),
     },
   };
+
+  if (state === 'finished') {
+    updates.finishedRating = normalizeFinishedRating(finishedRating);
+  } else {
+    updates.finishedRating = null;
+  }
+
+  return updates;
 }

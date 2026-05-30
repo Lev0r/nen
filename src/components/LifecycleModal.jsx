@@ -6,13 +6,16 @@ import {
   STATE_DESCRIPTIONS,
   resolveLibraryState,
   getLibraryStateLabel,
+  normalizeFinishedRating,
 } from '../utils/libraryState';
+import FinishedRatingPicker from './FinishedRatingPicker';
 
 const APP_ID = 'default_app';
 
 export default function LifecycleModal({ game, isOpen, onClose }) {
   const [selectedState, setSelectedState] = useState('active');
   const [note, setNote] = useState('');
+  const [finishedRating, setFinishedRating] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,6 +23,7 @@ export default function LifecycleModal({ game, isOpen, onClose }) {
     if (!isOpen || !game) return;
     setSelectedState(resolveLibraryState(game));
     setNote(game.stateMeta?.note || '');
+    setFinishedRating(normalizeFinishedRating(game.finishedRating));
     setError('');
   }, [isOpen, game]);
 
@@ -43,7 +47,8 @@ export default function LifecycleModal({ game, isOpen, onClose }) {
         game.id,
         selectedState,
         note,
-        game.currentVersion ?? null
+        game.currentVersion ?? null,
+        selectedState === 'finished' ? finishedRating : null
       );
       onClose();
     } catch (err) {
@@ -79,7 +84,12 @@ export default function LifecycleModal({ game, isOpen, onClose }) {
               className={`lifecycle-state-btn lifecycle-state-btn--${state} ${
                 selectedState === state ? 'lifecycle-state-btn--selected' : ''
               }`}
-              onClick={() => setSelectedState(state)}
+              onClick={() => {
+                setSelectedState(state);
+                if (state !== 'finished') {
+                  setFinishedRating(null);
+                }
+              }}
               disabled={saving}
             >
               <span className="lifecycle-state-btn-label">
@@ -91,6 +101,16 @@ export default function LifecycleModal({ game, isOpen, onClose }) {
             </button>
           ))}
         </div>
+
+        {selectedState === 'finished' && (
+          <FinishedRatingPicker
+            idPrefix="lifecycle-finished-rating"
+            value={finishedRating}
+            onChange={setFinishedRating}
+            disabled={saving}
+            className="finished-rating-picker--prominent lifecycle-finished-rating"
+          />
+        )}
 
         <label className="lifecycle-note-label" htmlFor="lifecycle-note">
           Note <span className="lifecycle-note-optional">(optional)</span>

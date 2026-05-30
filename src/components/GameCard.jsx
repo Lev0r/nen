@@ -17,6 +17,7 @@ import ScreenshotsModal from './ScreenshotsModal';
 import GameEditModal from './GameEditModal';
 import LifecycleModal from './LifecycleModal';
 import FloatingTooltip from './FloatingTooltip';
+import { FinishedRatingDisplay } from './FinishedRatingPicker';
 import {
   resolveLibraryState,
   getLibraryStateLabel,
@@ -24,6 +25,14 @@ import {
 } from '../utils/libraryState';
 
 const APP_ID = 'default_app';
+
+const ownedIconStroke = {
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.75,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+};
 
 function OwnedIcon({ stage }) {
   if (stage === 0) {
@@ -33,27 +42,13 @@ function OwnedIcon({ stage }) {
         className="owned-icon owned-icon--none"
         aria-hidden="true"
       >
-        <path
-          d="M8 10h8l1.5 4v7H6.5v-7L8 10z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M9 10V8a3 3 0 016 0v2"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-        />
-        <path
-          d="M8 14.5h8"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-        />
+        <g {...ownedIconStroke}>
+          <path d="M6 12.5c0-2.2 1-3.8 2.2-3.8 1 0 1.8 1.2 1.8 2.6" />
+          <path d="M6 12.5V18" />
+          <path d="M18 12.5c0-2.2-1-3.8-2.2-3.8-1 0-1.8 1.2-1.8 2.6" />
+          <path d="M18 12.5V18" />
+          <path d="M8.5 18h7" />
+        </g>
       </svg>
     );
   }
@@ -65,14 +60,12 @@ function OwnedIcon({ stage }) {
         className="owned-icon owned-icon--half"
         aria-hidden="true"
       >
-        <path d="M12 2.5L18.5 9 15.5 21.5h-7L5.5 9 12 2.5z" fill="currentColor" />
-        <path
-          d="M12 2.5v19M5.5 9h13M8.5 15.5h7"
-          fill="none"
-          stroke="rgba(0,0,0,0.25)"
-          strokeWidth="1"
-          strokeLinejoin="round"
-        />
+        <g {...ownedIconStroke}>
+          <path d="M12 2.5v14.5" />
+          <path d="M9 17h6" />
+          <path d="M10.5 20h3" />
+          <path d="M10 5.5 12 3l2 2.5" />
+        </g>
       </svg>
     );
   }
@@ -83,17 +76,11 @@ function OwnedIcon({ stage }) {
       className="owned-icon owned-icon--full"
       aria-hidden="true"
     >
-      <g
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M4.5 19.5l9.5-9.5" />
-        <path d="M12.5 8.5l2-3.5 2.5 1.5-2 3.5" />
-        <path d="M19.5 19.5l-9.5-9.5" />
-        <path d="M11.5 8.5l-2-3.5-2.5 1.5 2 3.5" />
+      <g {...ownedIconStroke}>
+        <path d="M5.5 19.5l8.5-8.5" />
+        <path d="M12.5 5.5l1.75-2.75 2.25 1.25-1.75 2.75" />
+        <path d="M18.5 19.5l-8.5-8.5" />
+        <path d="M11.5 5.5L9.75 2.75 7.5 4l1.75 2.75" />
       </g>
     </svg>
   );
@@ -260,6 +247,15 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
             </button>
           </FloatingTooltip>
 
+          {showGfnBadge && (
+            <span
+              className="gfn-badge gfn-badge--thumb"
+              title="Available on GeForce NOW"
+            >
+              GFN
+            </span>
+          )}
+
           {hasScreenshots && (
             <button
               type="button"
@@ -290,21 +286,22 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
               </svg>
             </button>
           )}
-
-          {ruAlert && (
-            <span
-              className="ru-alert-badge"
-              title={game.ruDeveloperExplanation || 'Russian developer alert'}
-            >
-              RU
-            </span>
-          )}
         </div>
 
         <div className="game-card-body">
-          <a href={steamUrl} target="_blank" rel="noreferrer" className="game-card-title-link">
-            <h3 className="game-card-title">{game.name}</h3>
-          </a>
+          <div className="game-card-title-row">
+            <a href={steamUrl} target="_blank" rel="noreferrer" className="game-card-title-link">
+              <h3 className="game-card-title">{game.name}</h3>
+            </a>
+            {ruAlert && (
+              <span
+                className="ru-alert-badge"
+                title={game.ruDeveloperExplanation || 'Russian developer alert'}
+              >
+                RU
+              </span>
+            )}
+          </div>
 
           {!bothOwn && (
             <p className="game-card-price">
@@ -355,6 +352,9 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
             >
               {lifecycleLabel}
             </button>
+            {libraryState === 'finished' && game.finishedRating && (
+              <FinishedRatingDisplay rating={game.finishedRating} />
+            )}
             {hasUpdateSinceState && (
               <span
                 className="update-available-badge"
@@ -388,11 +388,6 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
             {game.currentVersion && (
               <span className="game-card-version">{game.currentVersion}</span>
             )}
-            {showGfnBadge && (
-              <span className="gfn-badge" title="Available on GeForce NOW">
-                GFN
-              </span>
-            )}
           </div>
 
           {ruAlert && (
@@ -400,11 +395,6 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
               {game.ruDeveloperExplanation || 'Russian developer ties flagged.'}
             </p>
           )}
-
-          <div className="game-card-tags">
-            {game.coopSpecs?.splitScreen && <span className="tag">Split Screen</span>}
-            {game.coopSpecs?.crossPlay && <span className="tag">Cross-play</span>}
-          </div>
         </div>
 
         <div className="game-card-footer">
@@ -417,8 +407,17 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
               aria-label="Open on SteamDB"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
+                <ellipse
+                  cx="12"
+                  cy="5.5"
+                  rx="7"
+                  ry="2.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                />
                 <path
-                  d="M14 5h5v5M10 14L19 5M19 5h-5M19 5v5"
+                  d="M5 5.5v13c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-13"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.75"
@@ -426,7 +425,7 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
                   strokeLinejoin="round"
                 />
                 <path
-                  d="M5 9v10h10"
+                  d="M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.75"

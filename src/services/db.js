@@ -37,9 +37,19 @@ export function updateGame(appId, gameId, updates) {
   return updateDoc(gameRef, updates);
 }
 
-export function setGameLifecycle(appId, gameId, state, note, currentVersion) {
+export function setGameLifecycle(
+  appId,
+  gameId,
+  state,
+  note,
+  currentVersion,
+  finishedRating
+) {
   const gameRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
-  return updateDoc(gameRef, buildStateMetaUpdates(state, note, currentVersion));
+  return updateDoc(
+    gameRef,
+    buildStateMetaUpdates(state, note, currentVersion, finishedRating)
+  );
 }
 
 export function useGames(appId = 'default_app') {

@@ -19,6 +19,7 @@ import {
 } from '../utils/gameFilters';
 import { reportError } from '../utils/errorReport';
 import ErrorBanner from './ErrorBanner';
+import DynamicBackground from './DynamicBackground';
 
 const LIFECYCLE_TABS = LIBRARY_STATES.map((id) => ({
   id,
@@ -26,7 +27,7 @@ const LIFECYCLE_TABS = LIBRARY_STATES.map((id) => ({
 }));
 
 export default function DashboardShell() {
-  const { currentUser, userIndex, logout } = useAuth();
+  const { userIndex, logout } = useAuth();
   const { games, loading } = useGames('default_app');
   const { config } = useAppConfig('default_app');
 
@@ -69,15 +70,19 @@ export default function DashboardShell() {
     return counts;
   }, {});
 
+  const isGlobalSearch = Boolean(gameFilters.searchText?.trim());
   const lifecycleGames = games.filter(
     (game) => resolveLibraryState(game) === activeTab
   );
-  const filteredGames = filterGames(lifecycleGames, gameFilters);
-  const availableTags = collectSteamTags(lifecycleGames);
+  const filterSourceGames = isGlobalSearch ? games : lifecycleGames;
+  const filteredGames = filterGames(filterSourceGames, gameFilters, gfnSteamAppIds);
+  const availableTags = collectSteamTags(filterSourceGames);
   const filtersActive = hasActiveFilters(gameFilters);
 
   return (
-    <div className="app-layout">
+    <>
+      <DynamicBackground games={games} />
+      <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2 style={{ color: 'var(--accent-mint)' }}>Nen?</h2>
@@ -99,54 +104,45 @@ export default function DashboardShell() {
             </div>
           ))}
         </nav>
-      </aside>
 
-      <main className="main-content">
-        <header className="topbar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <h3 style={{ fontWeight: 500 }}>Library Overview</h3>
-            <button
-              className="btn-primary"
-              style={{ padding: '0.3rem 0.8rem', fontSize: '0.85rem' }}
-              onClick={() => setIsModalOpen(true)}
-            >
-              + Add Game
-            </button>
-            <button
-              className="btn-secondary"
-              style={{ padding: '0.3rem 0.8rem', fontSize: '0.85rem' }}
-              onClick={handleSyncGfn}
-              disabled={syncingGfn}
-            >
-              {syncingGfn ? 'Syncing…' : 'Sync GeForce'}
-            </button>
-            {gfnSyncedAtLabel && (
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                GFN synced {gfnSyncedAtLabel}
-              </span>
-            )}
-            <ErrorBanner
-              message={gfnSyncError}
-              onDismiss={() => setGfnSyncError(null)}
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-              {getNickname(userIndex)} ({currentUser?.email})
-            </span>
-            <button className="btn-secondary" onClick={logout}>
+        <div className="sidebar-footer">
+          <button
+            className="btn-primary sidebar-action-btn"
+            onClick={() => setIsModalOpen(true)}
+          >
+            + Add Game
+          </button>
+          <button
+            className="btn-secondary sidebar-action-btn"
+            onClick={handleSyncGfn}
+            disabled={syncingGfn}
+          >
+            {syncingGfn ? 'Syncing…' : 'Sync GeForce'}
+          </button>
+          {gfnSyncedAtLabel && (
+            <span className="sidebar-sync-label">GFN synced {gfnSyncedAtLabel}</span>
+          )}
+          <ErrorBanner
+            message={gfnSyncError}
+            onDismiss={() => setGfnSyncError(null)}
+          />
+          <div className="sidebar-user-row">
+            <span className="sidebar-user">{getNickname(userIndex)}</span>
+            <button className="btn-secondary sidebar-sign-out" onClick={logout}>
               Sign Out
             </button>
           </div>
-        </header>
+        </div>
+      </aside>
 
-        {!loading && lifecycleGames.length > 0 && (
+      <main className="main-content">
+        {!loading && games.length > 0 && (
           <GameFiltersBar
             filters={gameFilters}
             onChange={setGameFilters}
             availableTags={availableTags}
             resultCount={filteredGames.length}
-            totalCount={lifecycleGames.length}
+            totalCount={filterSourceGames.length}
           />
         )}
 
@@ -159,7 +155,7 @@ export default function DashboardShell() {
             ))
           ) : (
             <div className="dashboard-empty">
-              {lifecycleGames.length === 0 ? (
+              {filterSourceGames.length === 0 ? (
                 <>
                   <p>No games in this view.</p>
                   <p className="dashboard-empty-hint">Use + Add Game to import from Steam.</p>
@@ -194,6 +190,7 @@ export default function DashboardShell() {
         onClose={() => setIsModalOpen(false)}
         games={games}
       />
-    </div>
+      </div>
+    </>
   );
 }

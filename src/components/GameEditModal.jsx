@@ -9,7 +9,9 @@ import {
   resolveLibraryState,
   getLibraryStateLabel,
   buildStateMetaUpdates,
+  normalizeFinishedRating,
 } from '../utils/libraryState';
+import FinishedRatingPicker from './FinishedRatingPicker';
 
 const APP_ID = 'default_app';
 
@@ -19,6 +21,28 @@ const DEVELOPMENT_STATUSES = [
   { value: 'tba', label: 'TBA' },
 ];
 
+function ToggleSwitch({ id, checked, onChange, disabled, label, className = '' }) {
+  return (
+    <label
+      className={`toggle-switch${className ? ` ${className}` : ''}`}
+      htmlFor={id}
+    >
+      <input
+        id={id}
+        type="checkbox"
+        className="toggle-switch__input"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+      />
+      <span className="toggle-switch__track" aria-hidden="true">
+        <span className="toggle-switch__thumb" />
+      </span>
+      <span className="toggle-switch__label">{label}</span>
+    </label>
+  );
+}
+
 function initForm(game) {
   return {
     name: game.name || '',
@@ -26,6 +50,7 @@ function initForm(game) {
     developmentStatus: game.developmentStatus || 'released',
     libraryState: resolveLibraryState(game),
     lifecycleNote: game.stateMeta?.note || '',
+    finishedRating: normalizeFinishedRating(game.finishedRating),
     ownedUser0: game.owned?.user0 === true,
     ownedUser1: game.owned?.user1 === true,
     hypeTierUser0: getTier(game, 'user0'),
@@ -104,7 +129,8 @@ export default function GameEditModal({ game, isOpen, onClose }) {
         buildStateMetaUpdates(
           form.libraryState,
           form.lifecycleNote,
-          game.currentVersion ?? null
+          game.currentVersion ?? null,
+          form.libraryState === 'finished' ? form.finishedRating : null
         )
       );
     } else {
@@ -112,6 +138,14 @@ export default function GameEditModal({ game, isOpen, onClose }) {
       const trimmedNote = form.lifecycleNote.trim();
       if (trimmedNote !== (game.stateMeta?.note || '')) {
         updates['stateMeta.note'] = trimmedNote;
+      }
+      const prevRating = normalizeFinishedRating(game.finishedRating);
+      const nextRating =
+        form.libraryState === 'finished'
+          ? normalizeFinishedRating(form.finishedRating)
+          : null;
+      if (nextRating !== prevRating) {
+        updates.finishedRating = nextRating;
       }
     }
 
@@ -133,16 +167,19 @@ export default function GameEditModal({ game, isOpen, onClose }) {
         role="dialog"
         aria-label={`Edit ${game.name}`}
       >
-        <h2 className="game-edit-modal-title">{game.name}</h2>
-        <p className="game-edit-modal-desc">
-          Edit game metadata. Both users can change all fields.
-        </p>
+        <div className="game-edit-modal-header">
+          <h2 className="game-edit-modal-title">{game.name}</h2>
+          <p className="game-edit-modal-desc">
+            Edit game metadata. Both users can change all fields.
+          </p>
 
-        {error && (
-          <div className="login-error game-edit-modal-error">{error}</div>
-        )}
+          {error && (
+            <div className="login-error game-edit-modal-error">{error}</div>
+          )}
+        </div>
 
-        <div className="game-edit-sections">
+        <div className="game-edit-modal-body">
+          <div className="game-edit-sections">
           <section className="game-edit-section">
             <h3 className="game-edit-section-title">Basic</h3>
             <label className="game-edit-label" htmlFor="edit-name">
@@ -195,7 +232,12 @@ export default function GameEditModal({ game, isOpen, onClose }) {
                   className={`lifecycle-state-btn lifecycle-state-btn--${state} ${
                     form.libraryState === state ? 'lifecycle-state-btn--selected' : ''
                   }`}
-                  onClick={() => setField('libraryState', state)}
+                  onClick={() => {
+                    setField('libraryState', state);
+                    if (state !== 'finished') {
+                      setField('finishedRating', null);
+                    }
+                  }}
                   disabled={saving}
                 >
                   <span className="lifecycle-state-btn-label">
@@ -207,6 +249,17 @@ export default function GameEditModal({ game, isOpen, onClose }) {
                 </button>
               ))}
             </div>
+            <FinishedRatingPicker
+              idPrefix="edit-finished-rating"
+              value={form.finishedRating}
+              onChange={(value) => setField('finishedRating', value)}
+              disabled={saving}
+              className={
+                form.libraryState === 'finished'
+                  ? 'finished-rating-picker--prominent'
+                  : 'finished-rating-picker--muted'
+              }
+            />
             <label className="game-edit-label" htmlFor="edit-lifecycle-note">
               Lifecycle note <span className="lifecycle-note-optional">(optional)</span>
             </label>
@@ -223,25 +276,21 @@ export default function GameEditModal({ game, isOpen, onClose }) {
 
           <section className="game-edit-section">
             <h3 className="game-edit-section-title">Ownership</h3>
-            <div className="game-edit-check-row">
-              <label className="game-edit-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={form.ownedUser0}
-                  onChange={(e) => setField('ownedUser0', e.target.checked)}
-                  disabled={saving}
-                />
-                {getNickname(0)} owns
-              </label>
-              <label className="game-edit-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={form.ownedUser1}
-                  onChange={(e) => setField('ownedUser1', e.target.checked)}
-                  disabled={saving}
-                />
-                {getNickname(1)} owns
-              </label>
+            <div className="game-edit-toggle-row">
+              <ToggleSwitch
+                id="edit-owned-user0"
+                checked={form.ownedUser0}
+                onChange={(value) => setField('ownedUser0', value)}
+                disabled={saving}
+                label={`${getNickname(0)} owns`}
+              />
+              <ToggleSwitch
+                id="edit-owned-user1"
+                checked={form.ownedUser1}
+                onChange={(value) => setField('ownedUser1', value)}
+                disabled={saving}
+                label={`${getNickname(1)} owns`}
+              />
             </div>
           </section>
 
@@ -287,15 +336,14 @@ export default function GameEditModal({ game, isOpen, onClose }) {
 
           <section className="game-edit-section">
             <h3 className="game-edit-section-title">RU alert</h3>
-            <label className="game-edit-checkbox-label game-edit-checkbox-label--block">
-              <input
-                type="checkbox"
-                checked={form.ruDeveloperAlert}
-                onChange={(e) => setField('ruDeveloperAlert', e.target.checked)}
-                disabled={saving}
-              />
-              Russian developer alert (manual verification)
-            </label>
+            <ToggleSwitch
+              id="edit-ru-alert"
+              className="toggle-switch--block"
+              checked={form.ruDeveloperAlert}
+              onChange={(value) => setField('ruDeveloperAlert', value)}
+              disabled={saving}
+              label="Russian developer alert (manual verification)"
+            />
             <label className="game-edit-label" htmlFor="edit-ru-explanation">
               Explanation
             </label>
@@ -360,17 +408,14 @@ export default function GameEditModal({ game, isOpen, onClose }) {
               onChange={(e) => setField('originalPrice', e.target.value)}
               disabled={saving}
             />
-            <div className="game-edit-check-row">
-              <label className="game-edit-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={form.isOnSale}
-                  onChange={(e) => setField('isOnSale', e.target.checked)}
-                  disabled={saving}
-                />
-                On sale
-              </label>
-            </div>
+            <ToggleSwitch
+              id="edit-on-sale"
+              className="toggle-switch--block"
+              checked={form.isOnSale}
+              onChange={(value) => setField('isOnSale', value)}
+              disabled={saving}
+              label="On sale"
+            />
             <label className="game-edit-label" htmlFor="edit-discount">
               Discount %
             </label>
@@ -388,36 +433,31 @@ export default function GameEditModal({ game, isOpen, onClose }) {
 
           <section className="game-edit-section">
             <h3 className="game-edit-section-title">Co-op specs</h3>
-            <div className="game-edit-check-row">
-              <label className="game-edit-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={form.onlineCoop}
-                  onChange={(e) => setField('onlineCoop', e.target.checked)}
-                  disabled={saving}
-                />
-                Online co-op
-              </label>
-              <label className="game-edit-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={form.splitScreen}
-                  onChange={(e) => setField('splitScreen', e.target.checked)}
-                  disabled={saving}
-                />
-                Split screen
-              </label>
-              <label className="game-edit-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={form.crossPlay}
-                  onChange={(e) => setField('crossPlay', e.target.checked)}
-                  disabled={saving}
-                />
-                Cross-play
-              </label>
+            <div className="game-edit-toggle-row">
+              <ToggleSwitch
+                id="edit-online-coop"
+                checked={form.onlineCoop}
+                onChange={(value) => setField('onlineCoop', value)}
+                disabled={saving}
+                label="Online co-op"
+              />
+              <ToggleSwitch
+                id="edit-split-screen"
+                checked={form.splitScreen}
+                onChange={(value) => setField('splitScreen', value)}
+                disabled={saving}
+                label="Split screen"
+              />
+              <ToggleSwitch
+                id="edit-cross-play"
+                checked={form.crossPlay}
+                onChange={(value) => setField('crossPlay', value)}
+                disabled={saving}
+                label="Cross-play"
+              />
             </div>
           </section>
+          </div>
         </div>
 
         <div className="game-edit-modal-actions">

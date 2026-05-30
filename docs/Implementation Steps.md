@@ -2,196 +2,216 @@
 
 **Project:** Nen? Co-op Gaming Tracker  
 **Purpose:** Single checklist to track what is done and what remains before the project is "complete."  
-**Last updated:** 2026-05-30 (Phase 7 done locally; deploy + browser branding pending)
+**Last updated:** 2026-05-30 (consolidated backlog — your comments incorporated)
 
 Read alongside [manifest_of_understanding.md](./manifest_of_understanding.md) (spec) and [PROJECT_HANDOFF.md](./PROJECT_HANDOFF.md) (code map & ops).
 
 ---
 
-## Done
+## Consolidated remaining work (start here)
 
-- [x] React + Vite SPA, Firebase Auth (Google, two allowed emails → User 0 / User 1)
-- [x] Firestore games collection, security rules, real-time `useGames()` sorted by Total Hype
-- [x] Glassmorphism UI, dashboard shell (sidebar + top bar + grid)
-- [x] Game cards: Total Hype ring, tier picker, owned toggle, Steam overview, reviews, sale pricing, RU alert, screenshots modal
-- [x] Cloud Function `addGameFromSteam` — Steam scrape (UAH, `cc=ua`), Gemini RU vetting, Firestore write
-- [x] Nicknames from env (`VITE_USER0/1_NICKNAME`) — no Me/Friend hardcoding
+Everything below is **not done yet**, ordered by suggested priority. Completed history is in sections further down.
+
+### Confirmed from discussion (2026-05-30)
+
+| Topic | Decision |
+|-------|----------|
+| **GFN sync** | Saves **full GFN Steam catalog** to Firestore (~2k IDs), **not** your library. New games get badge without re-sync. |
+| **`steamInput` in import JSON** | Same as + Add Game: Steam URL or App ID (see [Bulk import notes](#bulk-import-notes)). |
+| **Search vs sidebar** | Text search searches **all games** (overrides lifecycle sidebar tab). |
+| **Filters** | Add GFN toggle, Update available toggle, lifecycle state chips (same panel as On sale). |
+| **Dynamic background** | Top 5 by Total Hype; all tabs; **`VITE_ENABLE_DYNAMIC_BG` default `true`**; set `false` + redeploy to disable. |
+| **Bulk import Gemini** | Run vetting **only** for games imported as **`libraryState: 'active'`** (default). |
+| **Browser branding** | Done (Phase 14). |
+| **Finished rating** | 1–5 stars in edit modal and/or when marking Finished. |
+| **Edit modal bug** | Toggle clicks must not collapse body / inflate footer. |
+
+### Phase 10 — Bugs & small UX polish
+
+- [x] **Edit modal toggle bug** — clicking owned / RU / other toggles shrinks modal body; Save/Cancel footer steals vertical space. Fix layout (stable body height, scroll inside body, sticky footer without flex collapse).
+- [x] **Search bar:** placeholder `Search` (capital S) + search icon on the left inside input.
+- [x] **Screenshot viewer:** zone cursors — left `←`, right `→`, center `✕` (or cross); semi-transparent dark pill behind `5/6` counter text.
+- [x] **GFN badge on thumbnail:** semi-transparent dark background pill so badge stays readable on bright headers.
+
+### Phase 11 — Search & filters (v2)
+
+**Current (v1):** filters + search scoped to **active sidebar lifecycle tab** only.
+
+**Target (v2):**
+
+- [x] **Global search:** any non-empty search text queries **all games** in the library — **sidebar tab ignored** until search is cleared.
+- [x] **Lifecycle filter chips** in expanded filter panel: Active / Replayable / Waiting for updates / Finished / Banned (multi-select; combines with other filters).
+- [x] **GeForce NOW** toggle — same control style as “On sale only”; match `game.id` ∈ `gfnCatalog.steamAppIds`.
+- [x] **Update available** toggle — `hasUpdateSinceState === true`.
+- [x] Keep: dev status, ownership, Steam tags, on sale.
+
+**Deferred:** “Ready to Play” preset (both own + active) — use ownership + lifecycle chips instead.
+
+### Phase 12 — Finished rating (1–5 stars)
+
+- [x] Schema: `finishedRating: null | 1 | 2 | 3 | 4 | 5` (meaningful when `libraryState === 'finished'`; clear when leaving Finished).
+- [x] **GameEditModal:** star picker row.
+- [x] **LifecycleModal:** optional star picker when user selects **Finished** (can skip without blocking).
+- [x] **GameCard:** show rating on finished games (compact stars near title or lifecycle badge).
+
+### Phase 13 — Dynamic background
+
+- [x] Rotating full-viewport background using **existing Steam `thumbnail` URLs** on each game doc (no separate download service).
+- [x] Pool: **top 5 games by Total Hype** from full library; **exclude `banned`**; same pool on **every sidebar tab** (not tied to Active tab).
+- [x] Crossfade ~60s; dark overlay keeps UI readable.
+- [x] **Disable via redeploy only:** env `VITE_ENABLE_DYNAMIC_BG=false` → rebuild + deploy (no in-app toggle). **Default: `true` (on).**
+
+### Phase 14 — Browser tab title & app icon *(was Phase 8 — still open)*
+
+- [x] **`index.html` `<title>`:** `Nen? Co-op Tracker` (replace `vite-temp`).
+- [x] **Favicon / PWA icon:** replace `public/favicon.svg` (and link tags if needed) with Nen? branded mint/dark icon.
+
+### Phase 15 — One-time bulk import (~50 games)
+
+- [x] Script `scripts/import-games.mjs` (run locally once, **no UI button**).
+- [x] Reads JSON prepared by user; calls same scrape path as `addGameFromSteam`; skips duplicates; logs errors.
+- [x] Confirm before run: Gemini RU vetting **only for games imported with `libraryState: 'active'`** (or default active); skip vetting for other lifecycle states.
+
+**JSON format** (see [Bulk import notes](#bulk-import-notes) below).
+
+### Phase 16 — Ops & optional follow-ups
+
+- [ ] **Deploy** Firebase: functions (`addGameFromSteam`, `syncGfnCatalog`, `refreshLibraryVersions`), firestore rules, hosting.
+- [ ] Edit modal: “Refresh from Steam” single-game action (optional).
+- [ ] Mobile pass: tooltips on touch, grid, modals, sidebar (optional).
+- [ ] JSON **export** of library (optional backup).
+- [ ] Wishlist scheduled sync (optional; needs Steam API key + Steam IDs + public profiles).
+- [ ] Co-op warning on add (optional).
+- [ ] Archive passcode for Banned tab (optional; two trusted users).
+- [ ] Hosting CI documented or scripted (optional).
+- [ ] Move nicknames to Firestore config (optional; env works today).
+
+**Explicitly dropped / low value:**
+
+- ~~Re-run GFN on version refresh~~ — GFN catalog is global; badge reads catalog at render time.
+- ~~News feed UI~~ — replaced by update badges.
 
 ---
 
-## Lifecycle system (replaces `finished`, `abandoned`, custom `tags`)
+## Reference notes
 
-Primary way to organize games. **No custom user tags** — lifecycle + optional note per state is enough.
+### GFN sync — does it cover games not in our library?
 
-### Schema (target)
+**Yes.** `syncGfnCatalog` downloads the **full GeForce NOW Steam catalog** (~2000 app IDs via GraphQL) into Firestore `config/default.gfnCatalog.steamAppIds`. It is **not** limited to games already in your library.
 
-- [x] Add `libraryState`: `active` | `replayable` | `waiting_for_updates` | `finished` | `banned`
-- [x] Add `stateMeta`: `{ versionAtEntry, enteredAt, note }` — snapshot when entering (or re-entering) a state
-- [x] Add `hasUpdateSinceState` — true when Steam `currentVersion` differs from `stateMeta.versionAtEntry`
-- [x] Add `lastVersionCheck` — for throttling background checks on finished games
-- [x] Remove writing `finished`, `abandoned`, and custom `tags` on new/updated docs
-- [x] Legacy read fallback: `abandoned` → `banned`, `finished` → `finished`, else `active`
+When you **Add Game** later, the GFN badge checks that global list client-side — **no re-sync required** for each new game (re-sync weekly or manually only to refresh the catalog itself).
 
-### Lifecycle meanings
+### Bulk import notes
+
+**What is `steamInput`?** Same value you paste in **+ Add Game**: a Steam store URL or raw App ID. Examples:
+
+```json
+[
+  "https://store.steampowered.com/app/105600/Terraria/",
+  "570",
+  {
+    "steamInput": "1145360",
+    "libraryState": "active",
+    "owned": { "user0": true, "user1": false },
+    "userNotes": { "user0": "want to try co-op", "user1": "" }
+  }
+]
+```
+
+Strings = URL or App ID only (defaults for everything else). Objects = optional field overrides after scrape.
+
+---
+
+## Done (summary)
+
+- [x] React + Vite SPA, Firebase Auth (User 0 / User 1), Firestore, Total Hype formula + overrides
+- [x] Lifecycle system (5 states, modal, sidebar tabs, update badge, version scheduler)
+- [x] Add Game + duplicate guard + Steam caching + `steamTags` (filters only)
+- [x] GFN GraphQL catalog sync + badge from Firestore catalog
+- [x] Error reporting (`reportError`, `ErrorBanner`)
+- [x] Full edit modal + per-user notes + manual RU flag
+- [x] Phase 9 UI: sidebar controls (no top bar), mint palette, card polish, fullscreen screenshots, edit toggles, collapsible search
+- [x] Firestore config path fix: `artifacts/{appId}/public/data/config/default`
+
+---
+
+## Lifecycle system ✅
+
+All schema + UI + background version tracker items complete. See git history / Phase 7 below for detail.
 
 | State | Meaning |
 |-------|---------|
 | **active** | In rotation — default for new imports |
 | **replayable** | Worth playing again without needing new content |
 | **waiting_for_updates** | Done with current content; notify when version/content changes |
-| **finished** | Completed, unlikely to replay — check for major patches ~weekly |
-| **banned** | Ignored (RU devs or any reason) — optional note required in UX |
-
-### UI & behavior
-
-- [x] **Lifecycle modal** on card — all 5 states visible, optional note, confirm in a couple of clicks
-- [x] **Sidebar tabs** filter by `libraryState` (replace Ready to Play / boolean finished views)
-- [x] **Mute updates:** re-assign the **same** state → refresh `stateMeta.versionAtEntry` + `enteredAt`, clear `hasUpdateSinceState`
-- [x] **Update badge** on card when `hasUpdateSinceState` — no news feed; badge only
-- [x] **Total Hype = 0** for `finished` and `banned` (same override pattern as RU alert); tier picker disabled
-
-### Background version tracker
-
-- [x] Scheduled Cloud Function refreshes Steam version (and price/reviews while at it)
-- [x] Daily checks for `active`, `replayable`, `waiting_for_updates`
-- [x] Weekly checks for `finished`; skip `banned`
-- [x] Set `hasUpdateSinceState` when version changes vs `stateMeta.versionAtEntry`
+| **finished** | Completed — optional 1–5 star rating (`finishedRating`) |
+| **banned** | Ignored (RU devs or any reason) |
 
 ---
 
-## Card UX & quick wins
+## Search & filtering ✅ (v1 — Phase 9)
 
-- [x] **SteamDB link** on card — `https://steamdb.info/app/{appId}/`
-- [x] **Creative owned icons** — 3 distinct SVGs (not circles): gray backpack (neither), amber crystal (one), green crossed pickaxes (both)
-- [x] **Hide price when both own** — if `owned.user0 && owned.user1`, do not show price/sale on card
-- [x] **GeForce NOW badge** — shown when Steam App ID is in synced `gfnCatalog` (GraphQL catalog via **Sync GeForce**); not from static JSON
-- [x] Screenshots button placement polish (move off awkward footer spot)
-- [ ] Deferred: remove top bar, move Add Game / user into sidebar
-- [ ] Deferred: mobile responsiveness second pass (tooltips on touch, grid, modals)
+- [x] Collapsible filter bar; name, Steam tags, dev status, ownership, on sale
+- [x] Scoped to **current sidebar lifecycle tab**
+
+**v2 complete:** Phase 11 (global search, lifecycle chips, GFN / update toggles).
 
 ---
 
-## Add Game & Steam data
+## Card UX ✅
 
-- [x] **Duplicate alert** — if game id already exists in library, block add and show clear message (check client-side and in `addGameFromSteam`)
-- [x] **Steam caching** — cache all Steam HTTP responses in Cloud Functions (TTL per endpoint: appdetails, reviews, news, GFN lookup); avoid hammering Steam on refresh/add
-- [x] Store **`steamTags`** from Steam genres/categories on scrape (for search/filter only — not lifecycle tags)
-- [ ] Deferred: manual "refresh game from Steam" callable (scheduled refresh may cover most cases)
-- [ ] Deferred: co-op warning on add if no online co-op category
-- [ ] Deferred: wishlist scheduled sync (needs Steam API key + Steam IDs per user)
+- [x] SteamDB, owned icons, hide price when both own, GFN badge, footer actions, no tags on cards
+- [x] Sidebar layout (was listed as deferred — **done in Phase 9**)
 
 ---
 
-## Search & dynamic filtering
+## Add Game & Steam data ✅
 
-- [x] Search/filter bar on dashboard (works within current sidebar lifecycle tab)
-- [x] Filter/search by **game name** (text)
-- [x] Filter by **lifecycle state** (sidebar + optional multi-select in search bar)
-- [x] Filter by **Steam tags** (`steamTags` — genres/categories from Steam)
-- [x] Filter by **development status** (`released` / `early_access` / `tba`)
-- [x] Filter by **ownership** (neither / one / both own) — optional chip filters
-- [x] Filter by **on sale** — secondary filter, not a sidebar lifecycle tab
-- [ ] Deferred: "Ready to Play" as a saved filter preset (both own + active lifecycle)
+- [x] Duplicate alert, caching, steamTags on scrape
+- [ ] Deferred: wishlist sync, co-op warning on add, manual refresh callable
 
 ---
 
-## Total Hype (do not change formula coefficients without approval)
+## Total Hype ✅
 
-- [x] Formula: TierBase × Ownership × Status × Steam reviews
-- [x] RU developer alert → Total Hype 0
-- [x] Finished lifecycle state → Total Hype 0
-- [x] Banned lifecycle state → Total Hype 0
+Formula + RU / finished / banned overrides — do not change coefficients without approval.
 
 ---
 
-## Infrastructure & ops
+## Infrastructure
 
-- [x] Functions region `europe-west1`, Blaze plan, `functions/.env` for secrets
-- [x] Firestore config doc for `gfnCatalog` at `artifacts/{appId}/public/data/config/default`
-- [ ] **Deploy** functions + rules + hosting (`syncGfnCatalog`, `refreshLibraryVersions`, config rules, Phase 7 UI)
-- [ ] Deferred: JSON export of library
-- [ ] Deferred: move nicknames to Firestore config doc (still env-only today)
-- [ ] Deferred: archive passcode for banned view (simple Banned tab first)
-- [ ] Deferred: hosting CI (`npm run build` + `firebase deploy`)
+- [x] Functions region `europe-west1`, config doc for `gfnCatalog`
+- [ ] **Deploy** (Phase 16)
 
 ---
 
-## Documentation
+## Explicitly out of scope
 
-- [x] Lifecycle model, hype overrides, and new requirements captured in manifest
-- [x] Handoff points to this file as progress tracker
-- [x] Mark items `[x]` here as each feature ships
-- [x] Update PROJECT_HANDOFF "What's done" when milestones complete
-
----
-
-## Explicitly out of scope (for now)
-
-- News feed UI — replaced by version/update badges on relevant lifecycle states
-- Custom user tags — lifecycle + `stateMeta.note` only
-- Client-side CORS Steam scraping — Functions-first (manifest F5 legacy text updated)
+- News feed UI
+- Custom user lifecycle tags (use `stateMeta.note` + `userNotes` instead)
+- Client-side Steam scraping
 
 ---
 
-## Phase 7 — GFN catalog, errors, card polish, full edit (2026-05-30)
+## Completed phase log (archive)
 
-Work is split into **4 chunks**. Subagents implement one chunk at a time; orchestrator verifies before next chunk.
+<details>
+<summary>Phase 7 — GFN catalog, errors, card polish, full edit</summary>
 
-### Chunk 1 — GeForce NOW GraphQL catalog sync
+- [x] GFN GraphQL sync (`NP-WAW-01`), atomic catalog writes, Sync GeForce + weekly schedule
+- [x] Error reporting wired
+- [x] Card footer, edit modal, per-user notes
+- [ ] Follow-up: refresh from Steam in edit; mobile pass on edit/footer
 
-**Goal:** Replace stale static JSON with a synced catalog in Firestore; drive GFN badge from that list.
+</details>
 
-- [x] Research `vpcId` for Europe/Ukraine players (GraphQL requires `vpcId`; document choice in code + env `GFN_VPC_ID`)
-- [x] `functions/gfnSync.js` — paginate `POST https://games.geforce.com/graphql`, collect Steam app IDs where status is playable (`AVAILABLE`, not maintenance-only)
-- [x] Store catalog at `artifacts/{appId}/public/data/config/default` field `gfnCatalog`: `{ steamAppIds, syncedAt, vpcId, gameCount }` (document id `default` — Firestore paths must have an even segment count)
-- [x] **Atomic writes:** on any fetch/parse error, do **not** overwrite existing catalog; return error to client
-- [x] Callable `syncGfnCatalog` (manual “Sync GeForce” button)
-- [x] Scheduled job (e.g. weekly) reuses same sync logic
-- [x] UI: “Sync GeForce” button in top bar; show last sync date when catalog exists
-- [x] GFN badge on card: show only if `game.id` is in synced `gfnCatalog.steamAppIds` (not static JSON / not per-game scrape field alone)
-- [x] Remove or stop relying on static `gfnpc-en-US.json` for badge logic
+<details>
+<summary>Phase 9 — UI overhaul</summary>
 
-### Chunk 2 — Error reporting (no silent failures)
+- [x] Layout + mint palette + sidebar
+- [x] GameCard polish (GFN position, RU by title, owned icons, hover)
+- [x] Fullscreen screenshots
+- [x] Edit toggles
+- [x] Collapsible search
 
-- [x] Shared helper: `reportError(context, err)` → `console.error` with full details + user-facing minimal toast/banner: “An error occurred. Check the console for details.”
-- [x] Wire to: Sync GeForce, Add Game, lifecycle save, edit save (when added)
-- [x] No empty `catch` blocks that swallow errors without logging
-
-### Chunk 3 — Card layout, visuals, modal, filters
-
-**From testing feedback:**
-
-- [x] Fix Screenshots modal — images must stay inside dialog bounds (no overflow outside panel)
-- [x] Card **footer action bar** flush with card edges (shared border radius, no side/bottom padding gap; segmented button group)
-- [x] Move **SteamDB** to footer; **icon only** (no text)
-- [x] Add **Edit** icon button in footer (opens edit modal — Chunk 4)
-- [x] Remove thumbnail scale/jump on hover → subtle highlight instead
-- [x] Thumbnail top corners match card border radius; add card box shadow
-- [x] **Never display `steamTags` on cards** (filter bar may still use them)
-- [x] Restyle search/filter top panel: full width, nicer chips, styled “on sale” toggle, responsive wrap
-
-### Chunk 4 — Full game edit modal + per-user notes
-
-- [x] `GameEditModal.jsx` — edit all game fields both users can change equally: lifecycle, owned (both users), hype tiers (both), RU flag + explanation, prices/metadata overrides, coop flags, etc.
-- [x] **Manual RU flag:** allow set/clear `ruDeveloperAlert` + `ruDeveloperExplanation` after human verification
-- [x] **Per-user notes** schema: e.g. `userNotes: { user0: string, user1: string }` (separate from lifecycle `stateMeta.note`)
-- [x] Display on card:
-  ```
-  {nickname0}: "note text"
-  {nickname1}: "note text"
-  ```
-  Use `getNickname()` — never hardcode Me/Friend
-- [x] Persist via Firestore `updateGame` / dedicated save helper
-
-### Phase 7 — Deferred / follow-up
-
-- [ ] Re-run GFN lookup on version refresh using catalog (not static scrape)
-- [ ] Edit modal: “refresh from Steam” single-game action
-- [ ] Mobile pass on new footer bar and edit modal
-
----
-
-## Phase 8 — Polish (small)
-
-- [ ] **Browser tab title** — change from `vite-temp` to **Nen? Co-op Tracker** (or similar) in `index.html`
-- [ ] **App icon / favicon** — replace default Vite favicon with a Nen? branded icon (`public/favicon.svg` or PNG set)
+</details>

@@ -106,6 +106,7 @@ The database structure is designed to keep static app configurations decoupled f
   "steamOverview": "Short Steam store description shown on the card.",
   "steamReviewPercent": 94,
   "libraryState": "active",
+  "finishedRating": null,
   "stateMeta": {
     "versionAtEntry": "v1.4.2",
     "enteredAt": "Firestore Timestamp",
@@ -139,6 +140,7 @@ The database structure is designed to keep static app configurations decoupled f
 * **`steamOverview`**: Short description from Steam (`short_description`) displayed on the game card.
 * **`steamReviewPercent`**: Steam positive review percentage (`0`–`100`), used as a minor factor in Total Hype (less impact than `developmentStatus`).
 * **`libraryState`**: Primary lifecycle enum — `active` | `replayable` | `waiting_for_updates` | `finished` | `banned`. Replaces legacy `finished`, `abandoned`, and custom user `tags`.
+* **`finishedRating`**: Optional `null | 1 | 2 | 3 | 4 | 5` — meaningful when `libraryState === 'finished'`; cleared to `null` when leaving Finished. Shown on cards and editable in the lifecycle/edit modals.
 * **`stateMeta`**: Snapshot when entering (or re-entering) a lifecycle state. `versionAtEntry` copies `currentVersion` at that moment; `enteredAt` is a timestamp; `note` is optional text (encouraged for `banned`). Re-assigning the **same** state refreshes the snapshot and clears update alerts ("mute").
 * **`hasUpdateSinceState`**: Set by scheduled refresh when Steam `currentVersion` differs from `stateMeta.versionAtEntry`. Drives an update badge on the card — no news feed UI.
 * **`lastVersionCheck`**: Timestamp of last background version check; `finished` games checked ~weekly, others daily.

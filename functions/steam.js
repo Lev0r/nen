@@ -222,6 +222,7 @@ async function fetchSteamGame(steamInput) {
     userNotes: { user0: '', user1: '' },
     hypeTier: { user0: 'morkite_found', user1: 'morkite_found' },
     libraryState: 'active',
+    finishedRating: null,
     stateMeta: {
       versionAtEntry: developmentStatus === 'tba' ? null : currentVersion,
       note: '',
