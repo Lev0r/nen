@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { updateGame } from '../services/db';
 import { reportError } from '../utils/errorReport';
 import { getNickname } from '../utils/userConfig';
@@ -12,6 +12,19 @@ import {
   normalizeFinishedRating,
 } from '../utils/libraryState';
 import FinishedRatingPicker from './FinishedRatingPicker';
+import {
+  getGameName,
+  getSteamOverview,
+  getDevelopmentStatus,
+  getPrice,
+  getOriginalPrice,
+  getIsOnSale,
+  getDiscountPercent,
+  getCoopSpecs,
+  getCurrentVersion,
+  getGameOperationErrors,
+} from '../utils/gameAccessors';
+import { formatRelativeTimeShort } from '../utils/formatDuration';
 
 const APP_ID = 'default_app';
 
@@ -44,10 +57,11 @@ function ToggleSwitch({ id, checked, onChange, disabled, label, className = '' }
 }
 
 function initForm(game) {
+  const coopSpecs = getCoopSpecs(game);
   return {
-    name: game.name || '',
-    steamOverview: game.steamOverview || '',
-    developmentStatus: game.developmentStatus || 'released',
+    name: getGameName(game),
+    steamOverview: getSteamOverview(game),
+    developmentStatus: getDevelopmentStatus(game) || 'released',
     libraryState: resolveLibraryState(game),
     lifecycleNote: game.stateMeta?.note || '',
     finishedRating: normalizeFinishedRating(game.finishedRating),
@@ -59,26 +73,34 @@ function initForm(game) {
     ruDeveloperExplanation: game.ruDeveloperExplanation || '',
     userNote0: game.userNotes?.user0 || '',
     userNote1: game.userNotes?.user1 || '',
-    price: game.price || '',
-    originalPrice: game.originalPrice || '',
-    isOnSale: game.isOnSale === true,
-    discountPercent: game.discountPercent ?? 0,
-    onlineCoop: game.coopSpecs?.onlineCoop === true,
-    splitScreen: game.coopSpecs?.splitScreen === true,
-    crossPlay: game.coopSpecs?.crossPlay === true,
+    price: getPrice(game) || '',
+    originalPrice: getOriginalPrice(game) || '',
+    isOnSale: getIsOnSale(game),
+    discountPercent: getDiscountPercent(game) ?? 0,
+    onlineCoop: coopSpecs?.onlineCoop === true,
+    splitScreen: coopSpecs?.splitScreen === true,
+    crossPlay: coopSpecs?.crossPlay === true,
   };
 }
 
-export default function GameEditModal({ game, isOpen, onClose }) {
+export default function GameEditModal({ game, isOpen, onClose, focusNotes = false }) {
   const [form, setForm] = useState(() => initForm(game));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const notesSectionRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen || !game) return;
     setForm(initForm(game));
     setError('');
   }, [isOpen, game]);
+
+  useEffect(() => {
+    if (!isOpen || !focusNotes) return;
+    notesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const firstNote = document.getElementById('edit-user-note-0');
+    firstNote?.focus();
+  }, [isOpen, focusNotes]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -90,6 +112,8 @@ export default function GameEditModal({ game, isOpen, onClose }) {
   }, [isOpen, onClose]);
 
   if (!isOpen || !game) return null;
+
+  const operationErrors = getGameOperationErrors(game);
 
   const setField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -103,9 +127,9 @@ export default function GameEditModal({ game, isOpen, onClose }) {
     const stateChanged = form.libraryState !== previousState;
 
     const updates = {
-      name: form.name.trim(),
-      steamOverview: form.steamOverview.trim(),
-      developmentStatus: form.developmentStatus,
+      'steamStatic.name': form.name.trim(),
+      'steamStatic.steamOverview': form.steamOverview.trim(),
+      'steamStatic.developmentStatus': form.developmentStatus,
       'owned.user0': form.ownedUser0,
       'owned.user1': form.ownedUser1,
       'hypeTier.user0': form.hypeTierUser0,
@@ -114,13 +138,13 @@ export default function GameEditModal({ game, isOpen, onClose }) {
       ruDeveloperExplanation: form.ruDeveloperExplanation.trim(),
       'userNotes.user0': form.userNote0.trim(),
       'userNotes.user1': form.userNote1.trim(),
-      price: form.price.trim(),
-      originalPrice: form.originalPrice.trim(),
-      isOnSale: form.isOnSale,
-      discountPercent: Number(form.discountPercent) || 0,
-      'coopSpecs.onlineCoop': form.onlineCoop,
-      'coopSpecs.splitScreen': form.splitScreen,
-      'coopSpecs.crossPlay': form.crossPlay,
+      'steamDynamic.price': form.price.trim(),
+      'steamDynamic.originalPrice': form.originalPrice.trim(),
+      'steamDynamic.isOnSale': form.isOnSale,
+      'steamDynamic.discountPercent': Number(form.discountPercent) || 0,
+      'steamStatic.coopSpecs.onlineCoop': form.onlineCoop,
+      'steamStatic.coopSpecs.splitScreen': form.splitScreen,
+      'steamStatic.coopSpecs.crossPlay': form.crossPlay,
     };
 
     if (stateChanged) {
@@ -129,7 +153,7 @@ export default function GameEditModal({ game, isOpen, onClose }) {
         buildStateMetaUpdates(
           form.libraryState,
           form.lifecycleNote,
-          game.currentVersion ?? null,
+          getCurrentVersion(game),
           form.libraryState === 'finished' ? form.finishedRating : null
         )
       );
@@ -165,10 +189,10 @@ export default function GameEditModal({ game, isOpen, onClose }) {
         className="game-edit-modal glass-panel animate-fade-in"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label={`Edit ${game.name}`}
+        aria-label={`Edit ${getGameName(game)}`}
       >
         <div className="game-edit-modal-header">
-          <h2 className="game-edit-modal-title">{game.name}</h2>
+          <h2 className="game-edit-modal-title">{getGameName(game)}</h2>
           <p className="game-edit-modal-desc">
             Edit game metadata. Both users can change all fields.
           </p>
@@ -358,7 +382,7 @@ export default function GameEditModal({ game, isOpen, onClose }) {
             />
           </section>
 
-          <section className="game-edit-section">
+          <section className="game-edit-section" ref={notesSectionRef}>
             <h3 className="game-edit-section-title">Per-user notes</h3>
             <label className="game-edit-label" htmlFor="edit-user-note-0">
               {getNickname(0)}
@@ -457,6 +481,29 @@ export default function GameEditModal({ game, isOpen, onClose }) {
               />
             </div>
           </section>
+
+          {operationErrors.length > 0 && (
+            <section className="game-edit-section game-edit-section--errors" aria-live="polite">
+              <h3 className="game-edit-section-title game-edit-section-title--warning">
+                Sync errors
+              </h3>
+              <p className="game-edit-errors-desc">
+                Read-only log from automated sync and enrichment. Re-run Sync Steam to retry.
+              </p>
+              <ul className="game-edit-errors-list">
+                {operationErrors.map((entry) => {
+                  const when = entry.at ? formatRelativeTimeShort(entry.at) : null;
+                  return (
+                    <li key={entry.source} className="game-edit-error-item">
+                      <span className="game-edit-error-label">{entry.label}</span>
+                      <p className="game-edit-error-message">{entry.message}</p>
+                      {when && <span className="game-edit-error-at">Last attempt {when}</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
           </div>
         </div>
 

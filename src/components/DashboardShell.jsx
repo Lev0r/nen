@@ -4,7 +4,7 @@ import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
 import GameFiltersBar from './GameFiltersBar';
 import { useGames, useAppConfig } from '../services/db';
-import { syncGfnCatalog } from '../services/cloudFunctions';
+import { syncGfnCatalog, syncSteamLibrary } from '../services/cloudFunctions';
 import { getNickname } from '../utils/userConfig';
 import {
   LIBRARY_STATES,
@@ -17,6 +17,7 @@ import {
   collectSteamTags,
   hasActiveFilters,
 } from '../utils/gameFilters';
+import { formatRelativeTimeShort } from '../utils/formatDuration';
 import { reportError } from '../utils/errorReport';
 import ErrorBanner from './ErrorBanner';
 import DynamicBackground from './DynamicBackground';
@@ -36,6 +37,8 @@ export default function DashboardShell() {
   const [gameFilters, setGameFilters] = useState(DEFAULT_GAME_FILTERS);
   const [syncingGfn, setSyncingGfn] = useState(false);
   const [gfnSyncError, setGfnSyncError] = useState(null);
+  const [syncingSteam, setSyncingSteam] = useState(false);
+  const [steamSyncError, setSteamSyncError] = useState(null);
 
   const gfnSteamAppIds = useMemo(() => {
     const ids = config?.gfnCatalog?.steamAppIds;
@@ -44,12 +47,30 @@ export default function DashboardShell() {
 
   const gfnSyncedAtLabel = useMemo(() => {
     const syncedAt = config?.gfnCatalog?.syncedAt;
-    if (!syncedAt) {
-      return null;
-    }
-    const date = syncedAt.toDate ? syncedAt.toDate() : new Date(syncedAt.seconds * 1000);
-    return date.toLocaleDateString();
+    return formatRelativeTimeShort(syncedAt);
   }, [config?.gfnCatalog?.syncedAt]);
+
+  const steamSyncedAtLabel = useMemo(() => {
+    const syncedAt = config?.steamLibrarySync?.syncedAt;
+    return formatRelativeTimeShort(syncedAt);
+  }, [config?.steamLibrarySync?.syncedAt]);
+
+  const thirdPartyHint = useMemo(() => {
+    const sync = config?.steamLibrarySync;
+    const health = config?.thirdPartyHealth;
+    const parts = [];
+
+    if (sync?.hltbErrors > 0) {
+      parts.push(`HLTB: ${sync.hltbErrors} failed on last sync`);
+    }
+    if (health?.itad?.configured === false) {
+      parts.push('ITAD API key not set');
+    } else if (sync?.itadErrors > 0) {
+      parts.push(`ITAD: ${sync.itadErrors} failed on last sync`);
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+  }, [config?.steamLibrarySync, config?.thirdPartyHealth]);
 
   async function handleSyncGfn() {
     setSyncingGfn(true);
@@ -60,6 +81,18 @@ export default function DashboardShell() {
       reportError('Sync GeForce', err, setGfnSyncError);
     } finally {
       setSyncingGfn(false);
+    }
+  }
+
+  async function handleSyncSteam() {
+    setSyncingSteam(true);
+    setSteamSyncError(null);
+    try {
+      await syncSteamLibrary();
+    } catch (err) {
+      reportError('Sync Steam', err, setSteamSyncError);
+    } finally {
+      setSyncingSteam(false);
     }
   }
 
@@ -113,19 +146,40 @@ export default function DashboardShell() {
             + Add Game
           </button>
           <button
-            className="btn-secondary sidebar-action-btn"
-            onClick={handleSyncGfn}
-            disabled={syncingGfn}
+            className="btn-secondary sidebar-action-btn sidebar-sync-btn"
+            onClick={handleSyncSteam}
+            disabled={syncingSteam || syncingGfn}
           >
-            {syncingGfn ? 'Syncing…' : 'Sync GeForce'}
+            <span className="sidebar-sync-btn-label">
+              {syncingSteam ? 'Syncing…' : 'Sync Steam'}
+            </span>
+            {steamSyncedAtLabel && !syncingSteam && (
+              <span className="sidebar-sync-btn-meta">{steamSyncedAtLabel}</span>
+            )}
           </button>
-          {gfnSyncedAtLabel && (
-            <span className="sidebar-sync-label">GFN synced {gfnSyncedAtLabel}</span>
-          )}
+          <ErrorBanner
+            message={steamSyncError}
+            onDismiss={() => setSteamSyncError(null)}
+          />
+          <button
+            className="btn-secondary sidebar-action-btn sidebar-sync-btn"
+            onClick={handleSyncGfn}
+            disabled={syncingGfn || syncingSteam}
+          >
+            <span className="sidebar-sync-btn-label">
+              {syncingGfn ? 'Syncing…' : 'Sync GeForce'}
+            </span>
+            {gfnSyncedAtLabel && !syncingGfn && (
+              <span className="sidebar-sync-btn-meta">{gfnSyncedAtLabel}</span>
+            )}
+          </button>
           <ErrorBanner
             message={gfnSyncError}
             onDismiss={() => setGfnSyncError(null)}
           />
+          {thirdPartyHint && (
+            <p className="sidebar-third-party-hint">{thirdPartyHint}</p>
+          )}
           <div className="sidebar-user-row">
             <span className="sidebar-user">{getNickname(userIndex)}</span>
             <button className="btn-secondary sidebar-sign-out" onClick={logout}>

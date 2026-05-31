@@ -5,8 +5,20 @@
  * Usage:
  *   node scripts/import-games.mjs path/to/games.json [--dry-run] [--app-id default_app]
  *
- * JSON: array of Steam URLs / App IDs (strings) or objects with `steamInput` plus optional
- * overrides (`libraryState`, `owned`, `userNotes`, `hypeTier`, `finishedRating`, etc.).
+ * JSON root: array of entries in either format below.
+ *
+ * Canonical format — strings or objects with `steamInput` plus optional overrides
+ * (`libraryState`, `owned`, `userNotes`, `hypeTier`, `finishedRating`, etc.).
+ *
+ * Legacy friend-export format — objects with `Game link` (auto-detected):
+ *   `Game link` → steamInput
+ *   `{VITE_USER0_NICKNAME} owned` → owned.user0 (fallback key: "Lev0r owned")
+ *   `{VITE_USER1_NICKNAME} owned` → owned.user1 (fallback key: "Punpun owned")
+ *   `Game status` → libraryState (Active, Finished, Waiting-for-updates, replayable, banned)
+ *   `Comment` → stateMeta.note (optional; commonly used on banned entries)
+ *
+ * Nicknames are read from `.env.local` and `functions/.env` (VITE_USER0_NICKNAME /
+ * VITE_USER1_NICKNAME).
  *
  * Firebase Admin auth (pick one):
  *   1. Set GOOGLE_APPLICATION_CREDENTIALS to a service-account JSON file path, or
@@ -15,6 +27,9 @@
  *
  * Gemini: loads GEMINI_API_KEY from functions/.env (if present) or process.env.
  * RU developer vetting runs only when the final saved libraryState is `active`.
+ * Developer results are cached in config/default `devBgCheck.developers` (shared with
+ * addGameFromSteam). Bulk import pre-vets all unique developers once in batched Gemini
+ * calls (default 5 per request, GEMINI_VET_BATCH_SIZE env).
  *
  * Do not run against production without reviewing the JSON and using --dry-run first.
  */
@@ -32,7 +47,12 @@ const require = createRequire(join(ROOT, 'functions/package.json'));
 const { initializeApp, getApps } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { fetchSteamGame, parseAppId } = require('./steam');
-const { vetAllDevelopers } = require('./gemini');
+const { vetAllDevelopers, getBatchSize } = require('./gemini');
+const {
+  ensureMemoryCache,
+  aggregateVettingFromCache,
+  collectUncachedDevelopers,
+} = require('./devBgCheck');
 
 const LIBRARY_STATES = new Set([
   'active',
@@ -150,11 +170,79 @@ function normalizeFinishedRating(value) {
   return null;
 }
 
-function normalizeEntry(entry, index) {
+function resolveLegacyOwnershipKeys() {
+  const user0Nickname = process.env.VITE_USER0_NICKNAME?.trim();
+  const user1Nickname = process.env.VITE_USER1_NICKNAME?.trim();
+  return {
+    user0Key: user0Nickname ? `${user0Nickname} owned` : 'Lev0r owned',
+    user1Key: user1Nickname ? `${user1Nickname} owned` : 'Punpun owned',
+  };
+}
+
+const LEGACY_LIBRARY_STATE_MAP = {
+  active: 'active',
+  finished: 'finished',
+  'waiting-for-updates': 'waiting_for_updates',
+  replayable: 'replayable',
+  banned: 'banned',
+};
+
+function normalizeLegacyLibraryState(status) {
+  const normalized = String(status ?? 'Active').trim().toLowerCase();
+  const libraryState = LEGACY_LIBRARY_STATE_MAP[normalized];
+  if (!libraryState) {
+    throw new Error(`Unknown legacy Game status: ${status}`);
+  }
+  return libraryState;
+}
+
+function isLegacyEntry(entry) {
+  return entry && typeof entry === 'object' && !Array.isArray(entry) && 'Game link' in entry;
+}
+
+function convertLegacyEntry(entry, ownershipKeys) {
+  const steamInput = entry['Game link'];
+  if (!steamInput) {
+    throw new Error('legacy entry missing Game link');
+  }
+
+  const overrides = {};
+  const owned = {};
+
+  if (ownershipKeys.user0Key in entry) {
+    owned.user0 = Boolean(entry[ownershipKeys.user0Key]);
+  }
+  if (ownershipKeys.user1Key in entry) {
+    owned.user1 = Boolean(entry[ownershipKeys.user1Key]);
+  }
+  if (Object.keys(owned).length > 0) {
+    overrides.owned = owned;
+  }
+
+  if (entry['Game status'] != null && String(entry['Game status']).trim() !== '') {
+    overrides.libraryState = normalizeLegacyLibraryState(entry['Game status']);
+  }
+
+  const comment = entry.Comment ?? entry.comment;
+  if (comment != null && String(comment).trim() !== '') {
+    overrides.stateMeta = { note: String(comment).trim() };
+  }
+
+  return { steamInput: String(steamInput), overrides };
+}
+
+function normalizeEntry(entry, index, ownershipKeys) {
   if (typeof entry === 'string') {
     return { steamInput: entry, overrides: {} };
   }
   if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+    if (isLegacyEntry(entry)) {
+      try {
+        return convertLegacyEntry(entry, ownershipKeys);
+      } catch (err) {
+        throw new Error(`Entry ${index}: ${err.message}`);
+      }
+    }
     const { steamInput, ...rest } = entry;
     if (!steamInput) {
       throw new Error(`Entry ${index}: object must include steamInput`);
@@ -191,7 +279,7 @@ function applyOverrides(game, overrides) {
   if (targetState !== 'active') {
     merged.hasUpdateSinceState = false;
     merged.stateMeta = {
-      versionAtEntry: game.currentVersion ?? null,
+      versionAtEntry: game.steamDynamic?.currentVersion ?? null,
       note: String(overrides.stateMeta?.note ?? merged.stateMeta?.note ?? '').trim(),
       enteredAt: FieldValue.serverTimestamp(),
     };
@@ -210,30 +298,40 @@ function gameDocPath(appId, gameId) {
   return `artifacts/${appId}/public/data/games/${gameId}`;
 }
 
-async function importOne(db, entry, { appId, dryRun, geminiApiKey }) {
+async function prepareGame(db, entry, { appId }) {
   const { steamInput, overrides } = entry;
   const parsedId = parseAppId(steamInput);
   const gameRef = db.doc(gameDocPath(appId, parsedId));
 
   const existing = await gameRef.get();
   if (existing.exists) {
-    console.log(`  SKIP duplicate: ${parsedId} (${steamInput})`);
-    return { status: 'duplicate' };
+    return { status: 'duplicate', parsedId, steamInput };
   }
 
   const scraped = await fetchSteamGame(steamInput);
   const game = applyOverrides(scraped, overrides);
   const shouldVet = game.libraryState === 'active';
 
+  return { status: 'ready', game, shouldVet, steamInput };
+}
+
+async function importOne(db, prepared, { appId, dryRun, devCache }) {
+  if (prepared.status === 'duplicate') {
+    console.log(`  SKIP duplicate: ${prepared.parsedId} (${prepared.steamInput})`);
+    return { status: 'duplicate' };
+  }
+
+  const { game, shouldVet } = prepared;
+
   if (dryRun) {
     console.log(
       `  DRY-RUN would import: ${game.id} "${game.name}" libraryState=${game.libraryState}` +
-        (shouldVet ? ' (Gemini vetting)' : ' (no vetting)')
+        (shouldVet ? ' (vetting from cache)' : ' (no vetting)')
     );
     return { status: 'imported' };
   }
 
-  await gameRef.set(game);
+  await db.doc(gameDocPath(appId, game.id)).set(game);
   console.log(`  Imported: ${game.id} "${game.name}" libraryState=${game.libraryState}`);
 
   if (!shouldVet) {
@@ -241,22 +339,12 @@ async function importOne(db, entry, { appId, dryRun, geminiApiKey }) {
     return { status: 'imported' };
   }
 
-  if (!geminiApiKey) {
-    console.warn('  GEMINI_API_KEY not set — skipping developer vetting');
-    return { status: 'imported' };
-  }
-
-  try {
-    const vetting = await vetAllDevelopers(game.developers, geminiApiKey);
-    await gameRef.update(vetting);
-    if (vetting.ruDeveloperAlert) {
-      console.log(`  Gemini: RU developer alert — ${vetting.ruDeveloperExplanation}`);
-    } else {
-      console.log('  Gemini: no RU developer flags');
-    }
-  } catch (err) {
-    console.error(`  Gemini vetting failed: ${err.message}`);
-    return { status: 'imported', vettingError: err.message };
+  const vetting = aggregateVettingFromCache(game.steamStatic?.developers || [], devCache);
+  await db.doc(gameDocPath(appId, game.id)).update(vetting);
+  if (vetting.ruDeveloperAlert) {
+    console.log(`  RU developer alert — ${vetting.ruDeveloperExplanation}`);
+  } else {
+    console.log('  No RU developer flags (from cache)');
   }
 
   return { status: 'imported' };
@@ -265,8 +353,10 @@ async function importOne(db, entry, { appId, dryRun, geminiApiKey }) {
 async function main() {
   const { jsonPath, dryRun, appId } = parseArgs(process.argv);
 
+  loadDotEnvFile(join(ROOT, '.env.local'));
   loadDotEnvFile(join(ROOT, 'functions/.env'));
   const geminiApiKey = process.env.GEMINI_API_KEY || null;
+  const ownershipKeys = resolveLegacyOwnershipKeys();
 
   const raw = readFileSync(jsonPath, 'utf8');
   const entries = JSON.parse(raw);
@@ -275,32 +365,88 @@ async function main() {
   }
 
   const db = initFirebase();
+  const devCache = new Map();
+  await ensureMemoryCache(devCache, db, appId);
 
   console.log(`Import ${entries.length} entries → artifacts/${appId}/public/data/games/`);
   if (dryRun) console.log('DRY-RUN mode — no Firestore writes');
 
-  const summary = { imported: 0, duplicates: 0, errors: 0 };
+  const summary = { imported: 0, duplicates: 0, errors: 0, prepareErrors: 0 };
 
+  // Phase 1: normalize + scrape all entries
+  const preparedGames = [];
   for (let i = 0; i < entries.length; i += 1) {
     let normalized;
     try {
-      normalized = normalizeEntry(entries[i], i);
+      normalized = normalizeEntry(entries[i], i, ownershipKeys);
     } catch (err) {
-      summary.errors += 1;
+      summary.prepareErrors += 1;
       console.error(`[${i + 1}/${entries.length}] ${err.message}`);
       continue;
     }
 
     console.log(`[${i + 1}/${entries.length}] ${normalized.steamInput}`);
     try {
-      const result = await importOne(db, normalized, { appId, dryRun, geminiApiKey });
+      const prepared = await prepareGame(db, normalized, { appId });
+      preparedGames.push({ index: i + 1, prepared });
+    } catch (err) {
+      summary.prepareErrors += 1;
+      console.error(`  ERROR: ${err.message}`);
+    }
+  }
+
+  // Phase 2: pre-vet unique developers from active games (cache + batched Gemini)
+  const uniqueDevs = new Set();
+  for (const { prepared } of preparedGames) {
+    if (prepared.status !== 'ready' || !prepared.shouldVet) continue;
+    for (const name of prepared.game.steamStatic?.developers || []) {
+      const trimmed = String(name || '').trim();
+      if (trimmed) uniqueDevs.add(trimmed);
+    }
+  }
+
+  const uncachedBefore = collectUncachedDevelopers([...uniqueDevs], devCache);
+  const cacheHitsBefore = uniqueDevs.size - uncachedBefore.length;
+
+  console.log(
+    `\nDeveloper vetting: ${uniqueDevs.size} unique across active games` +
+      ` (${cacheHitsBefore} cached, ${uncachedBefore.length} need Gemini)` +
+      ` batch size ${getBatchSize()}`
+  );
+
+  if (uniqueDevs.size > 0 && geminiApiKey) {
+    try {
+      const { stats } = await vetAllDevelopers([...uniqueDevs], geminiApiKey, {
+        db: dryRun ? null : db,
+        appId,
+        memoryCache: devCache,
+        dryRun,
+      });
+      console.log(
+        `Vetting complete: ${stats.cacheHits} cache hits, ` +
+          `${stats.geminiBatches} Gemini batch(es), ${stats.geminiDevelopers} API developer slot(s)`
+      );
+    } catch (err) {
+      console.error(`Developer pre-vetting failed: ${err.message}`);
+    }
+  } else if (uniqueDevs.size > 0 && !geminiApiKey) {
+    console.warn('GEMINI_API_KEY not set — skipping developer vetting');
+  }
+
+  // Phase 3: write games with vetting from cache
+  console.log('\nWriting games...');
+  for (const { index, prepared } of preparedGames) {
+    try {
+      const result = await importOne(db, prepared, { appId, dryRun, devCache });
       if (result.status === 'duplicate') summary.duplicates += 1;
       else summary.imported += 1;
     } catch (err) {
       summary.errors += 1;
-      console.error(`  ERROR: ${err.message}`);
+      console.error(`[${index}] ERROR: ${err.message}`);
     }
   }
+
+  summary.errors += summary.prepareErrors;
 
   console.log('\n--- Summary ---');
   console.log(`Imported:   ${summary.imported}`);

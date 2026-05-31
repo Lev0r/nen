@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { calculateTotalHype } from '../utils/hypeScore';
 import { resolveLibraryState } from '../utils/libraryState';
+import { getScreenshots, getThumbnail } from '../utils/gameAccessors';
 
 const SLIDE_DURATION_MS = 60000;
 const CROSSFADE_DURATION_MS = 4000;
@@ -10,16 +11,15 @@ export function isDynamicBackgroundEnabled() {
 }
 
 function pickScreenshotUrl(game) {
-  const screenshots = game.screenshots;
-  if (Array.isArray(screenshots)) {
-    const url = screenshots.find(
-      (item) => typeof item === 'string' && item.trim()
-    );
-    if (url) return url.trim();
-  }
+  const screenshots = getScreenshots(game);
+  const url = screenshots.find(
+    (item) => typeof item === 'string' && item.trim()
+  );
+  if (url) return url.trim();
 
-  if (typeof game.thumbnail === 'string' && game.thumbnail.trim()) {
-    return game.thumbnail.trim();
+  const thumbnail = getThumbnail(game);
+  if (thumbnail.trim()) {
+    return thumbnail.trim();
   }
 
   return null;

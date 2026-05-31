@@ -1,9 +1,10 @@
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { fetchSteamGame } = require('./steam');
 const { vetAllDevelopers } = require('./gemini');
-const { refreshLibraryVersions } = require('./versionRefresh');
+const { enrichNewGameThirdParty } = require('./thirdParty');
+const { syncLibrarySteam, syncSteamLibrary } = require('./steamSync');
 const { syncGfnCatalog, syncGfnCatalogScheduled } = require('./gfnSync');
 
 initializeApp();
@@ -42,6 +43,7 @@ exports.addGameFromSteam = onCall(
     let game;
     try {
       game = await fetchSteamGame(steamInput);
+      game = await enrichNewGameThirdParty(game);
     } catch (err) {
       console.error('Steam scrape failed:', err);
       throw new HttpsError('failed-precondition', err.message || 'Failed to fetch Steam data.');
@@ -68,19 +70,36 @@ exports.addGameFromSteam = onCall(
     }
 
     try {
-      const vetting = await vetAllDevelopers(game.developers, apiKey);
-      await gameRef.update(vetting);
-      return { gameId: game.id, ...vetting };
+      const { stats, memoryCache, ...vetting } = await vetAllDevelopers(
+        game.steamStatic?.developers || [],
+        apiKey,
+        {
+          db,
+          appId,
+        }
+      );
+      await gameRef.update({
+        ...vetting,
+        vettingError: null,
+        vettingErrorAt: FieldValue.delete(),
+      });
+      return { gameId: game.id, ...vetting, vettingStats: stats };
     } catch (err) {
       console.error('Gemini vetting failed:', err);
+      const vettingError = err.message || 'Developer vetting failed';
+      await gameRef.update({
+        vettingError,
+        vettingErrorAt: FieldValue.serverTimestamp(),
+      });
       return {
         gameId: game.id,
-        vettingError: err.message || 'Developer vetting failed',
+        vettingError,
       };
     }
   }
 );
 
-exports.refreshLibraryVersions = refreshLibraryVersions;
+exports.syncLibrarySteam = syncLibrarySteam;
+exports.syncSteamLibrary = syncSteamLibrary;
 exports.syncGfnCatalog = syncGfnCatalog;
 exports.syncGfnCatalogScheduled = syncGfnCatalogScheduled;

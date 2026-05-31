@@ -67,7 +67,13 @@ The database structure is designed to keep static app configurations decoupled f
 
 ### Configuration & Static Data Path
 * **Path:** `/artifacts/{appId}/public/data/config/default` (singleton document id `default`)
-* **Purpose:** Stores application global configs (e.g. `gfnCatalog`), user nicknames, and global metadata.
+* **Purpose:** Stores application global configs (e.g. `gfnCatalog`, `devBgCheck`), user nicknames, and global metadata.
+
+#### `devBgCheck` (developer vetting cache)
+* **Field:** `devBgCheck.developers.{cacheKey}` on the same `config/default` document
+* **cacheKey:** Normalized studio name (lowercase, trimmed)
+* **Entry:** `{ name, isRussianRelated, explanation, checkedAt }`
+* **Usage:** `addGameFromSteam` and bulk import check cache before calling Gemini; new results are merged into this map. Bulk import batches uncached developers (default 5 per request).
 
 ### Games Collection Path
 * **Path:** `/artifacts/{appId}/public/data/games`
@@ -75,24 +81,17 @@ The database structure is designed to keep static app configurations decoupled f
 
 ---
 
-### Game Document Schema (`/games/{gameId}`)
+### Game Document Schema v2 (`/games/{gameId}`)
+
+> [!IMPORTANT]
+> **Schema v2 is locked pre-import.** Steam-sourced fields live in nested objects (`steamStatic`, `steamDynamic`, `steamStats`). **No backward compatibility** with the flat v1 layout — new writes and bulk import must use v2 only.
 
 ```json
 {
   "id": "steam_app_id_or_uuid",
-  "name": "Game Title",
-  "price": "1 199₴",
-  "originalPrice": "1 199₴",
-  "currency": "UAH",
-  "isOnSale": false,
-  "discountPercent": 0,
-  "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/APP_ID/header.jpg",
   "url": "https://store.steampowered.com/app/APP_ID/",
-  "developers": ["Developer Name"],
   "ruDeveloperAlert": false,
   "ruDeveloperExplanation": "Brief reason explaining Russian developer ties (if applicable)",
-  "developmentStatus": "released", 
-  "currentVersion": "v1.4.2", 
   "owned": {
     "user0": false,
     "user1": false
@@ -105,8 +104,6 @@ The database structure is designed to keep static app configurations decoupled f
     "user0": "morkite_found",
     "user1": "morkite_found"
   },
-  "steamOverview": "Short Steam store description shown on the card.",
-  "steamReviewPercent": 94,
   "libraryState": "active",
   "finishedRating": null,
   "stateMeta": {
@@ -116,40 +113,84 @@ The database structure is designed to keep static app configurations decoupled f
   },
   "hasUpdateSinceState": false,
   "lastVersionCheck": "Firestore Timestamp",
-  "steamTags": ["Action", "Co-op", "Early Access"],
   "geforceNowReady": false,
-  "playerCount": 12432,
-  "screenshots": [
-    "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/APP_ID/ss_1.jpg",
-    "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/APP_ID/ss_2.jpg"
-  ],
-  "coopSpecs": {
-    "onlineCoop": true,
-    "splitScreen": false,
-    "crossPlay": false,
-    "maxPlayers": 4
+  "steamStatic": {
+    "name": "Game Title",
+    "developers": ["Developer Name"],
+    "publishers": ["Publisher Name"],
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/APP_ID/header.jpg",
+    "screenshots": [
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/APP_ID/ss_1.jpg"
+    ],
+    "steamOverview": "Short Steam store description shown on the card.",
+    "steamTags": ["Action", "Co-op", "Early Access"],
+    "coopSpecs": {
+      "onlineCoop": true,
+      "splitScreen": false,
+      "crossPlay": false,
+      "maxPlayers": 4
+    },
+    "developmentStatus": "released",
+    "releaseDate": "2024-03-15",
+    "earlyAccessDate": null,
+    "metacriticScore": 85,
+    "estimatedPlaytimeHours": 40,
+    "scrapedAt": "Firestore Timestamp"
+  },
+  "steamDynamic": {
+    "price": "1 199₴",
+    "originalPrice": "1 199₴",
+    "currency": "UAH",
+    "isOnSale": false,
+    "discountPercent": 0,
+    "reviewCount": 12450,
+    "reviewPercent": 94,
+    "recentReviewCount": 320,
+    "recentReviewPercent": 91,
+    "reviewScoreDesc": "Very Positive",
+    "currentVersion": "v1.4.2",
+    "lastUpdateAt": "Firestore Timestamp",
+    "syncedAt": "Firestore Timestamp"
+  },
+  "steamStats": {
+    "currentPlayers": 12432,
+    "avgPlayers7d": 8500,
+    "samples": [
+      { "at": "Firestore Timestamp", "players": 12432 }
+    ],
+    "syncedAt": "Firestore Timestamp"
   }
 }
 ```
 
-#### Field Glossary & Specifications
-* **`id`**: Steam App ID (as a string) or a randomly generated UUID if added manually.
-* **`developmentStatus`**: Enum restricted to `released` | `early_access` | `tba`.
-* **`currentVersion`**: Semantic version string (e.g. `v1.0.2`, `v0.8.4-beta`) or `null`/empty string for `tba`.
-* **`owned`**: Map tracking dynamic ownership for User 0 and User 1.
-* **`userNotes`**: Optional per-user free-text notes (`user0`, `user1`) shown on the card — separate from lifecycle `stateMeta.note`.
-* **`hypeTier`**: Per-user personal hype tier: `worthless_crystal` | `morkite_found` | `we_rich` (default `morkite_found`). Each tier applies a multiplier to a shared base of `5` for that user's contribution to Total Hype.
-* **`steamOverview`**: Short description from Steam (`short_description`) displayed on the game card.
-* **`steamReviewPercent`**: Steam positive review percentage (`0`–`100`), used as a minor factor in Total Hype (less impact than `developmentStatus`).
-* **`libraryState`**: Primary lifecycle enum — `active` | `replayable` | `waiting_for_updates` | `finished` | `banned`. Replaces legacy `finished`, `abandoned`, and custom user `tags`.
-* **`finishedRating`**: Optional `null | 1 | 2 | 3 | 4 | 5` — meaningful when `libraryState === 'finished'`; cleared to `null` when leaving Finished. Shown on cards and editable in the lifecycle/edit modals.
-* **`stateMeta`**: Snapshot when entering (or re-entering) a lifecycle state. `versionAtEntry` copies `currentVersion` at that moment; `enteredAt` is a timestamp; `note` is optional text (encouraged for `banned`). Re-assigning the **same** state refreshes the snapshot and clears update alerts ("mute").
-* **`hasUpdateSinceState`**: Set by scheduled refresh when Steam `currentVersion` differs from `stateMeta.versionAtEntry`. Drives an update badge on the card — no news feed UI.
-* **`lastVersionCheck`**: Timestamp of last background version check; `finished` games checked ~weekly, others daily.
-* **`steamTags`**: Steam genres/categories (from scrape) — used for **search/filter only**, not lifecycle management.
-* **`geforceNowReady`**: Boolean — true when the game is verified available on GeForce NOW.
+#### Nested Steam objects
 
-**Legacy fields** (`finished`, `abandoned`, `tags`): no longer written. Read fallback maps `abandoned` → `banned`, `finished` → `finished`, else `active`.
+| Object | Refresh cadence | Fields |
+| :--- | :--- | :--- |
+| **`steamStatic`** | Daily for `tba` / `early_access`; weekly for `released` | `name`, `developers`, `publishers`, `thumbnail`, `screenshots`, `steamOverview`, `steamTags`, `coopSpecs`, `developmentStatus`, `releaseDate`, `earlyAccessDate`, `metacriticScore`, `estimatedPlaytimeHours`, `scrapedAt` |
+| **`steamDynamic`** | Daily (all non-banned games) | `price`, `originalPrice`, `currency`, `isOnSale`, `discountPercent`, `reviewCount`, `reviewPercent`, `recentReviewCount`, `recentReviewPercent`, `reviewScoreDesc`, `currentVersion`, `lastUpdateAt`, `syncedAt` |
+| **`steamStats`** | Player sample 4×/day (non-TBA, non-banned only) | `currentPlayers`, `avgPlayers7d`, `samples[{ at, players }]` (max **28** entries, rolling), `syncedAt` |
+
+* **`steamStats` for TBA:** omit or leave empty/hidden — **no player stats** when `steamStatic.developmentStatus === 'tba'`.
+* **`developmentStatus`:** Enum `released` | `early_access` | `tba` (lives in `steamStatic`).
+* **`releaseDate` / `earlyAccessDate`:** ISO date strings or `null`; used for badge tooltips (human-readable duration).
+* **`metacriticScore`:** Integer `0`–`100` or omitted; feeds MetacriticFactor in Total Hype.
+* **`estimatedPlaytimeHours`:** Integer hours from Steam store data when available.
+* **`samples`:** Append-only player snapshots; trim to last 28. `avgPlayers7d` is a rolling average over available samples (official Steam API only).
+
+#### Root-level field glossary
+* **`id`**: Steam App ID (string) or UUID for manual adds.
+* **`owned`**: Map tracking ownership for User 0 and User 1.
+* **`userNotes`**: Optional per-user free-text notes (`user0`, `user1`) — separate from lifecycle `stateMeta.note`.
+* **`hypeTier`**: Per-user tier: `worthless_crystal` | `morkite_found` | `we_rich` (default `morkite_found`).
+* **`libraryState`**: Primary lifecycle enum — `active` | `replayable` | `waiting_for_updates` | `finished` | `banned`.
+* **`finishedRating`**: Optional `null | 1 | 2 | 3 | 4 | 5` when `libraryState === 'finished'`.
+* **`stateMeta`**: Snapshot on lifecycle entry. `versionAtEntry` copies `steamDynamic.currentVersion`; `enteredAt` timestamp; optional `note`.
+* **`hasUpdateSinceState`**: Set when `steamDynamic.currentVersion` ≠ `stateMeta.versionAtEntry`.
+* **`lastVersionCheck`**: Timestamp of last version check in scheduled sync.
+* **`geforceNowReady`**: Scrape-time snapshot; UI badge reads global `gfnCatalog`.
+
+**Legacy v1 flat fields** (`name`, `price`, `steamReviewPercent`, `playerCount`, etc.): **not written in v2.** No read fallback — migrate or re-import.
 
 ---
 
@@ -197,8 +238,8 @@ Lifecycle is changed via a **modal** on the game card (all states visible, optio
 Within the active pool, users can filter by:
 * Game **name** (text search)
 * **Lifecycle** multi-select chips (Active / Replayable / Waiting for updates / Finished / Banned)
-* **Steam tags** (`steamTags` from scrape — tag list shows tags from **full library**)
-* **Development status** (`released` / `early_access` / `tba`)
+* **Steam tags** (`steamStatic.steamTags` from scrape — tag list shows tags from **full library**)
+* **Development status** (`steamStatic.developmentStatus`: `released` / `early_access` / `tba`)
 * **Ownership** (neither / one / both own)
 * **On sale**, **GeForce NOW** (catalog match), **Update available** (`hasUpdateSinceState`)
 
@@ -207,15 +248,15 @@ Filter panel expands via search focus or active filters; use React state (not CS
 **Deferred:** "Ready to Play" preset filter (both own + active lifecycle). Archive passcode for Banned tab.
 
 #### Update notifications (no news feed)
-Scheduled Cloud Function compares Steam `currentVersion` to `stateMeta.versionAtEntry`. When they differ, set `hasUpdateSinceState = true` and show a badge on the card. User mutes by re-assigning the same lifecycle state.
+Scheduled sync compares `steamDynamic.currentVersion` to `stateMeta.versionAtEntry`. When they differ, set `hasUpdateSinceState = true` and show a badge on the card. User mutes by re-assigning the same lifecycle state.
 
 ---
 
 ### F3: Total Hype Algorithm (Match Ring)
 
-**Total Hype** is the single desirability number shown on the card's radial ring (no `%` suffix). It combines every factor below. Each user's personal tier only affects their portion of the tier base—ownership, release status, and Steam reviews apply to the combined result.
+**Total Hype** is the single desirability number shown on the card's radial ring (no `%` suffix). It combines every factor below. Each user's personal tier only affects their portion of the tier base—ownership, release status, Steam reviews, and Metacritic apply to the combined result.
 
-$$\text{Total Hype} = \text{TierBase} \times \text{OwnershipFactor} \times \text{StatusFactor} \times \text{SteamOverviewFactor}$$
+$$\text{Total Hype} = \text{TierBase} \times \text{OwnershipFactor} \times \text{StatusFactor} \times \text{SteamReviewFactor} \times \text{MetacriticFactor}$$
 
 All factors are rounded to an integer for display (`0`–`100` scale on the ring).
 
@@ -240,22 +281,31 @@ Maximum pair sum is `15` (both users at We're Rich!).
 * **`0.25`** — neither owns
 
 ##### 3. StatusFactor (Development State) — **high impact**
+Derived from `steamStatic.developmentStatus`:
+
 * **`1.0`** — `released`
 * **`0.75`** — `early_access`
 * **`0.10`** — `tba`
 
-##### 4. SteamOverviewFactor — **low impact** (secondary to status)
-Derived from `steamReviewPercent` when present:
+##### 4. SteamReviewFactor — **low impact** (secondary to status)
+Derived from `steamDynamic.reviewPercent` when present:
 
-$$\text{SteamOverviewFactor} = 0.9 + \left(\frac{\text{steamReviewPercent}}{100}\right) \times 0.15$$
+$$\text{SteamReviewFactor} = 0.9 + \left(\frac{\text{reviewPercent}}{100}\right) \times 0.15$$
 
 Range approximately `0.90` (0% reviews) to `1.05` (100% positive). Defaults to **`1.0`** if review data is missing.
 
-##### 5. Library sort order
+##### 5. MetacriticFactor — **low impact** (after SteamReviewFactor)
+Derived from `steamStatic.metacriticScore` when present:
+
+$$\text{MetacriticFactor} = 0.96 + \left(\frac{\text{metacriticScore}}{100}\right) \times 0.08$$
+
+Range `0.96` (0 score) to `1.04` (100 score). Defaults to **`1.0`** if Metacritic data is missing.
+
+##### 6. Library sort order
 Games sort **descending by Total Hype** (highest first).
 
-##### 6. Hover breakdown (required UX)
-Hovering the Total Hype ring shows how the number was built: each user's nickname, tier label, personal effective value, then multipliers for ownership, status, and Steam reviews, then the final Total Hype.
+##### 7. Hover breakdown (required UX)
+Hovering the Total Hype ring shows how the number was built: each user's nickname, tier label, personal effective value, then multipliers for ownership, status, Steam reviews, and Metacritic, then the final Total Hype.
 
 > [!WARNING]
 > **Total Hype overrides (non-negotiable)**
@@ -268,7 +318,15 @@ Hovering the Total Hype ring shows how the number was built: each user's nicknam
 
 ### F4: Automated Russian Developer Screening
 
-This feature ensures local developer transparency. When a game is added with **`libraryState === 'active'`** (default on UI add, or explicit in bulk import), an asynchronous Gemini check runs. **Skip vetting** for games saved as `replayable`, `waiting_for_updates`, `finished`, or `banned`.
+This feature ensures local developer transparency. When a game is added with **`libraryState === 'active'`** (default on UI add, or explicit in bulk import), developer vetting runs. **Skip vetting** for games saved as `replayable`, `waiting_for_updates`, `finished`, or `banned`.
+
+#### Cache-first workflow
+1. Look up each developer in `config/default.devBgCheck.developers` (normalized name key).
+2. If cached, reuse `isRussianRelated` + `explanation` — no Gemini call.
+3. If missing, call Gemini (batched: default 5 studios per request; `GEMINI_VET_BATCH_SIZE` env).
+4. Persist new results to `devBgCheck` so future adds and bulk imports reuse them.
+
+Bulk import collects **all unique developers** from active games first, pre-vets once, then writes games using cached results.
 
 #### Prompt Template & Response Mapping
 * **Model:** `gemini-2.5-flash`
@@ -302,43 +360,83 @@ All Steam HTTP calls run server-side in Cloud Functions (`functions/steam.js`). 
 
 **Duplicate guard:** `addGameFromSteam` must reject (or return a clear error) if a document with the same Steam App ID already exists.
 
-#### 3. Field Extractor Mapping
-Extract details from the API response payload (`data[appId].data`):
+#### 3. Field Extractor Mapping (→ schema v2 nested paths)
 
+Extract from store API (`data[appId].data`) and write to nested objects:
+
+**`steamStatic`**
 * **`name`** $\rightarrow$ `name`
-* **`price`** $\rightarrow$ `price_overview.final_formatted` from Steam with `cc=ua` (UAH, English labels) || `Free to Play`
-* **`originalPrice`** $\rightarrow$ `price_overview.initial_formatted` (UA store, UAH) || `Free to Play`
-* **`currency`** $\rightarrow$ always `UAH` for scraped games
-* **`isOnSale`** $\rightarrow$ `price_overview.discount_percent > 0`
-* **`thumbnail`** $\rightarrow$ `header_image` (e.g. `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appId}/header.jpg`)
-* **`developers`** $\rightarrow$ `developers` (Triggers AI Russian screening)
-* **`steamOverview`** $\rightarrow$ `short_description`
-* **`steamReviewPercent`** $\rightarrow$ positive review % from Steam review summary when available (else omit → factor `1.0`)
+* **`developers`** $\rightarrow$ `developers` (triggers AI Russian screening)
+* **`publishers`** $\rightarrow$ `publishers`
+* **`thumbnail`** $\rightarrow$ `header_image`
 * **`screenshots`** $\rightarrow$ `screenshots.slice(0, 5).map(s => s.path_full)`
-* **`developmentStatus`** $\rightarrow$ Evaluate categories and genres.
-  * If `genres` contains ID `70` (Early Access) $\rightarrow$ `"early_access"`
-  * If `release_date.coming_soon` is `true` $\rightarrow$ `"tba"`
-  * Else $\rightarrow$ `"released"`
-* **`currentVersion`** $\rightarrow$ Derived by hitting the Steam App news feed API:
-  `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid={appId}&count=3`
-  Parse headings for semantic version patterns (e.g. `v1.2.3`, `Update 4`). If none found, fallback to `"v1.0.0"` (or null if "tba").
-* **`coopSpecs`** $\rightarrow$ Parse `categories` for specific cooperative IDs:
-  * **Online Co-op** $\rightarrow$ Presence of ID `38`
-  * **Split Screen** $\rightarrow$ Presence of ID `39` (Shared/Split Screen)
-  * **Cross-Play** $\rightarrow$ Presence of ID `48` (Cross-Platform Multiplayer)
-  * **Max Players** $\rightarrow$ Scraped or fallback defaults based on genre (default `4`).
-* **`steamTags`** $\rightarrow$ `genres[].description` and relevant `categories[].description` (lowercase), for search/filter.
-* **`geforceNowReady`** $\rightarrow$ Set at scrape time; **UI badge** primarily checks global `config/default.gfnCatalog.steamAppIds` (synced via `syncGfnCatalog`). New games get correct badge without per-game GFN re-sync.
-* **`libraryState`** $\rightarrow$ Default `"active"` on import; set `stateMeta.versionAtEntry` to scraped `currentVersion`.
+* **`steamOverview`** $\rightarrow$ `short_description`
+* **`steamTags`** $\rightarrow$ `genres[].description` + relevant `categories[].description` (lowercase)
+* **`coopSpecs`** $\rightarrow$ Parse `categories` IDs: online co-op `38`, split screen `39`, cross-play `48`; `maxPlayers` scraped or default `4`
+* **`developmentStatus`** $\rightarrow$ Early Access genre `70` → `early_access`; `release_date.coming_soon` → `tba`; else `released`
+* **`releaseDate`** / **`earlyAccessDate`** $\rightarrow$ from `release_date` fields when available
+* **`metacriticScore`** $\rightarrow$ Metacritic block from store payload when present
+* **`estimatedPlaytimeHours`** $\rightarrow$ from store playtime estimate when present
+* **`scrapedAt`** $\rightarrow$ server timestamp on static write
+
+**`steamDynamic`**
+* **`price`** / **`originalPrice`** / **`currency`** $\rightarrow$ `price_overview` with `cc=ua` (UAH) || `Free to Play`
+* **`isOnSale`** / **`discountPercent`** $\rightarrow$ from `price_overview`
+* **`reviewCount`** / **`reviewPercent`** / **`recentReviewCount`** / **`recentReviewPercent`** / **`reviewScoreDesc`** $\rightarrow$ Steam review summary API
+* **`currentVersion`** $\rightarrow$ Steam news feed API (`ISteamNews/GetNewsForApp/v2`); parse version patterns; null for `tba`
+* **`lastUpdateAt`** $\rightarrow$ timestamp of latest parsed news item or store `last_modified`
+* **`syncedAt`** $\rightarrow$ server timestamp on dynamic write
+
+**`steamStats`** (skip entirely when `developmentStatus === 'tba'`)
+* **`currentPlayers`** $\rightarrow$ official `ISteamUserStats/GetNumberOfCurrentPlayers/v1`
+* **`avgPlayers7d`** $\rightarrow$ rolling average over `samples` (max 28)
+* **`samples`** $\rightarrow$ append `{ at, players }` on each player sample run
+* **`syncedAt`** $\rightarrow$ server timestamp on stats write
+
+**Root on import**
+* **`geforceNowReady`** $\rightarrow$ scrape-time snapshot; UI badge reads `config/default.gfnCatalog.steamAppIds`
+* **`libraryState`** $\rightarrow$ default `"active"`; `stateMeta.versionAtEntry` ← `steamDynamic.currentVersion`
+
+#### 4. Sync policy (locked)
+
+**Single scheduled job every 6 hours** with per-game gates:
+
+| Gate | Behavior |
+| :--- | :--- |
+| `libraryState === 'banned'` | **Skip ALL sync** (static, dynamic, stats) |
+| `steamStatic.developmentStatus === 'tba'` | No `steamStats`; daily static refresh |
+| `early_access` | Daily static refresh; track status transitions to `released` |
+| `released` | Weekly static refresh |
+
+**Within the 6h job (non-banned games):**
+* **Dynamic** — daily (price, reviews, version, `lastUpdateAt`)
+* **Static** — daily for `tba` / `early_access`; weekly for `released`; log `developmentStatus` transitions
+* **Player sample** — 4×/day (~every 6h slot) for non-TBA, non-banned; official Steam Web API only (`GetNumberOfCurrentPlayers` + rolling avg from `samples`)
+
+**Cost estimate (147 games):** ~700 Firestore writes/day — within free-tier headroom. Function timeout risk grows around **400–500 games**; may need batching or fan-out beyond that.
 
 ---
 
 ### F6: Card display rules
 
-* **Price hidden** when both users own the game (`owned.user0 && owned.user1`).
+* **Price hidden** when both users own the game (`owned.user0 && owned.user1`); reads `steamDynamic.price`.
 * **GeForce NOW badge** when `geforceNowReady === true`.
 * **SteamDB link** — `https://steamdb.info/app/{appId}/` in card actions.
 * **Owned indicator** — three distinct icons (not circles): backpack / crystal / crossed pickaxes with gray → amber → green.
+* **Player stats badge** — hidden for `tba`; shows `steamStats.avgPlayers7d` with live `currentPlayers` in tooltip.
+* **Development status badge** — color-coded from `steamStatic.developmentStatus`.
+
+#### Badge tooltips (required UX)
+
+| Badge | Tooltip content |
+| :--- | :--- |
+| **Avg players** | `Now: {currentPlayers}` (from `steamStats.currentPlayers`); secondary line: 7-day avg |
+| **Reviews** | All-time: `{reviewPercent}%` ({reviewCount} reviews); recent: `{recentReviewPercent}%` ({recentReviewCount}) — from `steamDynamic` |
+| **Version / update** | `v{currentVersion}` · last update `{human-readable lastUpdateAt}` (e.g. "3 days ago", "Mar 15, 2024") |
+| **Released** | `{human-readable duration since releaseDate}` (e.g. "Released 2 years ago") |
+| **Early Access** | `{human-readable duration since earlyAccessDate}` (e.g. "In EA for 8 months") |
+
+Human-readable durations use relative/absolute formatting (same helper for release and EA dates). TBA games omit player and duration tooltips tied to release.
 
 ---
 
@@ -355,8 +453,8 @@ The dashboard should feel like a premium, sleek gaming platform (similar to Stea
 * **Price**: Hidden when both users own the game.
 * **GeForce NOW**: Badge on thumbnail (dark pill); reads global GFN catalog in Firestore.
 * **Lifecycle badge**: Opens lifecycle modal; optional **finished rating** stars (1–5); update pulse badge when `hasUpdateSinceState`.
-* **Steam overview**: Truncated `steamOverview` on card.
-* **Development status**: Color-coded — mint (`released`), yellow (`early_access`), red (`tba`).
+* **Steam overview**: Truncated `steamStatic.steamOverview` on card.
+* **Development status**: Color-coded from `steamStatic.developmentStatus` — mint (`released`), yellow (`early_access`), red (`tba`).
 * **Screenshots**: Footer action opens fullscreen viewer with zone navigation (← / → / ✕).
 * **Identity labels**: Resolved from `VITE_USER0_NICKNAME` / `VITE_USER1_NICKNAME` — never "Me", "Friend", or hardcoded names. Active user suffix: `(You)`.
 * **Filters**: Collapsible panel under search; **Clear filters** in header when any filter active.

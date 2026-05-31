@@ -9,6 +9,7 @@ import {
   normalizeFinishedRating,
 } from '../utils/libraryState';
 import FinishedRatingPicker from './FinishedRatingPicker';
+import { getCurrentVersion, getGameName } from '../utils/gameAccessors';
 
 const APP_ID = 'default_app';
 
@@ -47,7 +48,7 @@ export default function LifecycleModal({ game, isOpen, onClose }) {
         game.id,
         selectedState,
         note,
-        game.currentVersion ?? null,
+        getCurrentVersion(game),
         selectedState === 'finished' ? finishedRating : null
       );
       onClose();
@@ -66,7 +67,7 @@ export default function LifecycleModal({ game, isOpen, onClose }) {
         role="dialog"
         aria-label="Set library lifecycle state"
       >
-        <h2 className="lifecycle-modal-title">{game.name}</h2>
+        <h2 className="lifecycle-modal-title">{getGameName(game)}</h2>
         <p className="lifecycle-modal-desc">
           Choose where this game sits in your library. Re-selecting the current state
           refreshes the version snapshot and clears update alerts.

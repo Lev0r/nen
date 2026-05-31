@@ -1,6 +1,6 @@
 # Agent Handoff & TODO — Nen?
 
-**Last updated:** 2026-05-30  
+**Last updated:** 2026-05-31  
 **Repo:** https://github.com/Lev0r/nen  
 **Firebase project:** `nen-tracker` (CLI alias: `staging` in `.firebaserc`)  
 **Latest commit at handoff:** `e9c05f9`
@@ -38,10 +38,11 @@ nen/
 │   └── ai_rules.md
 ├── functions/                 # Node 20, region europe-west1
 │   ├── index.js               # addGameFromSteam (callable)
-│   ├── steam.js               # Steam scrape (cc=ua, UAH), defaults on new games
-│   ├── gemini.js              # RU developer vetting (multi-model fallback)
+│   ├── steam.js               # Steam scrape (cc=ua, UAH), schema v2 nested writes
+│   ├── gemini.js              # RU developer vetting (multi-model fallback, batched)
+│   ├── devBgCheck.js          # Developer vet cache on config/default (batched Gemini)
 │   ├── gfnSync.js             # Full GFN catalog → Firestore config
-│   ├── versionRefresh.js      # Scheduled version checks → hasUpdateSinceState
+│   ├── steamSync.js           # syncLibrarySteam — unified 6h gated Steam sync
 │   ├── steamCache.js          # In-memory JSON cache for Steam HTTP
 │   └── .env                   # GEMINI_API_KEY, ALLOWED_EMAIL_0/1, GFN_VPC_ID (NOT in git)
 ├── scripts/
@@ -66,6 +67,8 @@ nen/
 │   │   ├── hypeScore.js           # Total Hype formula + overrides
 │   │   ├── libraryState.js        # resolveLibraryState, labels, stateMeta helpers
 │   │   ├── gameFilters.js         # filterGames, hasActiveFilters, DEFAULT_GAME_FILTERS
+│   │   ├── gameAccessors.js       # Nested schema v2 field accessors (steamStatic/Dynamic/Stats)
+│   │   ├── formatDuration.js      # Human-readable release/EA duration strings for tooltips
 │   │   └── errorReport.js
 │   ├── contexts/AuthContext.jsx
 │   └── index.css                  # Mint glassmorphism design system
@@ -101,7 +104,13 @@ Console: `artifacts` → `default_app` → `public` → `data` → `games` / `co
 | **Dynamic background** | Top **5** non-banned games by Total Hype; uses **screenshots** (fallback thumbnail); 60s slide / 4s crossfade | Thumbnails looked blurry at full viewport |
 | **Dynamic BG toggle** | `VITE_ENABLE_DYNAMIC_BG` — default **on** unless explicitly `'false'` at build time | No in-app toggle; redeploy to disable |
 | **Gemini RU vetting** | Run **only** when final `libraryState === 'active'` (add game UI + bulk import) | Skip vetting for finished/banned/etc. imports |
-| **Bulk import** | Script only (`scripts/import-games.mjs`), no UI button | One-time ~50 game migration |
+| **Developer vet cache** | `config/default.devBgCheck.developers` — keyed by normalized studio name | Cache hit skips Gemini; bulk import pre-vets unique devs in batches of 5 (`GEMINI_VET_BATCH_SIZE`) |
+| **Bulk import** | Script only (`scripts/import-games.mjs`), no UI button | One-time ~147 game migration; writes schema v2 (implemented — pending ops run) |
+| **Game schema** | **v2 nested** — `steamStatic` / `steamDynamic` / `steamStats` | Locked pre-import; no v1 flat-field backward compat |
+| **Steam sync** | Single job every **6h** with gates | Banned = skip all; TBA = no stats + daily static; EA/TBA daily static, released weekly static; player sample 4×/day |
+| **Player counts** | Official Steam Web API only | `GetNumberOfCurrentPlayers` + rolling avg from max 28 samples |
+| **Metacritic in hype** | `MetacriticFactor = 0.96 + (score/100)×0.08` | Range 0.96–1.04; missing = 1.0; after SteamReviewFactor |
+| **Sync cost** | ~700 writes/day @ 147 games | Free tier OK; timeout risk ~400–500 games |
 | **`steamInput` in JSON** | Same as Add Game: Steam URL or raw App ID | Consistent parsing via `parseAppId` |
 | **Finished rating** | `finishedRating` 1–5; cleared when leaving `finished` | Stars on card + edit/lifecycle modals |
 | **News feed UI** | **Dropped** | Replaced by `hasUpdateSinceState` pulse badge |
@@ -135,6 +144,7 @@ Console: `artifacts` → `default_app` → `public` → `data` → `games` / `co
 | Variable | Purpose |
 | :--- | :--- |
 | `GEMINI_API_KEY` | RU developer vetting |
+| `GEMINI_VET_BATCH_SIZE` | Optional `1`–`10`, default `5` — developers per Gemini request |
 | `ALLOWED_EMAIL_0/1` | Callable auth gate |
 | `GFN_VPC_ID` | Default `NP-WAW-01` |
 
@@ -168,16 +178,16 @@ npm run build && firebase deploy --only hosting
 
 **Scheduled functions (deploy with functions):**
 
-- `refreshLibraryVersions` — version checks, sets `hasUpdateSinceState`
+- `syncLibrarySteam` — every **6 hours**: gated dynamic/static/player sync, `hasUpdateSinceState` (replaces legacy `refreshLibraryVersions` / `versionRefresh.js`)
 - `syncGfnCatalogScheduled` — weekly GFN catalog refresh
 
 **Do not commit:** `.firebase/`, `.env.local`, `functions/.env`
 
 ---
 
-## 7. Bulk import (pending user JSON)
+## 7. Bulk import (blocked on ops prerequisites)
 
-User will provide JSON from a friend. **Do not run against prod without `--dry-run` first.**
+User JSON at `docs/all games.json` (147 games, legacy friend-export format). Schema v2 is implemented — import script writes nested `steamStatic` / `steamDynamic` / `steamStats`. **Still blocked on:** `firebase login`, DB wipe decision, `--dry-run`, then real import (see §10 **import-json**).
 
 ```bash
 # Preview
@@ -187,7 +197,7 @@ npm run import-games -- path/to/games.json --dry-run
 npm run import-games -- path/to/games.json --app-id default_app
 ```
 
-**JSON format** — array of strings or objects:
+**JSON format** — array of strings, canonical objects, or **legacy friend-export objects**:
 
 ```json
 [
@@ -199,9 +209,17 @@ npm run import-games -- path/to/games.json --app-id default_app
     "owned": { "user0": true, "user1": false },
     "userNotes": { "user0": "want co-op", "user1": "" },
     "finishedRating": null
+  },
+  {
+    "Game link": "https://store.steampowered.com/app/435150/Divinity_Original_Sin_2__Definitive_Edition/",
+    "Lev0r owned": true,
+    "Punpun owned": true,
+    "Game status": "Active"
   }
 ]
 ```
+
+**Legacy format** (auto-detected via `Game link` key): ownership keys resolve from `VITE_USER0_NICKNAME` / `VITE_USER1_NICKNAME` in `.env.local` (e.g. `"Lev0r owned"`, `"Punpun owned"`). `Game status` accepts Active/Finished/replayable/Waiting-for-updates/banned (case-insensitive, trims whitespace). Optional `Comment` → `stateMeta.note`.
 
 **Auth for script:** `GOOGLE_APPLICATION_CREDENTIALS` **or** `firebase login` + `firebase use`.
 
@@ -219,7 +237,7 @@ Implemented in `DashboardShell.jsx` + `gameFilters.js` + `GameFiltersBar.jsx`.
 | Any active filter (`hasActiveFilters`) | **All games** in library |
 | Sidebar tab click | Resets filters to `DEFAULT_GAME_FILTERS` |
 
-**Active filter fields:** `searchText`, `steamTags[]`, `developmentStatus`, `ownership`, `onSaleOnly`, `gfnOnly`, `updateAvailableOnly`, `libraryStates[]`.
+**Active filter fields:** `searchText`, `steamTags[]` (from `steamStatic.steamTags`), `developmentStatus` (from `steamStatic.developmentStatus`), `ownership`, `onSaleOnly` (`steamDynamic.isOnSale`), `gfnOnly`, `updateAvailableOnly`, `libraryStates[]`.
 
 **Filter panel:** `expanded` React state; opens on search focus or when filters active; closes on outside click (if no active filters) or Escape.
 
@@ -229,7 +247,7 @@ Implemented in `DashboardShell.jsx` + `gameFilters.js` + `GameFiltersBar.jsx`.
 
 - [x] React + Vite SPA, Firebase Auth (User 0 / 1), Firestore hooks
 - [x] Total Hype formula + overrides (RU alert, finished, banned → 0)
-- [x] Lifecycle system (5 states, modal, sidebar tabs, update badge, version scheduler)
+- [x] Lifecycle system (5 states, modal, sidebar tabs, update badge, `syncLibrarySteam` scheduler)
 - [x] Add Game + duplicate guard + Steam caching + `steamTags`
 - [x] GFN GraphQL catalog sync + client badge from global catalog
 - [x] Error reporting (`reportError`, `ErrorBanner`)
@@ -241,25 +259,36 @@ Implemented in `DashboardShell.jsx` + `gameFilters.js` + `GameFiltersBar.jsx`.
 - [x] Dynamic background (screenshots, top 5 hype, env gate)
 - [x] Browser title `Nen?` + mint favicon
 - [x] Bulk import script + Gemini gating in `addGameFromSteam`
+- [x] Bulk import legacy friend-export format (`Game link`, nickname-owned keys, `Game status`, `Comment`)
+- [x] Developer background-check cache (`devBgCheck`) + batched Gemini vetting
 - [x] Filter UX fixes: header clear button, tag height, stable toggle panel
 - [x] Hype picker + edit modal readability/height fixes
+- [x] **Schema v2 backend** — nested `steamStatic` / `steamDynamic` / `steamStats` in `steam.js` + `addGameFromSteam` (no v1 backward compat)
+- [x] **`syncLibrarySteam`** — unified 6h scheduled job in `steamSync.js` (replaced `versionRefresh.js`)
+- [x] **Metacritic in hype formula** — `MetacriticFactor` in `hypeScore.js`; hover breakdown updated
+- [x] **GameCard tooltips + badges** — avg players ("Now: N"), reviews all+recent, version + `lastUpdateAt`, release/EA durations via `formatDuration.js`
+- [x] **Frontend schema v2 migration** — `gameAccessors.js`; `GameCard`, filters, hype, modals, dynamic BG read nested paths
+- [x] **Import script v2 paths** — `scripts/import-games.mjs` writes nested steam objects
+- [x] **Sync policy implemented** — 6h gated job, banned skip-all, TBA no stats, static/dynamic cadences, official Steam player API only
+- [x] **Sync cost model** — ~700 writes/day @ 147 games; timeout risk ~400–500 games
 
 ---
 
 ## 10. Remaining tasks
 
-### P0 — Next session (user-driven)
+### P0 — Import + deploy (user-driven)
 
 | ID | Task | Details |
 | :--- | :--- | :--- |
-| **import-json** | Run bulk import | User will supply JSON. Always `--dry-run` first. Confirm Gemini only on `active` entries. |
-| **deploy-verify** | Confirm production deploy | User deploys manually. Verify smoke test list (§6). |
+| **manual-test** | Execute manual testing checklist | Run §6 smoke test list **before** bulk import — verify v2 reads/writes, sync job, tooltips, filters |
+| **import-json** | Run bulk import | JSON at `docs/all games.json` (147 games). **Blocked on:** `firebase login`, DB wipe decision, `--dry-run`, then real import. Gemini only on ~72 `active` entries. |
+| **deploy-verify** | Confirm production deploy | `firebase deploy --only functions,firestore:rules,hosting` (or split as needed). Run §6 smoke test after deploy + import. |
 
 ### P1 — Optional polish (discuss with user before building)
 
 | ID | Task | Details / notes |
 | :--- | :--- | :--- |
-| **refresh-steam** | "Refresh from Steam" in GameEditModal | Re-scrape single game via callable or admin script; update price, tags, version, screenshots |
+| **refresh-steam** | "Refresh from Steam" in GameEditModal | Re-scrape single game; update nested steam objects |
 | **mobile-pass** | Mobile UX | Tooltips on touch, grid breakpoints, modals, sidebar drawer behavior |
 | **json-export** | Library export | Client-side JSON backup of all game docs |
 | **coop-warning** | Co-op warning on add | Warn if Steam categories lack co-op IDs (9, 38, 39, 48) |
@@ -290,6 +319,7 @@ Implemented in `DashboardShell.jsx` + `gameFilters.js` + `GameFiltersBar.jsx`.
 4. **GFN badge** reads `gfnCatalog.steamAppIds` Set client-side — `geforceNowReady` on doc is scrape-time snapshot but UI prefers catalog.
 5. **`collectSteamTags`** for filter UI should use **all `games`**, not tab-scoped list.
 6. **Commit/push** only when user explicitly asks.
+7. **Schema v2** — no flat v1 Steam fields; banned games skip all sync; TBA games have no `steamStats`.
 
 ---
 
@@ -308,10 +338,10 @@ Implemented in `DashboardShell.jsx` + `gameFilters.js` + `GameFiltersBar.jsx`.
 
 | Export | Type | Purpose |
 | :--- | :--- | :--- |
-| `addGameFromSteam` | Callable | Scrape + write game; Gemini if `libraryState === 'active'` |
+| `addGameFromSteam` | Callable | Scrape + write game (v2 nested schema); Gemini if `libraryState === 'active'` |
 | `syncGfnCatalog` | Callable | Manual full GFN catalog sync |
 | `syncGfnCatalogScheduled` | Scheduled | Weekly catalog refresh |
-| `refreshLibraryVersions` | Scheduled | Steam version checks |
+| `syncLibrarySteam` | Scheduled | Every **6 hours**: dynamic daily, static gated, player samples 4×/day, banned skip-all, `hasUpdateSinceState` |
 
 Client wrappers: `src/services/cloudFunctions.js`.
 

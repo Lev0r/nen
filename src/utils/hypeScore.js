@@ -1,5 +1,10 @@
 import { getNickname } from './userConfig';
 import { resolveLibraryState } from './libraryState';
+import {
+  getDevelopmentStatus,
+  getMetacriticScore,
+  getReviewPercent,
+} from './gameAccessors';
 
 export const HYPE_TIERS = {
   worthless_crystal: { label: 'Worthless Crystal', multiplier: 0.5 },
@@ -60,18 +65,18 @@ export function getStatusFactor(developmentStatus) {
   };
 }
 
-export function getSteamReviewColor(steamReviewPercent) {
-  if (steamReviewPercent == null || steamReviewPercent === '') {
+export function getSteamReviewColor(reviewPercent) {
+  if (reviewPercent == null || reviewPercent === '') {
     return 'var(--text-muted)';
   }
-  const pct = Number(steamReviewPercent);
+  const pct = Number(reviewPercent);
   if (pct >= 80) return 'var(--accent-mint)';
   if (pct >= 60) return 'var(--accent-yellow)';
   return 'var(--accent-red)';
 }
 
-export function getSteamOverviewFactor(steamReviewPercent) {
-  if (steamReviewPercent == null || steamReviewPercent === '') {
+export function getSteamReviewFactor(reviewPercent) {
+  if (reviewPercent == null || reviewPercent === '') {
     return {
       factor: 1.0,
       label: 'No Steam review data',
@@ -79,13 +84,42 @@ export function getSteamOverviewFactor(steamReviewPercent) {
       percent: null,
     };
   }
-  const pct = Math.min(100, Math.max(0, Number(steamReviewPercent)));
+  const pct = Math.min(100, Math.max(0, Number(reviewPercent)));
   const factor = 0.9 + (pct / 100) * 0.15;
   return {
     factor,
     label: `${pct}% Steam positive reviews`,
     color: getSteamReviewColor(pct),
     percent: pct,
+  };
+}
+
+export function getMetacriticColor(metacriticScore) {
+  if (metacriticScore == null || metacriticScore === '') {
+    return 'var(--text-muted)';
+  }
+  const score = Number(metacriticScore);
+  if (score >= 80) return 'var(--accent-mint)';
+  if (score >= 60) return 'var(--accent-yellow)';
+  return 'var(--accent-red)';
+}
+
+export function getMetacriticFactor(metacriticScore) {
+  if (metacriticScore == null || metacriticScore === '') {
+    return {
+      factor: 1.0,
+      label: 'No Metacritic score',
+      color: 'var(--text-muted)',
+      score: null,
+    };
+  }
+  const score = Math.min(100, Math.max(0, Number(metacriticScore)));
+  const factor = 0.96 + (score / 100) * 0.08;
+  return {
+    factor,
+    label: `Metacritic ${score}`,
+    color: getMetacriticColor(score),
+    score,
   };
 }
 
@@ -135,11 +169,16 @@ export function calculateTotalHype(game) {
           ? 'var(--accent-yellow)'
           : 'var(--accent-red)',
   };
-  const status = getStatusFactor(game.developmentStatus);
-  const steam = getSteamOverviewFactor(game.steamReviewPercent);
+  const status = getStatusFactor(getDevelopmentStatus(game));
+  const steamReview = getSteamReviewFactor(getReviewPercent(game));
+  const metacritic = getMetacriticFactor(getMetacriticScore(game));
 
   const raw =
-    tierBase * ownership.factor * status.factor * steam.factor;
+    tierBase *
+    ownership.factor *
+    status.factor *
+    steamReview.factor *
+    metacritic.factor;
   const total = Math.round(Math.min(100, Math.max(0, raw)));
 
   return {
@@ -164,7 +203,8 @@ export function calculateTotalHype(game) {
       tierBase: Math.round(tierBase * 10) / 10,
       ownership,
       status,
-      steam,
+      steamReview,
+      metacritic,
       final: total,
     },
   };

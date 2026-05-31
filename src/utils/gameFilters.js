@@ -1,4 +1,10 @@
 import { resolveLibraryState } from './libraryState';
+import {
+  getGameName,
+  getDevelopmentStatus,
+  getSteamTags,
+  getIsOnSale,
+} from './gameAccessors';
 
 export const DEFAULT_GAME_FILTERS = {
   searchText: '',
@@ -44,17 +50,17 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
   const libraryStates = filters.libraryStates ?? [];
 
   return games.filter((game) => {
-    if (searchText && !game.name?.toLowerCase().includes(searchText)) {
+    if (searchText && !getGameName(game).toLowerCase().includes(searchText)) {
       return false;
     }
 
     if (selectedTags.length > 0) {
-      const gameTags = game.steamTags ?? [];
+      const gameTags = getSteamTags(game);
       const hasMatchingTag = selectedTags.some((tag) => gameTags.includes(tag));
       if (!hasMatchingTag) return false;
     }
 
-    if (developmentStatus !== 'all' && game.developmentStatus !== developmentStatus) {
+    if (developmentStatus !== 'all' && getDevelopmentStatus(game) !== developmentStatus) {
       return false;
     }
 
@@ -62,7 +68,7 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
       return false;
     }
 
-    if (onSaleOnly && !game.isOnSale) {
+    if (onSaleOnly && !getIsOnSale(game)) {
       return false;
     }
 
@@ -88,7 +94,7 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
 export function collectSteamTags(games) {
   const tagSet = new Set();
   for (const game of games) {
-    for (const tag of game.steamTags ?? []) {
+    for (const tag of getSteamTags(game)) {
       tagSet.add(tag);
     }
   }
