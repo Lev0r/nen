@@ -1159,6 +1159,16 @@ button {
   color: #fca5a5;
 }
 
+.game-card-text-slot--ru .text-with-links__a {
+  color: #fecaca;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.game-card-text-slot--ru .text-with-links__a:hover {
+  color: #fff;
+}
+
 .game-card-tags {
   flex-shrink: 0;
   min-height: 2.35rem;

@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "import-games": "node scripts/import-games.mjs"
+    "import-games": "node scripts/import-games.mjs",
+    "sync-dev-sources": "node scripts/sync-dev-sources.mjs",
+    "test-dev-sources": "node scripts/test-dev-sources.mjs"
   },
   "dependencies": {
     "firebase": "^12.14.0",

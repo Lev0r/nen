@@ -44,7 +44,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const require = createRequire(join(ROOT, 'functions/package.json'));
 
-const { initializeApp, getApps } = require('firebase-admin/app');
+const { initializeApp, getApps, applicationDefault, cert } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { fetchSteamGame, parseAppId } = require('./steam');
 const { vetAllDevelopers, getBatchSize } = require('./gemini');
@@ -72,6 +72,12 @@ const OVERRIDE_KEYS = new Set([
   'ruDeveloperAlert',
   'ruDeveloperExplanation',
 ]);
+
+const STEAM_IMPORT_DELAY_MS = 450;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function parseArgs(argv) {
   const args = argv.slice(2);
@@ -163,15 +169,70 @@ function resolveFirebaseProjectId() {
   return null;
 }
 
+function credentialHelp(projectId) {
+  return (
+    'Firebase Admin credentials not found for the import script.\n\n' +
+    '`firebase login` alone does NOT authorize Node.js Admin SDK scripts.\n\n' +
+    'Option A — service account key (recommended):\n' +
+    '  1. Firebase Console → Project settings → Service accounts → Generate new private key\n' +
+    '  2. PowerShell:\n' +
+    '     $env:GOOGLE_APPLICATION_CREDENTIALS="C:\\path\\to\\nen-tracker-key.json"\n' +
+    '     node scripts/import-games.mjs "docs/all games.json" --dry-run\n\n' +
+    'Option B — Google Cloud SDK:\n' +
+    `  gcloud auth application-default login --project ${projectId || 'nen-tracker'}\n\n` +
+    'Also run: firebase use nen-tracker'
+  );
+}
+
+function loadAdminCredential() {
+  const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (keyPath) {
+    if (!existsSync(keyPath)) {
+      throw new Error(`GOOGLE_APPLICATION_CREDENTIALS file not found: ${keyPath}`);
+    }
+    return cert(JSON.parse(readFileSync(keyPath, 'utf8')));
+  }
+  return applicationDefault();
+}
+
 function initFirebase() {
   if (getApps().length > 0) {
     return getFirestore();
   }
 
   const projectId = resolveFirebaseProjectId();
-  const options = projectId ? { projectId } : {};
-  initializeApp(options);
+  if (!projectId) {
+    throw new Error(
+      'Could not resolve Firebase project ID. Run `firebase use nen-tracker` or set GCLOUD_PROJECT.'
+    );
+  }
+
+  try {
+    initializeApp({
+      projectId,
+      credential: loadAdminCredential(),
+    });
+  } catch (err) {
+    const message = err?.message || String(err);
+    if (/credential|authentication/i.test(message)) {
+      throw new Error(`${credentialHelp(projectId)}\n\nOriginal error: ${message}`);
+    }
+    throw err;
+  }
+
   return getFirestore();
+}
+
+async function assertFirebaseAccess(db) {
+  try {
+    await db.collection('_import_probe').limit(1).get();
+  } catch (err) {
+    const message = err?.message || String(err);
+    if (/credential|authentication|Could not load the default credentials/i.test(message)) {
+      throw new Error(`${credentialHelp(resolveFirebaseProjectId())}\n\nOriginal error: ${message}`);
+    }
+    throw err;
+  }
 }
 
 function normalizeFinishedRating(value) {
@@ -360,6 +421,21 @@ async function importOne(db, prepared, { appId, dryRun, devCache }) {
   return { status: 'imported' };
 }
 
+function buildDevAppIdMap(preparedGames) {
+  const map = {};
+  for (const { prepared } of preparedGames) {
+    if (prepared.status !== 'ready' || !prepared.shouldVet) continue;
+    const steamAppId = prepared.game.id;
+    for (const name of prepared.game.steamStatic?.developers || []) {
+      const trimmed = String(name || '').trim();
+      if (!trimmed) continue;
+      if (!map[trimmed]) map[trimmed] = [];
+      if (!map[trimmed].includes(steamAppId)) map[trimmed].push(steamAppId);
+    }
+  }
+  return map;
+}
+
 async function main() {
   const { jsonPath, dryRun, appId } = parseArgs(process.argv);
 
@@ -375,6 +451,7 @@ async function main() {
   }
 
   const db = initFirebase();
+  await assertFirebaseAccess(db);
   const devCache = new Map();
   await ensureMemoryCache(devCache, db, appId);
 
@@ -397,6 +474,9 @@ async function main() {
 
     console.log(`[${i + 1}/${entries.length}] ${normalized.steamInput}`);
     try {
+      if (i > 0) {
+        await sleep(STEAM_IMPORT_DELAY_MS);
+      }
       const prepared = await prepareGame(db, normalized, { appId });
       preparedGames.push({ index: i + 1, prepared });
     } catch (err) {
@@ -420,27 +500,29 @@ async function main() {
 
   console.log(
     `\nDeveloper vetting: ${uniqueDevs.size} unique across active games` +
-      ` (${cacheHitsBefore} cached, ${uncachedBefore.length} need Gemini)` +
+      ` (${cacheHitsBefore} cached, ${uncachedBefore.length} to resolve)` +
       ` batch size ${getBatchSize()}`
   );
 
-  if (uniqueDevs.size > 0 && geminiApiKey) {
+  const devAppIdMap = buildDevAppIdMap(preparedGames);
+
+  if (uniqueDevs.size > 0) {
     try {
       const { stats } = await vetAllDevelopers([...uniqueDevs], geminiApiKey, {
         db: dryRun ? null : db,
         appId,
         memoryCache: devCache,
         dryRun,
+        devAppIdMap,
       });
       console.log(
         `Vetting complete: ${stats.cacheHits} cache hits, ` +
-          `${stats.geminiBatches} Gemini batch(es), ${stats.geminiDevelopers} API developer slot(s)`
+          `${stats.sourceHits} source list hit(s), ${stats.bundledClears} cleared without Gemini, ` +
+          `${stats.geminiBatches} Gemini batch(es), ${stats.geminiDevelopers} Gemini slot(s)`
       );
     } catch (err) {
       console.error(`Developer pre-vetting failed: ${err.message}`);
     }
-  } else if (uniqueDevs.size > 0 && !geminiApiKey) {
-    console.warn('GEMINI_API_KEY not set — skipping developer vetting');
   }
 
   // Phase 3: write games with vetting from cache

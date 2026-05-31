@@ -43,6 +43,7 @@ import {
   getMetacriticColor,
 } from '../utils/hypeScore';
 import { formatDurationSince, formatDurationBetween, getUpdateRecencyColor } from '../utils/formatDuration';
+import { TextWithLinks, stripMarkdownLinks } from '../utils/textWithLinks';
 import { updateGame } from '../services/db';
 import HypePicker from './HypePicker';
 import ScreenshotsModal from './ScreenshotsModal';
@@ -769,7 +770,7 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
               {ruAlert && (
                 <span
                   className="ru-alert-badge"
-                  title={game.ruDeveloperExplanation || 'Russian developer alert'}
+                  title={stripMarkdownLinks(game.ruDeveloperExplanation) || 'Russian developer alert'}
                 >
                   RU
                 </span>
@@ -839,7 +840,13 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
             className={`game-card-text-slot ${ruAlert ? 'game-card-text-slot--ru' : ''}`}
           >
             {textSlotContent ? (
-              <p className="game-card-overview">{textSlotContent}</p>
+              <p className="game-card-overview">
+                {ruAlert ? (
+                  <TextWithLinks text={textSlotContent} />
+                ) : (
+                  textSlotContent
+                )}
+              </p>
             ) : (
               <p className="game-card-overview game-card-overview--empty" aria-hidden="true">
                 &nbsp;

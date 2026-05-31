@@ -6,6 +6,7 @@ const { vetAllDevelopers } = require('./gemini');
 const { enrichNewGameThirdParty } = require('./thirdParty');
 const { syncLibrarySteam, syncSteamLibrary } = require('./steamSync');
 const { syncGfnCatalog, syncGfnCatalogScheduled } = require('./gfnSync');
+const { syncDevSources, syncDevSourcesScheduled } = require('./devSourceSync');
 
 initializeApp();
 
@@ -63,19 +64,23 @@ exports.addGameFromSteam = onCall(
       return { gameId: game.id, vettingSkipped: true, reason: 'non-active libraryState' };
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn('GEMINI_API_KEY not set — skipping developer vetting.');
-      return { gameId: game.id, vettingSkipped: true };
+    const apiKey = process.env.GEMINI_API_KEY || null;
+
+    const developers = game.steamStatic?.developers || [];
+    const devAppIdMap = {};
+    for (const name of developers) {
+      const trimmed = String(name || '').trim();
+      if (trimmed) devAppIdMap[trimmed] = [game.id];
     }
 
     try {
       const { stats, memoryCache, ...vetting } = await vetAllDevelopers(
-        game.steamStatic?.developers || [],
+        developers,
         apiKey,
         {
           db,
           appId,
+          devAppIdMap,
         }
       );
       await gameRef.update({
@@ -103,3 +108,5 @@ exports.syncLibrarySteam = syncLibrarySteam;
 exports.syncSteamLibrary = syncSteamLibrary;
 exports.syncGfnCatalog = syncGfnCatalog;
 exports.syncGfnCatalogScheduled = syncGfnCatalogScheduled;
+exports.syncDevSources = syncDevSources;
+exports.syncDevSourcesScheduled = syncDevSourcesScheduled;

@@ -347,6 +347,10 @@ async function fetchCurrentPlayers(appId) {
 
 async function fetchStaticSteamData(appId) {
   const data = await fetchAppDetailsEntry(appId);
+  return mapStaticFromAppDetails(data);
+}
+
+function mapStaticFromAppDetails(data) {
   if (!data) return null;
 
   const developmentStatus = mapDevelopmentStatus(data);
@@ -370,13 +374,7 @@ async function fetchStaticSteamData(appId) {
   };
 }
 
-async function fetchDynamicSteamData(appId, { developmentStatus } = {}) {
-  const [data, reviewData, newsData] = await Promise.all([
-    fetchAppDetailsEntry(appId),
-    fetchReviewData(appId),
-    fetchNewsData(appId),
-  ]);
-
+function mapDynamicFromAppDetails(data, reviewData, newsData, developmentStatus) {
   if (!data) return null;
 
   const resolvedStatus = developmentStatus || mapDevelopmentStatus(data);
@@ -391,6 +389,16 @@ async function fetchDynamicSteamData(appId, { developmentStatus } = {}) {
     lastUpdateAt: resolvedStatus === 'tba' ? null : newsData.lastUpdateAt,
     syncedAt: FieldValue.serverTimestamp(),
   };
+}
+
+async function fetchDynamicSteamData(appId, { developmentStatus, appDetails = null } = {}) {
+  const [data, reviewData, newsData] = await Promise.all([
+    appDetails ? Promise.resolve(appDetails) : fetchAppDetailsEntry(appId),
+    fetchReviewData(appId),
+    fetchNewsData(appId),
+  ]);
+
+  return mapDynamicFromAppDetails(data, reviewData, newsData, developmentStatus);
 }
 
 async function fetchPriceAndReviews(appId) {
@@ -434,12 +442,23 @@ async function fetchSteamGame(steamInput) {
     throw new Error('Invalid Steam URL or App ID');
   }
 
-  const [steamStatic, steamDynamic] = await Promise.all([
-    fetchStaticSteamData(appId),
-    fetchDynamicSteamData(appId),
-  ]);
+  const appDetails = await fetchAppDetailsEntry(appId);
+  const steamStatic = mapStaticFromAppDetails(appDetails);
+  if (!steamStatic) {
+    throw new Error('Steam game not found or API returned no data');
+  }
 
-  if (!steamStatic || !steamDynamic) {
+  const [reviewData, newsData] = await Promise.all([
+    fetchReviewData(appId),
+    fetchNewsData(appId),
+  ]);
+  const steamDynamic = mapDynamicFromAppDetails(
+    appDetails,
+    reviewData,
+    newsData,
+    steamStatic.developmentStatus
+  );
+  if (!steamDynamic) {
     throw new Error('Steam game not found or API returned no data');
   }
 

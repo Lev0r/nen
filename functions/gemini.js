@@ -5,9 +5,31 @@ const {
   aggregateVettingFromCache,
   collectUncachedDevelopers,
 } = require('./devBgCheck');
+const {
+  SOURCE_LABELS,
+  SOURCE_IDS,
+  buildDeveloperSourceContext,
+  lookupDeterministicSources,
+  allBundledSourcesNegative,
+  fetchOpenCorporatesContext,
+  ensureLiveDevSources,
+} = require('./devSources');
 
 const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
 const DEFAULT_BATCH_SIZE = 5;
+
+const ALLOWED_SOURCES_TEXT = `You may ONLY use these sources (excerpts are provided below):
+1. ${SOURCE_LABELS[SOURCE_IDS.NE_GRAI]}
+2. ${SOURCE_LABELS[SOURCE_IDS.CURATOR_PLAYUA]}
+3. ${SOURCE_LABELS[SOURCE_IDS.CURATOR_AVOID_RU]}
+4. ${SOURCE_LABELS[SOURCE_IDS.DOU]}
+5. ${SOURCE_LABELS[SOURCE_IDS.OPENCORPORATES]}
+
+Rules:
+- If a source excerpt shows the studio is listed as Russian-related, set isRussianRelated: true and cite that source in explanation.
+- If NO provided excerpt supports Russian founders, offices, origin, or a Russian-founded entity registered abroad to bypass scrutiny, set isRussianRelated: false and explanation: "".
+- Do NOT use general knowledge, news, Wikipedia, or any source not listed above.
+- Do NOT guess. When evidence is absent or ambiguous, answer false.`;
 
 function getBatchSize() {
   const n = Number(process.env.GEMINI_VET_BATCH_SIZE);
@@ -15,18 +37,30 @@ function getBatchSize() {
   return DEFAULT_BATCH_SIZE;
 }
 
-function buildSinglePrompt(developerName) {
-  return `Check if the game development studio '${developerName}' has Russian founders, Russian offices, Russian origin, or is a Russian-founded entity now registered in another country (such as Cyprus, UAE, or Armenia) to bypass scrutiny. Reply with ONLY a valid JSON object: {"isRussianRelated": true, "explanation": "Brief reason"}. Use boolean true or false, not strings. No markdown.`;
+function getOpenCorporatesApiKey() {
+  return process.env.OPENCORPORATES_API_KEY || null;
 }
 
-function buildBatchPrompt(developerNames) {
-  const list = developerNames.map((name, i) => `${i + 1}. "${name}"`).join('\n');
-  return `For each game development studio listed below, check if it has Russian founders, Russian offices, Russian origin, or is a Russian-founded entity now registered in another country (such as Cyprus, UAE, or Armenia) to bypass scrutiny.
+function buildSinglePrompt(developerName, contextText) {
+  return `${ALLOWED_SOURCES_TEXT}
 
-Studios:
-${list}
+Source excerpts for "${developerName}":
+${contextText}
 
-Reply with ONLY a JSON array with exactly ${developerNames.length} objects in the same order as the list. Each object: {"name": "<studio name>", "isRussianRelated": true or false, "explanation": "Brief reason or empty string"}. Use boolean true or false, not strings. No markdown.`;
+Reply with ONLY a valid JSON object: {"isRussianRelated": true, "explanation": "Brief reason citing source number, or empty string"}. Use boolean true or false, not strings. No markdown.`;
+}
+
+function buildBatchPrompt(contextBlocks) {
+  const blocks = contextBlocks
+    .map((block, i) => `--- Studio ${i + 1} ---\n${block.contextText}`)
+    .join('\n\n');
+
+  return `${ALLOWED_SOURCES_TEXT}
+
+Source excerpts for each studio:
+${blocks}
+
+Reply with ONLY a JSON array with exactly ${contextBlocks.length} objects in the same order. Each object: {"name": "<studio name>", "isRussianRelated": true or false, "explanation": "Brief reason citing source number, or empty string"}. Use boolean true or false, not strings. No markdown.`;
 }
 
 function parseBoolean(value) {
@@ -99,22 +133,43 @@ async function callGemini(prompt, apiKey, model, useJsonMode) {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
-async function vetDeveloperWithModel(developerName, apiKey, model, useJsonMode) {
-  const text = await callGemini(buildSinglePrompt(developerName), apiKey, model, useJsonMode);
+async function buildContextBlocks(developerNames, openCorporatesApiKey, devAppIdMap = {}) {
+  const blocks = [];
+  for (const name of developerNames) {
+    const ocContext = openCorporatesApiKey
+      ? await fetchOpenCorporatesContext(name, openCorporatesApiKey)
+      : { configured: false, excerpt: 'OpenCorporates API key not configured.' };
+    blocks.push(
+      buildDeveloperSourceContext(name, ocContext, {
+        appIds: devAppIdMap[name] || [],
+      })
+    );
+  }
+  return blocks;
+}
+
+async function vetDeveloperWithModel(developerName, apiKey, model, useJsonMode, contextText) {
+  const text = await callGemini(
+    buildSinglePrompt(developerName, contextText),
+    apiKey,
+    model,
+    useJsonMode
+  );
   return parseGeminiJson(text);
 }
 
-async function vetDeveloperBatchWithModel(developerNames, apiKey, model, useJsonMode) {
-  const text = await callGemini(buildBatchPrompt(developerNames), apiKey, model, useJsonMode);
-  return parseGeminiBatchJson(text, developerNames);
+async function vetDeveloperBatchWithModel(contextBlocks, apiKey, model, useJsonMode) {
+  const names = contextBlocks.map((b) => b.developerName);
+  const text = await callGemini(buildBatchPrompt(contextBlocks), apiKey, model, useJsonMode);
+  return parseGeminiBatchJson(text, names);
 }
 
-async function vetDeveloper(developerName, apiKey) {
+async function vetDeveloper(developerName, apiKey, contextText) {
   let lastError;
   for (const model of MODELS) {
     for (const useJsonMode of [true, false]) {
       try {
-        return await vetDeveloperWithModel(developerName, apiKey, model, useJsonMode);
+        return await vetDeveloperWithModel(developerName, apiKey, model, useJsonMode, contextText);
       } catch (err) {
         lastError = err;
         console.warn(`Gemini ${model} (json=${useJsonMode}) failed:`, err.message);
@@ -124,30 +179,34 @@ async function vetDeveloper(developerName, apiKey) {
   throw lastError || new Error('All Gemini models failed');
 }
 
-async function vetDeveloperBatch(developerNames, apiKey) {
+async function vetDeveloperBatch(contextBlocks, apiKey) {
   let lastError;
   for (const model of MODELS) {
     for (const useJsonMode of [true, false]) {
       try {
-        return await vetDeveloperBatchWithModel(developerNames, apiKey, model, useJsonMode);
+        return await vetDeveloperBatchWithModel(contextBlocks, apiKey, model, useJsonMode);
       } catch (err) {
         lastError = err;
         console.warn(
-          `Gemini batch ${model} (json=${useJsonMode}, n=${developerNames.length}) failed:`,
+          `Gemini batch ${model} (json=${useJsonMode}, n=${contextBlocks.length}) failed:`,
           err.message
         );
       }
     }
   }
 
-  if (developerNames.length === 1) {
-    const single = await vetDeveloper(developerNames[0], apiKey);
-    return [{ name: developerNames[0], ...single }];
+  if (contextBlocks.length === 1) {
+    const single = await vetDeveloper(
+      contextBlocks[0].developerName,
+      apiKey,
+      contextBlocks[0].contextText
+    );
+    return [{ name: contextBlocks[0].developerName, ...single }];
   }
 
-  const mid = Math.ceil(developerNames.length / 2);
-  const left = await vetDeveloperBatch(developerNames.slice(0, mid), apiKey);
-  const right = await vetDeveloperBatch(developerNames.slice(mid), apiKey);
+  const mid = Math.ceil(contextBlocks.length / 2);
+  const left = await vetDeveloperBatch(contextBlocks.slice(0, mid), apiKey);
+  const right = await vetDeveloperBatch(contextBlocks.slice(mid), apiKey);
   return [...left, ...right];
 }
 
@@ -159,26 +218,136 @@ function chunkArray(items, size) {
   return chunks;
 }
 
+function negativeBundledResult(name) {
+  return {
+    key: devCacheKey(name),
+    name,
+    isRussianRelated: false,
+    explanation: '',
+    source: 'bundled_sources',
+  };
+}
+
+async function resolveUncachedDevelopers(uncachedNames, options) {
+  const openCorporatesApiKey = options.openCorporatesApiKey ?? getOpenCorporatesApiKey();
+  const devAppIdMap = options.devAppIdMap || {};
+  const resolved = [];
+  const needsGemini = [];
+
+  for (const name of uncachedNames) {
+    const appIds = devAppIdMap[name] || [];
+    const hit = await lookupDeterministicSources(name, { openCorporatesApiKey, appIds });
+    if (hit) {
+      resolved.push({
+        key: devCacheKey(name),
+        name,
+        isRussianRelated: hit.isRussianRelated,
+        explanation: hit.explanation,
+        source: hit.source,
+      });
+      continue;
+    }
+
+    if (!openCorporatesApiKey && allBundledSourcesNegative(name, { appIds })) {
+      resolved.push(negativeBundledResult(name));
+      continue;
+    }
+
+    needsGemini.push(name);
+  }
+
+  return { resolved, needsGemini, openCorporatesApiKey, devAppIdMap };
+}
+
 async function vetUncachedDevelopers(uncachedNames, apiKey, options) {
   const { db, appId, memoryCache, batchSize = getBatchSize(), dryRun = false } = options;
-  const stats = { geminiBatches: 0, geminiDevelopers: 0, cached: 0 };
+  const stats = {
+    geminiBatches: 0,
+    geminiDevelopers: 0,
+    cached: 0,
+    sourceHits: 0,
+    bundledClears: 0,
+  };
 
   if (!uncachedNames.length) {
     return stats;
   }
 
-  const batches = chunkArray(uncachedNames, batchSize);
+  const { resolved, needsGemini, openCorporatesApiKey, devAppIdMap } =
+    await resolveUncachedDevelopers(uncachedNames, options);
+
+  if (resolved.length) {
+    if (dryRun) {
+      stats.sourceHits += resolved.filter((r) => r.source && r.source !== 'bundled_sources').length;
+      stats.bundledClears += resolved.filter((r) => r.source === 'bundled_sources').length;
+      console.log(
+        `  DRY-RUN source lookup: ${stats.sourceHits} flagged, ${stats.bundledClears} cleared without Gemini`
+      );
+    } else if (db && appId) {
+      await persistDeveloperResults(db, appId, resolved, memoryCache);
+      stats.cached += resolved.length;
+      stats.sourceHits += resolved.filter((r) => r.source && r.source !== 'bundled_sources').length;
+      stats.bundledClears += resolved.filter((r) => r.source === 'bundled_sources').length;
+    } else {
+      for (const entry of resolved) {
+        memoryCache.set(entry.key, {
+          name: entry.name,
+          isRussianRelated: entry.isRussianRelated,
+          explanation: entry.explanation,
+          checkedAt: new Date(),
+        });
+      }
+      stats.cached += resolved.length;
+      stats.sourceHits += resolved.filter((r) => r.source && r.source !== 'bundled_sources').length;
+      stats.bundledClears += resolved.filter((r) => r.source === 'bundled_sources').length;
+    }
+  }
+
+  if (!needsGemini.length) {
+    return stats;
+  }
+
+  if (!apiKey) {
+    const fallbacks = needsGemini.map(negativeBundledResult);
+    if (dryRun) {
+      stats.bundledClears += fallbacks.length;
+      console.log(
+        `  DRY-RUN would clear ${fallbacks.length} developer(s) (no Gemini/OpenCorporates ambiguity path without API key)`
+      );
+    } else if (db && appId) {
+      await persistDeveloperResults(db, appId, fallbacks, memoryCache);
+      stats.cached += fallbacks.length;
+      stats.bundledClears += fallbacks.length;
+    } else {
+      for (const entry of fallbacks) {
+        memoryCache.set(entry.key, {
+          name: entry.name,
+          isRussianRelated: false,
+          explanation: '',
+          checkedAt: new Date(),
+        });
+      }
+      stats.cached += fallbacks.length;
+      stats.bundledClears += fallbacks.length;
+    }
+    return stats;
+  }
+
+  const batches = chunkArray(needsGemini, batchSize);
 
   for (const batch of batches) {
     if (dryRun) {
       stats.geminiBatches += 1;
       stats.geminiDevelopers += batch.length;
-      console.log(`  DRY-RUN would vet ${batch.length} developer(s) via Gemini batch`);
+      console.log(
+        `  DRY-RUN would vet ${batch.length} developer(s) via Gemini (OpenCorporates=${openCorporatesApiKey ? 'yes' : 'no'})`
+      );
       continue;
     }
 
     try {
-      const results = await vetDeveloperBatch(batch, apiKey);
+      const contextBlocks = await buildContextBlocks(batch, openCorporatesApiKey, devAppIdMap);
+      const results = await vetDeveloperBatch(contextBlocks, apiKey);
       stats.geminiBatches += 1;
       stats.geminiDevelopers += batch.length;
 
@@ -207,7 +376,13 @@ async function vetUncachedDevelopers(uncachedNames, apiKey, options) {
       console.error(`  Batch vetting failed (${batch.length} devs):`, err.message);
       for (const name of batch) {
         try {
-          const result = await vetDeveloper(name, apiKey);
+          const ocContext = openCorporatesApiKey
+            ? await fetchOpenCorporatesContext(name, openCorporatesApiKey)
+            : { configured: false, excerpt: 'OpenCorporates API key not configured.' };
+          const context = buildDeveloperSourceContext(name, ocContext, {
+            appIds: devAppIdMap[name] || [],
+          });
+          const result = await vetDeveloper(name, apiKey, context.contextText);
           const entry = {
             key: devCacheKey(name),
             name,
@@ -235,18 +410,25 @@ async function vetUncachedDevelopers(uncachedNames, apiKey, options) {
 }
 
 /**
- * Vet game developers with Firestore-backed cache and batched Gemini calls.
+ * Vet game developers with Firestore-backed cache, bundled sources, and batched Gemini.
  *
  * @param {string[]} developers
  * @param {string} apiKey
- * @param {{ db?, appId?, memoryCache?, batchSize?, dryRun? }} [options]
+ * @param {{ db?, appId?, memoryCache?, batchSize?, dryRun?, openCorporatesApiKey?, devAppIdMap? }} [options]
  */
 async function vetAllDevelopers(developers, apiKey, options = {}) {
   if (!developers?.length) {
     return {
       ruDeveloperAlert: false,
       ruDeveloperExplanation: '',
-      stats: { cacheHits: 0, geminiBatches: 0, geminiDevelopers: 0, cached: 0 },
+      stats: {
+        cacheHits: 0,
+        geminiBatches: 0,
+        geminiDevelopers: 0,
+        cached: 0,
+        sourceHits: 0,
+        bundledClears: 0,
+      },
     };
   }
 
@@ -256,24 +438,32 @@ async function vetAllDevelopers(developers, apiKey, options = {}) {
 
   if (db && appId) {
     await ensureMemoryCache(memoryCache, db, appId);
+    await ensureLiveDevSources(db, appId);
   }
 
   const uncached = collectUncachedDevelopers(unique, memoryCache);
   const cacheHits = unique.length - uncached.length;
 
-  let vetStats = { cacheHits, geminiBatches: 0, geminiDevelopers: 0, cached: 0 };
+  let vetStats = {
+    cacheHits,
+    geminiBatches: 0,
+    geminiDevelopers: 0,
+    cached: 0,
+    sourceHits: 0,
+    bundledClears: 0,
+  };
 
-  if (uncached.length && apiKey) {
+  if (uncached.length) {
     const batchStats = await vetUncachedDevelopers(uncached, apiKey, {
       db,
       appId,
       memoryCache,
       batchSize: options.batchSize ?? getBatchSize(),
       dryRun,
+      openCorporatesApiKey: options.openCorporatesApiKey,
+      devAppIdMap: options.devAppIdMap,
     });
     vetStats = { cacheHits, ...batchStats };
-  } else if (uncached.length && !apiKey) {
-    console.warn('GEMINI_API_KEY not set — skipping developer vetting for uncached developers');
   }
 
   const vetting = aggregateVettingFromCache(unique, memoryCache);
