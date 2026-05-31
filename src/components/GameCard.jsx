@@ -30,7 +30,6 @@ import {
   getRecentReviewCount,
   getReviewScoreDesc,
   getLastUpdateAt,
-  getGameOperationErrors,
 } from '../utils/gameAccessors';
 import {
   calculateTotalHype,
@@ -552,10 +551,10 @@ function HypeBreakdownTooltip({ breakdown }) {
   );
 }
 
-function OwnedTooltip({ owned, userIndex }) {
+function OwnedTooltip({ owned = {}, userIndex }) {
   const rows = [
-    { index: 0, owned: owned.user0 },
-    { index: 1, owned: owned.user1 },
+    { index: 0, owned: Boolean(owned.user0) },
+    { index: 1, owned: Boolean(owned.user1) },
   ];
   return (
     <div className="card-tooltip-breakdown">
@@ -625,15 +624,13 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
   const statusTooltip = buildStatusTooltip(developmentStatus, game);
   const versionTooltip = buildVersionTooltip(game);
   const hasUserNotes = Boolean(game.userNotes?.user0 || game.userNotes?.user1);
-  const operationErrors = useMemo(() => getGameOperationErrors(game), [game]);
-  const hasOperationErrors = operationErrors.length > 0;
   const textSlotContent = ruAlert
     ? game.ruDeveloperExplanation || 'Russian developer ties flagged.'
     : steamOverview;
 
   const toggleOwned = async () => {
     const key = `owned.user${userIndex}`;
-    const next = !game.owned[`user${userIndex}`];
+    const next = !game.owned?.[`user${userIndex}`];
     await updateGame(APP_ID, game.id, { [key]: next });
   };
 
@@ -1013,20 +1010,10 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
             </a>
             <button
               type="button"
-              className={`game-card-footer-btn${
-                hasOperationErrors ? ' game-card-footer-btn--sync-warning' : ''
-              }`}
+              className="game-card-footer-btn"
               onClick={() => setEditOpen(true)}
-              aria-label={
-                hasOperationErrors
-                  ? `Edit game (${operationErrors.length} sync error${operationErrors.length === 1 ? '' : 's'})`
-                  : 'Edit game'
-              }
-              title={
-                hasOperationErrors
-                  ? `${operationErrors.length} sync error${operationErrors.length === 1 ? '' : 's'} — open edit for details`
-                  : 'Edit game'
-              }
+              aria-label="Edit game"
+              title="Edit game"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path

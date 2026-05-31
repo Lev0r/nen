@@ -137,6 +137,19 @@ export function formatRelativeTimeShort(input) {
 }
 
 /**
+ * Locale date + time for error logs (e.g. "May 31, 2026, 3:45 PM").
+ */
+export function formatDateTime(input) {
+  const start = parseDate(input);
+  if (!start) return null;
+
+  return start.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+}
+
+/**
  * Whole days elapsed since a date (0 = today).
  */
 export function getDaysSince(input) {

@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
 import GameFiltersBar from './GameFiltersBar';
+import MaintenanceModal from './MaintenanceModal';
 import { useGames, useAppConfig } from '../services/db';
 import { syncGfnCatalog, syncSteamLibrary } from '../services/cloudFunctions';
 import { getNickname } from '../utils/userConfig';
@@ -19,7 +20,13 @@ import {
 } from '../utils/gameFilters';
 import { formatRelativeTimeShort } from '../utils/formatDuration';
 import { reportError } from '../utils/errorReport';
-import ErrorBanner from './ErrorBanner';
+import {
+  collectAppErrors,
+  fingerprintAppErrors,
+  hasUnacknowledgedErrors,
+  readAcknowledgedFingerprint,
+  writeAcknowledgedFingerprint,
+} from '../utils/appErrors';
 import DynamicBackground from './DynamicBackground';
 
 const LIFECYCLE_TABS = LIBRARY_STATES.map((id) => ({
@@ -27,18 +34,34 @@ const LIFECYCLE_TABS = LIBRARY_STATES.map((id) => ({
   label: getLibraryStateLabel(id),
 }));
 
+function appendRuntimeError(setter, label, message) {
+  setter((prev) => [
+    ...prev,
+    {
+      id: `action-${Date.now()}-${label}`,
+      scope: 'action',
+      label,
+      message,
+      at: new Date().toISOString(),
+    },
+  ]);
+}
+
 export default function DashboardShell() {
   const { userIndex, logout } = useAuth();
-  const { games, loading } = useGames('default_app');
+  const { games, loading, subscriptionError, loadErrors } = useGames('default_app');
   const { config } = useAppConfig('default_app');
 
   const [activeTab, setActiveTab] = useState('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [gameFilters, setGameFilters] = useState(DEFAULT_GAME_FILTERS);
   const [syncingGfn, setSyncingGfn] = useState(false);
-  const [gfnSyncError, setGfnSyncError] = useState(null);
-  const [syncingSteam, setSyncingSteam] = useState(false);
-  const [steamSyncError, setSteamSyncError] = useState(null);
+  const [syncingMeta, setSyncingMeta] = useState(false);
+  const [runtimeErrors, setRuntimeErrors] = useState([]);
+  const [acknowledgedFingerprint, setAcknowledgedFingerprint] = useState(
+    readAcknowledgedFingerprint
+  );
 
   const gfnSteamAppIds = useMemo(() => {
     const ids = config?.gfnCatalog?.steamAppIds;
@@ -50,50 +73,64 @@ export default function DashboardShell() {
     return formatRelativeTimeShort(syncedAt);
   }, [config?.gfnCatalog?.syncedAt]);
 
-  const steamSyncedAtLabel = useMemo(() => {
+  const metaSyncedAtLabel = useMemo(() => {
     const syncedAt = config?.steamLibrarySync?.syncedAt;
     return formatRelativeTimeShort(syncedAt);
   }, [config?.steamLibrarySync?.syncedAt]);
 
-  const thirdPartyHint = useMemo(() => {
-    const sync = config?.steamLibrarySync;
-    const health = config?.thirdPartyHealth;
-    const parts = [];
-
-    if (sync?.hltbErrors > 0) {
-      parts.push(`HLTB: ${sync.hltbErrors} failed on last sync`);
+  const appErrors = useMemo(() => {
+    const errors = collectAppErrors({ config, games, runtimeErrors });
+    if (subscriptionError) {
+      errors.unshift({
+        id: 'firestore-games-subscription',
+        scope: 'library',
+        label: 'Firestore',
+        message: subscriptionError,
+        at: new Date().toISOString(),
+      });
     }
-    if (health?.itad?.configured === false) {
-      parts.push('ITAD API key not set');
-    } else if (sync?.itadErrors > 0) {
-      parts.push(`ITAD: ${sync.itadErrors} failed on last sync`);
+    if (loadErrors > 0) {
+      errors.unshift({
+        id: 'firestore-games-load',
+        scope: 'library',
+        label: 'Game data',
+        message: `${loadErrors} game document(s) could not be loaded — check the browser console.`,
+        at: new Date().toISOString(),
+      });
     }
+    return errors;
+  }, [config, games, runtimeErrors, subscriptionError, loadErrors]);
 
-    return parts.length > 0 ? parts.join(' · ') : null;
-  }, [config?.steamLibrarySync, config?.thirdPartyHealth]);
+  const errorFingerprint = useMemo(() => fingerprintAppErrors(appErrors), [appErrors]);
+  const showErrorDot = hasUnacknowledgedErrors(appErrors, acknowledgedFingerprint);
 
   async function handleSyncGfn() {
     setSyncingGfn(true);
-    setGfnSyncError(null);
     try {
       await syncGfnCatalog();
     } catch (err) {
-      reportError('Sync GeForce', err, setGfnSyncError);
+      const message = reportError('Sync GeForce NOW', err);
+      appendRuntimeError(setRuntimeErrors, 'Sync GeForce NOW', message);
     } finally {
       setSyncingGfn(false);
     }
   }
 
-  async function handleSyncSteam() {
-    setSyncingSteam(true);
-    setSteamSyncError(null);
+  async function handleLoadMeta() {
+    setSyncingMeta(true);
     try {
       await syncSteamLibrary();
     } catch (err) {
-      reportError('Sync Steam', err, setSteamSyncError);
+      const message = reportError('Load meta info', err);
+      appendRuntimeError(setRuntimeErrors, 'Load meta info', message);
     } finally {
-      setSyncingSteam(false);
+      setSyncingMeta(false);
     }
+  }
+
+  function handleAcknowledgeErrors() {
+    writeAcknowledgedFingerprint(errorFingerprint);
+    setAcknowledgedFingerprint(errorFingerprint);
   }
 
   const tabCounts = LIFECYCLE_TABS.reduce((counts, tab) => {
@@ -111,6 +148,7 @@ export default function DashboardShell() {
   const filteredGames = filterGames(filterSourceGames, gameFilters, gfnSteamAppIds);
   const availableTags = collectSteamTags(games);
   const filtersActive = hasActiveFilters(gameFilters);
+  const activeTabLabel = LIFECYCLE_TABS.find((tab) => tab.id === activeTab)?.label ?? 'Active';
 
   return (
     <>
@@ -146,40 +184,18 @@ export default function DashboardShell() {
             + Add Game
           </button>
           <button
-            className="btn-secondary sidebar-action-btn sidebar-sync-btn"
-            onClick={handleSyncSteam}
-            disabled={syncingSteam || syncingGfn}
+            type="button"
+            className="btn-secondary sidebar-action-btn sidebar-maintenance-btn"
+            onClick={() => setMaintenanceOpen(true)}
+            aria-label={showErrorDot ? 'Maintenance (unacknowledged errors)' : 'Maintenance'}
           >
-            <span className="sidebar-sync-btn-label">
-              {syncingSteam ? 'Syncing…' : 'Sync Steam'}
+            <span className="sidebar-maintenance-btn-label">
+              Maintenance
+              {showErrorDot && (
+                <span className="sidebar-maintenance-dot" aria-hidden="true" />
+              )}
             </span>
-            {steamSyncedAtLabel && !syncingSteam && (
-              <span className="sidebar-sync-btn-meta">{steamSyncedAtLabel}</span>
-            )}
           </button>
-          <ErrorBanner
-            message={steamSyncError}
-            onDismiss={() => setSteamSyncError(null)}
-          />
-          <button
-            className="btn-secondary sidebar-action-btn sidebar-sync-btn"
-            onClick={handleSyncGfn}
-            disabled={syncingGfn || syncingSteam}
-          >
-            <span className="sidebar-sync-btn-label">
-              {syncingGfn ? 'Syncing…' : 'Sync GeForce'}
-            </span>
-            {gfnSyncedAtLabel && !syncingGfn && (
-              <span className="sidebar-sync-btn-meta">{gfnSyncedAtLabel}</span>
-            )}
-          </button>
-          <ErrorBanner
-            message={gfnSyncError}
-            onDismiss={() => setGfnSyncError(null)}
-          />
-          {thirdPartyHint && (
-            <p className="sidebar-third-party-hint">{thirdPartyHint}</p>
-          )}
           <div className="sidebar-user-row">
             <span className="sidebar-user">{getNickname(userIndex)}</span>
             <button className="btn-secondary sidebar-sign-out" onClick={logout}>
@@ -209,10 +225,22 @@ export default function DashboardShell() {
             ))
           ) : (
             <div className="dashboard-empty">
-              {filterSourceGames.length === 0 ? (
+              {games.length === 0 ? (
                 <>
-                  <p>No games in this view.</p>
-                  <p className="dashboard-empty-hint">Use + Add Game to import from Steam.</p>
+                  <p>No games in your library yet.</p>
+                  <p className="dashboard-empty-hint">
+                    {subscriptionError
+                      ? 'Firestore could not load games — open Maintenance for details.'
+                      : 'Use + Add Game, or bulk-import with scripts/import-games.mjs using --app-id default_app.'}
+                  </p>
+                </>
+              ) : filterSourceGames.length === 0 ? (
+                <>
+                  <p>No games in {activeTabLabel}.</p>
+                  <p className="dashboard-empty-hint">
+                    Your library has {games.length} game{games.length === 1 ? '' : 's'} — check
+                    other tabs in the sidebar.
+                  </p>
                 </>
               ) : filtersActive ? (
                 <>
@@ -230,8 +258,11 @@ export default function DashboardShell() {
                 </>
               ) : (
                 <>
-                  <p>No games in this view.</p>
-                  <p className="dashboard-empty-hint">Use + Add Game to import from Steam.</p>
+                  <p>No games in {activeTabLabel}.</p>
+                  <p className="dashboard-empty-hint">
+                    {games.length} game{games.length === 1 ? '' : 's'} in your library — try another
+                    tab or clear filters.
+                  </p>
                 </>
               )}
             </div>
@@ -243,6 +274,20 @@ export default function DashboardShell() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         games={games}
+      />
+
+      <MaintenanceModal
+        isOpen={maintenanceOpen}
+        onClose={() => setMaintenanceOpen(false)}
+        errors={appErrors}
+        canAcknowledge={appErrors.length > 0}
+        onAcknowledge={handleAcknowledgeErrors}
+        syncingMeta={syncingMeta}
+        syncingGfn={syncingGfn}
+        onLoadMeta={handleLoadMeta}
+        onSyncGfn={handleSyncGfn}
+        metaSyncedAtLabel={metaSyncedAtLabel}
+        gfnSyncedAtLabel={gfnSyncedAtLabel}
       />
       </div>
     </>

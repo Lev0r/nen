@@ -234,6 +234,18 @@ export default function GameFiltersBar({ filters, onChange, availableTags, resul
 
             <button
               type="button"
+              className={`game-filters-switch${filters.ruOnly ? ' game-filters-switch--on' : ''}`}
+              aria-pressed={Boolean(filters.ruOnly)}
+              onClick={() => toggleBooleanFilter('ruOnly')}
+            >
+              <span className="game-filters-switch-label">RU alert</span>
+              <span className="game-filters-switch-track" aria-hidden="true">
+                <span className="game-filters-switch-thumb" />
+              </span>
+            </button>
+
+            <button
+              type="button"
               className={`game-filters-switch${filters.updateAvailableOnly ? ' game-filters-switch--on' : ''}`}
               aria-pressed={Boolean(filters.updateAvailableOnly)}
               onClick={() => toggleBooleanFilter('updateAvailableOnly')}

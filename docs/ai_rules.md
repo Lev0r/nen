@@ -24,7 +24,7 @@ This document outlines the strict rules and constraints that any AI coding assis
 ## 4. Feature-Specific Rules
 
 - **Total Hype Formula:** Do not alter the Total Hype formula coefficients (documented in `manifest_of_understanding.md` F3) without explicit user permission. These overrides are non-negotiable: `ruDeveloperAlert`, `libraryState === 'finished'`, and `libraryState === 'banned'` all force Total Hype to `0`.
-- **API integrations:** Always handle Steam API and Gemini API failures gracefully. Cache Steam responses in Cloud Functions. Provide clear UI feedback if scraping fails or the API limit is reached.
+- **API integrations:** Always handle Steam API failures gracefully. Cache Steam responses in Cloud Functions. Provide clear UI feedback if scraping fails or the API limit is reached.
 
 ## 5. Development Workflow
 

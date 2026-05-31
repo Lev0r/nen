@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { updateGame } from '../services/db';
+import { runDevCheck } from '../services/cloudFunctions';
 import { reportError } from '../utils/errorReport';
 import { getNickname } from '../utils/userConfig';
 import { HYPE_TIERS, getTier } from '../utils/hypeScore';
@@ -22,9 +23,7 @@ import {
   getDiscountPercent,
   getCoopSpecs,
   getCurrentVersion,
-  getGameOperationErrors,
 } from '../utils/gameAccessors';
-import { formatRelativeTimeShort } from '../utils/formatDuration';
 
 const APP_ID = 'default_app';
 
@@ -86,6 +85,8 @@ function initForm(game) {
 export default function GameEditModal({ game, isOpen, onClose, focusNotes = false }) {
   const [form, setForm] = useState(() => initForm(game));
   const [saving, setSaving] = useState(false);
+  const [devChecking, setDevChecking] = useState(false);
+  const [devCheckMessage, setDevCheckMessage] = useState('');
   const [error, setError] = useState('');
   const notesSectionRef = useRef(null);
 
@@ -93,6 +94,7 @@ export default function GameEditModal({ game, isOpen, onClose, focusNotes = fals
     if (!isOpen || !game) return;
     setForm(initForm(game));
     setError('');
+    setDevCheckMessage('');
   }, [isOpen, game]);
 
   useEffect(() => {
@@ -113,10 +115,32 @@ export default function GameEditModal({ game, isOpen, onClose, focusNotes = fals
 
   if (!isOpen || !game) return null;
 
-  const operationErrors = getGameOperationErrors(game);
-
   const setField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleRunDevCheck = async () => {
+    setDevChecking(true);
+    setError('');
+    setDevCheckMessage('');
+
+    try {
+      const result = await runDevCheck(game.id, APP_ID);
+      setForm((prev) => ({
+        ...prev,
+        ruDeveloperAlert: result.ruDeveloperAlert === true,
+        ruDeveloperExplanation: result.ruDeveloperExplanation || '',
+      }));
+      setDevCheckMessage(
+        result.ruDeveloperAlert
+          ? 'Developer check flagged this game (NE GRAI / curator lists). Review below and save if needed.'
+          : 'Source check complete — no RU-related list matches.'
+      );
+    } catch (err) {
+      reportError('Run dev check', err, setError);
+    } finally {
+      setDevChecking(false);
+    }
   };
 
   const handleSave = async () => {
@@ -359,13 +383,26 @@ export default function GameEditModal({ game, isOpen, onClose, focusNotes = fals
           </section>
 
           <section className="game-edit-section">
-            <h3 className="game-edit-section-title">RU alert</h3>
+            <div className="game-edit-section-header">
+              <h3 className="game-edit-section-title">RU alert</h3>
+              <button
+                type="button"
+                className="btn-secondary game-edit-dev-check-btn"
+                onClick={handleRunDevCheck}
+                disabled={saving || devChecking}
+              >
+                {devChecking ? 'Checking…' : 'Run dev check'}
+              </button>
+            </div>
+            {devCheckMessage && (
+              <p className="game-edit-dev-check-message">{devCheckMessage}</p>
+            )}
             <ToggleSwitch
               id="edit-ru-alert"
               className="toggle-switch--block"
               checked={form.ruDeveloperAlert}
               onChange={(value) => setField('ruDeveloperAlert', value)}
-              disabled={saving}
+              disabled={saving || devChecking}
               label="Russian developer alert (manual verification)"
             />
             <label className="game-edit-label" htmlFor="edit-ru-explanation">
@@ -377,7 +414,7 @@ export default function GameEditModal({ game, isOpen, onClose, focusNotes = fals
               placeholder="Why this flag is set…"
               value={form.ruDeveloperExplanation}
               onChange={(e) => setField('ruDeveloperExplanation', e.target.value)}
-              disabled={saving}
+              disabled={saving || devChecking}
               rows={2}
             />
           </section>
@@ -481,29 +518,6 @@ export default function GameEditModal({ game, isOpen, onClose, focusNotes = fals
               />
             </div>
           </section>
-
-          {operationErrors.length > 0 && (
-            <section className="game-edit-section game-edit-section--errors" aria-live="polite">
-              <h3 className="game-edit-section-title game-edit-section-title--warning">
-                Sync errors
-              </h3>
-              <p className="game-edit-errors-desc">
-                Read-only log from automated sync and enrichment. Re-run Sync Steam to retry.
-              </p>
-              <ul className="game-edit-errors-list">
-                {operationErrors.map((entry) => {
-                  const when = entry.at ? formatRelativeTimeShort(entry.at) : null;
-                  return (
-                    <li key={entry.source} className="game-edit-error-item">
-                      <span className="game-edit-error-label">{entry.label}</span>
-                      <p className="game-edit-error-message">{entry.message}</p>
-                      {when && <span className="game-edit-error-at">Last attempt {when}</span>}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
           </div>
         </div>
 

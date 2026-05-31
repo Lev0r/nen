@@ -1,4 +1,5 @@
 import { resolveLibraryState } from './libraryState';
+import { isRuDeveloperAlert } from './gameHelpers';
 import {
   getGameName,
   getDevelopmentStatus,
@@ -14,6 +15,7 @@ export const DEFAULT_GAME_FILTERS = {
   onSaleOnly: false,
   gfnOnly: false,
   updateAvailableOnly: false,
+  ruOnly: false,
   libraryStates: [],
 };
 
@@ -35,6 +37,7 @@ export function hasActiveFilters(filters) {
     Boolean(filters.onSaleOnly) ||
     Boolean(filters.gfnOnly) ||
     Boolean(filters.updateAvailableOnly) ||
+    Boolean(filters.ruOnly) ||
     (filters.libraryStates?.length ?? 0) > 0
   );
 }
@@ -47,6 +50,7 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
   const onSaleOnly = Boolean(filters.onSaleOnly);
   const gfnOnly = Boolean(filters.gfnOnly);
   const updateAvailableOnly = Boolean(filters.updateAvailableOnly);
+  const ruOnly = Boolean(filters.ruOnly);
   const libraryStates = filters.libraryStates ?? [];
 
   return games.filter((game) => {
@@ -77,6 +81,10 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
     }
 
     if (updateAvailableOnly && game.hasUpdateSinceState !== true) {
+      return false;
+    }
+
+    if (ruOnly && !isRuDeveloperAlert(game)) {
       return false;
     }
 

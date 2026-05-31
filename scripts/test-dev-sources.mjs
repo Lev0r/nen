@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Quick smoke test for devSources lookups (no Gemini). */
+/** Quick smoke test for devSources lookups. */
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';

@@ -215,7 +215,7 @@ export function getGameOperationErrors(game) {
 
   pushOperationError(errors, seen, {
     source: 'vetting',
-    label: 'Developer vetting (Gemini)',
+    label: 'Developer vetting',
     message: game?.vettingError,
     at: game?.vettingErrorAt ?? null,
   });

@@ -32,7 +32,7 @@ export default function AddGameModal({ isOpen, onClose, games = [] }) {
       const result = await addGameFromSteam(steamUrl);
       setSteamUrl('');
       if (result?.vettingError) {
-        setError(`Game added, but AI vetting failed: ${result.vettingError}`);
+        setError(`Game added, but developer source check failed: ${result.vettingError}`);
         return;
       }
       onClose();
@@ -52,8 +52,8 @@ export default function AddGameModal({ isOpen, onClose, games = [] }) {
       <div className="glass-panel animate-fade-in add-game-modal">
         <h2 className="add-game-modal-title">Add New Game</h2>
         <p className="add-game-modal-desc">
-          Paste a Steam Store URL or App ID. Cloud Functions will scrape metadata and run
-          Gemini developer vetting.
+          Paste a Steam Store URL or App ID. Cloud Functions will scrape metadata and check
+          developer sources (NE GRAI + Steam curator lists).
         </p>
 
         {error && <div className="login-error" style={{ marginBottom: '1rem' }}>{error}</div>}

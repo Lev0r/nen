@@ -1,6 +1,6 @@
 {
   "name": "nen-functions",
-  "description": "Nen Cloud Functions — Steam scrape & Gemini vetting",
+  "description": "Nen Cloud Functions — Steam scrape & developer source vetting",
   "main": "index.js",
   "type": "commonjs",
   "engines": {

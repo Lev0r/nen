@@ -45,10 +45,10 @@ const require = createRequire(join(ROOT, 'functions/package.json'));
 const { initializeApp, getApps, applicationDefault, cert } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { fetchSteamGame, parseAppId } = require('./steam');
-const { vetAllDevelopers } = require('./gemini');
+const { vetAllDevelopers } = require('./devVetting');
 const {
   ensureMemoryCache,
-  aggregateVettingFromCache,
+  aggregateGameVetting,
   collectUncachedDevelopers,
 } = require('./devBgCheck');
 
@@ -379,9 +379,8 @@ async function prepareGame(db, entry, { appId }) {
 
   const scraped = await fetchSteamGame(steamInput);
   const game = applyOverrides(scraped, overrides);
-  const shouldVet = game.libraryState === 'active';
 
-  return { status: 'ready', game, shouldVet, steamInput };
+  return { status: 'ready', game, steamInput };
 }
 
 async function importOne(db, prepared, { appId, dryRun, devCache }) {
@@ -390,30 +389,25 @@ async function importOne(db, prepared, { appId, dryRun, devCache }) {
     return { status: 'duplicate' };
   }
 
-  const { game, shouldVet } = prepared;
+  const { game } = prepared;
 
   if (dryRun) {
+    const vetting = aggregateGameVetting(game, devCache);
     console.log(
-      `  DRY-RUN would import: ${game.id} "${game.name}" libraryState=${game.libraryState}` +
-        (shouldVet ? ' (vetting from cache)' : ' (no vetting)')
+      `  DRY-RUN would import: ${game.id} "${game.steamStatic?.name || game.id}" libraryState=${game.libraryState}` +
+        (vetting.ruDeveloperAlert ? ' (RU alert)' : '')
     );
     return { status: 'imported' };
   }
 
-  await db.doc(gameDocPath(appId, game.id)).set(game);
-  console.log(`  Imported: ${game.id} "${game.name}" libraryState=${game.libraryState}`);
+  const vetting = aggregateGameVetting(game, devCache);
+  await db.doc(gameDocPath(appId, game.id)).set({ ...game, ...vetting });
+  console.log(
+    `  Imported: ${game.id} "${game.steamStatic?.name || game.id}" libraryState=${game.libraryState}`
+  );
 
-  if (!shouldVet) {
-    console.log('  Skipped Gemini vetting (libraryState is not active)');
-    return { status: 'imported' };
-  }
-
-  const vetting = aggregateVettingFromCache(game.steamStatic?.developers || [], devCache);
-  await db.doc(gameDocPath(appId, game.id)).update(vetting);
   if (vetting.ruDeveloperAlert) {
     console.log(`  RU developer alert — ${vetting.ruDeveloperExplanation}`);
-  } else {
-    console.log('  No RU developer flags (from cache)');
   }
 
   return { status: 'imported' };
@@ -422,7 +416,7 @@ async function importOne(db, prepared, { appId, dryRun, devCache }) {
 function buildDevAppIdMap(preparedGames) {
   const map = {};
   for (const { prepared } of preparedGames) {
-    if (prepared.status !== 'ready' || !prepared.shouldVet) continue;
+    if (prepared.status !== 'ready') continue;
     const steamAppId = prepared.game.id;
     for (const name of prepared.game.steamStatic?.developers || []) {
       const trimmed = String(name || '').trim();
@@ -482,10 +476,10 @@ async function main() {
     }
   }
 
-  // Phase 2: pre-vet unique developers from active games (cache + bundled sources)
+  // Phase 2: pre-vet unique developers across all imported games (cache + bundled sources)
   const uniqueDevs = new Set();
   for (const { prepared } of preparedGames) {
-    if (prepared.status !== 'ready' || !prepared.shouldVet) continue;
+    if (prepared.status !== 'ready') continue;
     for (const name of prepared.game.steamStatic?.developers || []) {
       const trimmed = String(name || '').trim();
       if (trimmed) uniqueDevs.add(trimmed);
@@ -504,7 +498,7 @@ async function main() {
 
   if (uniqueDevs.size > 0) {
     try {
-      const { stats } = await vetAllDevelopers([...uniqueDevs], null, {
+      const { stats } = await vetAllDevelopers([...uniqueDevs], {
         db: dryRun ? null : db,
         appId,
         memoryCache: devCache,

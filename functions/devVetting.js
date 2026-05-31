@@ -47,8 +47,6 @@ function resolveUncachedDevelopers(uncachedNames, options = {}) {
 async function vetUncachedDevelopers(uncachedNames, options) {
   const { db, appId, memoryCache, dryRun = false } = options;
   const stats = {
-    geminiBatches: 0,
-    geminiDevelopers: 0,
     cached: 0,
     sourceHits: 0,
     bundledClears: 0,
@@ -64,7 +62,7 @@ async function vetUncachedDevelopers(uncachedNames, options) {
 
   if (dryRun) {
     console.log(
-      `  DRY-RUN source lookup: ${stats.sourceHits} flagged, ${stats.bundledClears} cleared (bundled sources only)`
+      `  DRY-RUN source lookup: ${stats.sourceHits} flagged, ${stats.bundledClears} cleared`
     );
     return stats;
   }
@@ -90,18 +88,15 @@ async function vetUncachedDevelopers(uncachedNames, options) {
  * Vet game developers with Firestore-backed cache and bundled source lists.
  *
  * @param {string[]} developers
- * @param {string} [_apiKey] — unused; kept for call-site compatibility
- * @param {{ db?, appId?, memoryCache?, dryRun?, devAppIdMap? }} [options]
+ * @param {{ db?, appId?, memoryCache?, dryRun?, devAppIdMap?, forceRefresh? }} [options]
  */
-async function vetAllDevelopers(developers, _apiKey, options = {}) {
+async function vetAllDevelopers(developers, options = {}) {
   if (!developers?.length) {
     return {
       ruDeveloperAlert: false,
       ruDeveloperExplanation: '',
       stats: {
         cacheHits: 0,
-        geminiBatches: 0,
-        geminiDevelopers: 0,
         cached: 0,
         sourceHits: 0,
         bundledClears: 0,
@@ -111,20 +106,20 @@ async function vetAllDevelopers(developers, _apiKey, options = {}) {
 
   const unique = [...new Set(developers.filter(Boolean).map((d) => String(d).trim()))];
   const memoryCache = options.memoryCache || new Map();
-  const { db, appId, dryRun = false } = options;
+  const { db, appId, dryRun = false, forceRefresh = false } = options;
 
   if (db && appId) {
     await ensureMemoryCache(memoryCache, db, appId);
     await ensureLiveDevSources(db, appId);
   }
 
-  const uncached = collectUncachedDevelopers(unique, memoryCache);
-  const cacheHits = unique.length - uncached.length;
+  const uncached = forceRefresh
+    ? unique
+    : collectUncachedDevelopers(unique, memoryCache);
+  const cacheHits = forceRefresh ? 0 : unique.length - uncached.length;
 
   let vetStats = {
     cacheHits,
-    geminiBatches: 0,
-    geminiDevelopers: 0,
     cached: 0,
     sourceHits: 0,
     bundledClears: 0,
@@ -145,12 +140,6 @@ async function vetAllDevelopers(developers, _apiKey, options = {}) {
   return { ...vetting, stats: vetStats, memoryCache };
 }
 
-/** @deprecated Gemini batching removed — bundled sources only. */
-function getBatchSize() {
-  return 5;
-}
-
 module.exports = {
   vetAllDevelopers,
-  getBatchSize,
 };

@@ -310,6 +310,27 @@ button {
   font-size: 0.8rem;
 }
 
+.sidebar-maintenance-btn {
+  position: relative;
+}
+
+.sidebar-maintenance-btn-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  line-height: 1.2;
+}
+
+.sidebar-maintenance-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--accent-yellow);
+  box-shadow: 0 0 0 2px rgba(10, 14, 22, 0.85);
+  flex-shrink: 0;
+}
+
 .sidebar-footer .error-banner {
   width: 100%;
 }
@@ -1629,6 +1650,35 @@ button {
   border-bottom: 1px solid rgba(20, 232, 160, 0.14);
 }
 
+.game-edit-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid rgba(20, 232, 160, 0.14);
+}
+
+.game-edit-section-header .game-edit-section-title {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.game-edit-dev-check-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.game-edit-dev-check-message {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
 .game-edit-label {
   display: block;
   font-size: 0.85rem;
@@ -2158,6 +2208,155 @@ button {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
+}
+
+.maintenance-modal {
+  padding: 2rem;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.maintenance-modal-title {
+  margin-bottom: 0.5rem;
+  color: #fff;
+  font-size: 1.25rem;
+}
+
+.maintenance-modal-desc {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.maintenance-section {
+  margin-bottom: 1.75rem;
+}
+
+.maintenance-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.maintenance-section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-mint);
+  margin: 0 0 0.85rem;
+}
+
+.maintenance-section-header .maintenance-section-title {
+  margin-bottom: 0;
+}
+
+.maintenance-section-title--warning {
+  color: var(--accent-yellow);
+}
+
+.maintenance-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.maintenance-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.55rem 0.85rem;
+}
+
+.maintenance-action-label {
+  line-height: 1.2;
+}
+
+.maintenance-action-meta {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.maintenance-ack-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.maintenance-empty {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.maintenance-errors-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.maintenance-error-item {
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 204, 77, 0.18);
+  background: rgba(255, 204, 77, 0.05);
+}
+
+.maintenance-error-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.maintenance-error-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-yellow);
+}
+
+.maintenance-error-at {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.maintenance-error-context {
+  margin: 0 0 0.25rem;
+  font-size: 0.82rem;
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.maintenance-error-message {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.maintenance-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 0.5rem;
 }
 
 /* Finished rating (1–5 stars) */

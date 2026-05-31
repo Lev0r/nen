@@ -1,5 +1,12 @@
 const USER_MESSAGE = 'An error occurred. Check the console for details.';
 
+export function formatCallableError(error) {
+  if (error?.code === 'functions/deadline-exceeded') {
+    return 'Request timed out. The job may still be running on the server — reopen Maintenance in a few minutes and check last load time.';
+  }
+  return USER_MESSAGE;
+}
+
 export function reportError(context, error, setUiError) {
   console.error(`[${context}]`, {
     context,
@@ -9,9 +16,11 @@ export function reportError(context, error, setUiError) {
     stack: error?.stack,
   }, error);
 
+  const message = formatCallableError(error);
+
   if (typeof setUiError === 'function') {
-    setUiError(USER_MESSAGE);
+    setUiError(message);
   }
 
-  return USER_MESSAGE;
+  return message;
 }

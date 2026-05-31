@@ -17,8 +17,7 @@ The application is architected as a lightweight, reactive, single-page applicati
 | **Database** | Firebase Firestore | Real-time synchronization, document-oriented flexible schema. |
 | **Authentication** | Firebase Auth | Secure Google Sign-In only; mapped to strict allowed user indexes. |
 | **Hosting Platform** | Firebase Hosting | Free tier SSL-enabled static asset edge hosting. |
-| **AI Integration** | Gemini API (`gemini-2.5-flash`) | Asynchronous, automated vetting for developer screening. |
-| **Backend API** | Firebase Cloud Functions | Steam scrape, Gemini vetting, scheduled refreshes — `europe-west1`. Client does not call Steam directly. |
+| **Backend API** | Firebase Cloud Functions | Steam scrape, list-based RU vetting, scheduled refreshes — `europe-west1`. Client does not call Steam directly. |
 
 ```mermaid
 graph TD
@@ -29,8 +28,8 @@ graph TD
     
     App -->|3. Read/Write| DB[(Firestore Games Collection)]
     App -->|4. Input Steam Link/ID| SteamImport[Steam API & Scraper]
-    SteamImport -->|5. Extract Developers| Gemini[Gemini API Vetting]
-    Gemini -->|6. Flag RU Developers| DB
+    SteamImport -->|5. List-based dev vetting| Sources[NE GRAI + Curator lists]
+    Sources -->|6. Flag RU Developers| DB
 ```
 
 ---
@@ -73,7 +72,7 @@ The database structure is designed to keep static app configurations decoupled f
 * **Field:** `devBgCheck.developers.{cacheKey}` on the same `config/default` document
 * **cacheKey:** Normalized studio name (lowercase, trimmed)
 * **Entry:** `{ name, isRussianRelated, explanation, checkedAt }`
-* **Usage:** `addGameFromSteam` and bulk import check cache before calling Gemini; new results are merged into this map. Bulk import batches uncached developers (default 5 per request).
+* **Usage:** `addGameFromSteam`, bulk import, and manual **Run dev check** look up developers against bundled lists; results are merged into this map.
 
 ### Games Collection Path
 * **Path:** `/artifacts/{appId}/public/data/games`
@@ -316,29 +315,31 @@ Hovering the Total Hype ring shows how the number was built: each user's nicknam
 
 ---
 
-### F4: Automated Russian Developer Screening
+### F4: Russian Developer Screening (Curated Sources)
 
-This feature ensures local developer transparency. When a game is added with **`libraryState === 'active'`** (default on UI add, or explicit in bulk import), developer vetting runs. **Skip vetting** for games saved as `replayable`, `waiting_for_updates`, `finished`, or `banned`.
+RU flags are **deterministic** — no Gemini. Sources:
 
-#### Cache-first workflow
-1. Look up each developer in `config/default.devBgCheck.developers` (normalized name key).
-2. If cached, reuse `isRussianRelated` + `explanation` — no Gemini call.
-3. If missing, call Gemini (batched: default 5 studios per request; `GEMINI_VET_BATCH_SIZE` env).
-4. Persist new results to `devBgCheck` so future adds and bulk imports reuse them.
+1. **NE GRAI** extension database (bundled JSON, ~3800 publisher names)
+2. **Steam curator «Обережно, русняві ігри» (PlayUA)** — app-ID list
+3. **Steam curator «Avoid russian games»** — app-ID list
 
-Bulk import collects **all unique developers** from active games first, pre-vets once, then writes games using cached results.
+GameDev DOU is documented as context-only (no automated lookup). OpenCorporates was removed.
 
-#### Prompt Template & Response Mapping
-* **Model:** `gemini-2.5-flash`
-* **System Directive**: The AI must respond strictly with a valid JSON object structure. Do not wrap in markdown triple backticks.
-* **Prompt Structure**:
-  ```text
-  Check if the game development studio '{developerName}' has Russian founders, Russian offices, Russian origin, or is a Russian-founded entity now registered in another country (such as Cyprus, UAE, or Armenia) to bypass scrutiny. Reply with a JSON object: {"isRussianRelated": true/false, "explanation": "Brief reason why"}. Do not return markdown.
-  ```
+#### Workflow
+1. On add/import/manual check: for each developer, lookup NE GRAI + curators (by dev name and known game app IDs).
+2. **`aggregateGameVetting(game)`** also checks the **game's Steam app ID** against curator lists directly.
+3. Cache results in `config/default.devBgCheck.developers` (normalized name key).
+4. Set `ruDeveloperAlert` / `ruDeveloperExplanation` on the game document (markdown links for curator citations in UI).
+
+**Manual re-check:** Game edit → **Run dev check** (`vetGameDevelopers` callable) bypasses cache (`forceRefresh`), works for any `libraryState` including `banned`.
+
+**Bulk backfill:** `node scripts/revet-ru-games.mjs`
 
 #### UI Representation
-* **Warning Card Overlay**: If `isRussianRelated` returns `true`, set `ruDeveloperAlert = true` and `ruDeveloperExplanation = explanation`.
-* **Visual Treatment**: The game card must render a distinct red neon border (`box-shadow: 0 0 10px rgba(239, 68, 68, 0.7)`), and display an alert warning icon in the card details overlay showing the explanation text.
+* **Warning Card Overlay**: If flagged, `ruDeveloperAlert = true` and explanation cites the matching source.
+* **Visual Treatment**: Red neon border; RU badge; linked citations in overview text (NE GRAI plain text only).
+* **Filter:** Filters bar **RU alert** toggle shows flagged games library-wide.
+* **Maintenance:** Sidebar **Maintenance** modal for meta load, GFN sync, and aggregated sync errors.
 
 ---
 

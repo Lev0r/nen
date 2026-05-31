@@ -55,6 +55,8 @@ export function setGameLifecycle(
 export function useGames(appId = 'default_app') {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [subscriptionError, setSubscriptionError] = useState(null);
+  const [loadErrors, setLoadErrors] = useState(0);
 
   useEffect(() => {
     const gamesRef = collection(db, `artifacts/${appId}/public/data/games`);
@@ -63,18 +65,29 @@ export function useGames(appId = 'default_app') {
       gamesRef,
       (snapshot) => {
         const gamesData = [];
+        let skipped = 0;
+
         snapshot.forEach((snap) => {
-          const data = snap.data();
-          const { total } = calculateTotalHype(data);
-          data.totalHype = total;
-          gamesData.push(data);
+          try {
+            const data = { ...snap.data(), id: snap.id };
+            const { total } = calculateTotalHype(data);
+            data.totalHype = total;
+            gamesData.push(data);
+          } catch (err) {
+            skipped += 1;
+            console.error(`Failed to load game ${snap.id}:`, err);
+          }
         });
+
         gamesData.sort((a, b) => b.totalHype - a.totalHype);
         setGames(gamesData);
+        setLoadErrors(skipped);
+        setSubscriptionError(null);
         setLoading(false);
       },
       (error) => {
         console.error('Firestore subscription error:', error);
+        setSubscriptionError(error.message || 'Failed to load games from Firestore.');
         setLoading(false);
       }
     );
@@ -82,5 +95,5 @@ export function useGames(appId = 'default_app') {
     return () => unsubscribe();
   }, [appId]);
 
-  return { games, loading };
+  return { games, loading, subscriptionError, loadErrors };
 }

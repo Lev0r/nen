@@ -2,10 +2,33 @@
 
 **Last updated:** 2026-05-31  
 **Repo:** https://github.com/Lev0r/nen  
-**Firebase project:** `nen-tracker` (CLI alias: `staging` in `.firebaserc`)  
-**Latest commit at handoff:** `e9c05f9`
+**Firebase project:** `nen-tracker` (CLI alias: `staging` in `.firebaserc`)
 
 This file is the **single progress tracker and onboarding doc** for the next AI agent or developer session. Read this first, then `manifest_of_understanding.md` (spec) and `ai_rules.md` (constraints).
+
+---
+
+## 0. Session log — 2026-05-31
+
+### Shipped today
+
+| Area | Change |
+| :--- | :--- |
+| **RU vetting** | **Lists-only** — NE GRAI JSON + Steam curator app-ID lists (`functions/devSources.js`, `devVetting.js`). **Gemini removed entirely.** OpenCorporates removed earlier. |
+| **Game-level vetting** | `aggregateGameVetting()` checks curator lists by **game app ID** + per-developer list lookup. All library states vetted on import / manual check. |
+| **Maintenance UI** | Sidebar **Maintenance** modal: Load meta info, Sync GeForce NOW, error log with timestamps, acknowledge dot. Renamed from “Sync Steam”. |
+| **RU filter** | Filters bar toggle **RU alert** — searches full library when any filter active. |
+| **Manual dev check** | Game edit → **Run dev check** (`vetGameDevelopers` callable) — any lifecycle state including banned; bypasses dev cache (`forceRefresh`). |
+| **Import** | Legacy `"Title on Steam"` links resolved via `scripts/fix-steam-links.mjs`. Bulk import vets **all** games. `scripts/revet-ru-games.mjs` backfills RU flags. |
+| **Client fixes** | Callable sync timeout 540s; `useGames` uses doc ID; clearer empty states. |
+
+### Decisions (2026-05-31)
+
+| Decision | Reason |
+| :--- | :--- |
+| **Drop Gemini vetting** | Redundant with deterministic lists; open-research Gemini adds hallucination risk and contradicts “curated sources only”. |
+| **No DB wipe required** after Gemini removal | Game docs and cache remain valid; run `node scripts/revet-ru-games.mjs` to refresh `ruDeveloperAlert` from lists if import skipped vetting. |
+| **Keep `vettingError` fields** | Harmless legacy; may surface old Gemini failures until cleared by successful dev check. |
 
 ---
 
@@ -37,20 +60,27 @@ nen/
 │   ├── manifest_of_understanding.md
 │   └── ai_rules.md
 ├── functions/                 # Node 20, region europe-west1
-│   ├── index.js               # addGameFromSteam (callable)
+│   ├── index.js               # addGameFromSteam, vetGameDevelopers (callable)
+│   ├── devVetting.js          # RU developer vetting (NE GRAI + curator lists)
+│   ├── devSources.js          # Bundled source data + lookups
+│   ├── devBgCheck.js          # Developer vet cache on config/default
+│   ├── devSourceSync.js       # Weekly sync of NE GRAI + curator JSON → Firestore
 │   ├── steam.js               # Steam scrape (cc=ua, UAH), schema v2 nested writes
-│   ├── gemini.js              # RU developer vetting (multi-model fallback, batched)
-│   ├── devBgCheck.js          # Developer vet cache on config/default (batched Gemini)
 │   ├── gfnSync.js             # Full GFN catalog → Firestore config
 │   ├── steamSync.js           # syncLibrarySteam — unified 6h gated Steam sync
 │   ├── steamCache.js          # In-memory JSON cache for Steam HTTP
-│   └── .env                   # GEMINI_API_KEY, ALLOWED_EMAIL_0/1, GFN_VPC_ID (NOT in git)
+│   └── .env                   # ALLOWED_EMAIL_0/1, GFN_VPC_ID, ITAD_API_KEY (NOT in git)
 ├── scripts/
-│   └── import-games.mjs       # One-time bulk import (no UI)
+│   ├── import-games.mjs       # One-time bulk import (no UI)
+│   ├── revet-ru-games.mjs     # Re-apply list-based RU flags to existing library
+│   ├── fix-steam-links.mjs    # Resolve legacy "Title on Steam" → store URLs
+│   ├── sync-dev-sources.mjs   # Local sync of NE GRAI + curator JSON
+│   └── test-dev-sources.mjs   # Smoke test for devSources lookups
 ├── src/
 │   ├── components/
-│   │   ├── DashboardShell.jsx     # Sidebar tabs, filters, grid
-│   │   ├── GameFiltersBar.jsx     # Search + expandable filters (React state, not :focus-within)
+│   │   ├── DashboardShell.jsx     # Sidebar tabs, filters, grid, Maintenance entry
+│   │   ├── MaintenanceModal.jsx   # Load meta / GFN, error log, acknowledge
+│   │   ├── GameFiltersBar.jsx     # Search + filters incl. RU alert toggle
 │   │   ├── GameCard.jsx           # Card UX, lifecycle badge, hype ring, footer actions
 │   │   ├── GameEditModal.jsx      # Full metadata edit
 │   │   ├── LifecycleModal.jsx     # 5-state picker + optional note + finished stars
@@ -103,8 +133,9 @@ Console: `artifacts` → `default_app` → `public` → `data` → `games` / `co
 | **Steam tags in filter UI** | Tag list built from **entire library**, not current tab | All tags visible for global filtering |
 | **Dynamic background** | Top **5** non-banned games by Total Hype; uses **screenshots** (fallback thumbnail); 60s slide / 4s crossfade | Thumbnails looked blurry at full viewport |
 | **Dynamic BG toggle** | `VITE_ENABLE_DYNAMIC_BG` — default **on** unless explicitly `'false'` at build time | No in-app toggle; redeploy to disable |
-| **Gemini RU vetting** | Run **only** when final `libraryState === 'active'` (add game UI + bulk import) | Skip vetting for finished/banned/etc. imports |
-| **Developer vet cache** | `config/default.devBgCheck.developers` — keyed by normalized studio name | Cache hit skips Gemini; bulk import pre-vets unique devs in batches of 5 (`GEMINI_VET_BATCH_SIZE`) |
+| **RU developer vetting** | **List-based only** — NE GRAI + Steam curator app lists; no Gemini | Deterministic, citable flags; `aggregateGameVetting` includes game app ID |
+| **Developer vet cache** | `config/default.devBgCheck.developers` — keyed by normalized studio name | Cache hit skips re-lookup; manual **Run dev check** uses `forceRefresh` |
+| **Bulk import RU vetting** | All imported games get `ruDeveloperAlert` via `aggregateGameVetting` | Not limited to `active` lifecycle |
 | **Bulk import** | Script only (`scripts/import-games.mjs`), no UI button | One-time ~147 game migration; writes schema v2 (implemented — pending ops run) |
 | **Game schema** | **v2 nested** — `steamStatic` / `steamDynamic` / `steamStats` | Locked pre-import; no v1 flat-field backward compat |
 | **Steam sync** | Single job every **6h** with gates | Banned = skip all; TBA = no stats + daily static; EA/TBA daily static, released weekly static; player sample 4×/day |
@@ -143,10 +174,10 @@ Console: `artifacts` → `default_app` → `public` → `data` → `games` / `co
 
 | Variable | Purpose |
 | :--- | :--- |
-| `GEMINI_API_KEY` | RU developer vetting |
-| `GEMINI_VET_BATCH_SIZE` | Optional `1`–`10`, default `5` — developers per Gemini request |
 | `ALLOWED_EMAIL_0/1` | Callable auth gate |
 | `GFN_VPC_ID` | Default `NP-WAW-01` |
+| `ITAD_API_KEY` | IsThereAnyDeal price history (optional) |
+| `ITAD_COUNTRY` | Default `UA` |
 
 ---
 
@@ -169,7 +200,9 @@ npm run build && firebase deploy --only hosting
 **After deploy — smoke test checklist:**
 
 - [ ] Sign in as both allowed users
-- [ ] Add Game (Steam URL) → scrape + Gemini if active
+- [ ] Add Game (Steam URL) → scrape + list-based dev check
+- [ ] Maintenance → Load meta info (540s client timeout)
+- [ ] RU alert filter + Run dev check in edit modal
 - [ ] Sidebar lifecycle tabs + filter reset on tab change
 - [ ] Global filters (lifecycle chip "Banned" from Active tab)
 - [ ] Sync GeForce button (or wait for weekly schedule)
@@ -223,7 +256,7 @@ npm run import-games -- path/to/games.json --app-id default_app
 
 **Auth for script:** `GOOGLE_APPLICATION_CREDENTIALS` **or** `firebase login` + `firebase use`.
 
-**Gemini:** only runs when saved `libraryState === 'active'`.
+**RU vetting:** list lookup for all developers; `aggregateGameVetting` on every imported game. Re-run: `node scripts/revet-ru-games.mjs`.
 
 ---
 
@@ -237,7 +270,7 @@ Implemented in `DashboardShell.jsx` + `gameFilters.js` + `GameFiltersBar.jsx`.
 | Any active filter (`hasActiveFilters`) | **All games** in library |
 | Sidebar tab click | Resets filters to `DEFAULT_GAME_FILTERS` |
 
-**Active filter fields:** `searchText`, `steamTags[]` (from `steamStatic.steamTags`), `developmentStatus` (from `steamStatic.developmentStatus`), `ownership`, `onSaleOnly` (`steamDynamic.isOnSale`), `gfnOnly`, `updateAvailableOnly`, `libraryStates[]`.
+**Active filter fields:** `searchText`, `steamTags[]`, `developmentStatus`, `ownership`, `onSaleOnly`, `gfnOnly`, `updateAvailableOnly`, `ruOnly`, `libraryStates[]`.
 
 **Filter panel:** `expanded` React state; opens on search focus or when filters active; closes on outside click (if no active filters) or Escape.
 
@@ -258,9 +291,10 @@ Implemented in `DashboardShell.jsx` + `gameFilters.js` + `GameFiltersBar.jsx`.
 - [x] Finished rating 1–5 stars
 - [x] Dynamic background (screenshots, top 5 hype, env gate)
 - [x] Browser title `Nen?` + mint favicon
-- [x] Bulk import script + Gemini gating in `addGameFromSteam`
-- [x] Bulk import legacy friend-export format (`Game link`, nickname-owned keys, `Game status`, `Comment`)
-- [x] Developer background-check cache (`devBgCheck`) + batched Gemini vetting
+- [x] Bulk import script + list-based dev vetting in `addGameFromSteam`
+- [x] Developer background-check cache (`devBgCheck`) + bundled source lists (`devSources`)
+- [x] Maintenance modal + RU filter + manual Run dev check
+- [x] Remove Gemini and OpenCorporates from vetting pipeline
 - [x] Filter UX fixes: header clear button, tag height, stable toggle panel
 - [x] Hype picker + edit modal readability/height fixes
 - [x] **Schema v2 backend** — nested `steamStatic` / `steamDynamic` / `steamStats` in `steam.js` + `addGameFromSteam` (no v1 backward compat)
@@ -281,7 +315,7 @@ Implemented in `DashboardShell.jsx` + `gameFilters.js` + `GameFiltersBar.jsx`.
 | ID | Task | Details |
 | :--- | :--- | :--- |
 | **manual-test** | Execute manual testing checklist | Run §6 smoke test list **before** bulk import — verify v2 reads/writes, sync job, tooltips, filters |
-| **import-json** | Run bulk import | JSON at `docs/all games.json` (147 games). **Blocked on:** `firebase login`, DB wipe decision, `--dry-run`, then real import. Gemini only on ~72 `active` entries. |
+| **import-json** | Run bulk import | JSON at `docs/all games.json` (147 games). Dry-run validated. Real import + `revet-ru-games.mjs` if RU flags missing. **No DB wipe needed** for Gemini removal. |
 | **deploy-verify** | Confirm production deploy | `firebase deploy --only functions,firestore:rules,hosting` (or split as needed). Run §6 smoke test after deploy + import. |
 
 ### P1 — Optional polish (discuss with user before building)
@@ -305,6 +339,7 @@ Implemented in `DashboardShell.jsx` + `gameFilters.js` + `GameFiltersBar.jsx`.
 
 ### Explicitly dropped (do not revive without user approval)
 
+- Gemini / OpenCorporates developer vetting
 - News feed UI
 - Re-run GFN sync on every version refresh
 - In-app dynamic background toggle
@@ -338,7 +373,11 @@ Implemented in `DashboardShell.jsx` + `gameFilters.js` + `GameFiltersBar.jsx`.
 
 | Export | Type | Purpose |
 | :--- | :--- | :--- |
-| `addGameFromSteam` | Callable | Scrape + write game (v2 nested schema); Gemini if `libraryState === 'active'` |
+| `addGameFromSteam` | Callable | Scrape + write game; list-based dev vetting → `ruDeveloperAlert` |
+| `vetGameDevelopers` | Callable | Manual re-vet one game (`forceRefresh`); any lifecycle state |
+| `syncSteamLibrary` | Callable | Manual full meta load (Steam + HLTB + ITAD); 540s timeout |
+| `syncDevSources` | Callable | Manual sync of NE GRAI + curator JSON to Firestore |
+| `syncDevSourcesScheduled` | Scheduled | Weekly source JSON refresh |
 | `syncGfnCatalog` | Callable | Manual full GFN catalog sync |
 | `syncGfnCatalogScheduled` | Scheduled | Weekly catalog refresh |
 | `syncLibrarySteam` | Scheduled | Every **6 hours**: dynamic daily, static gated, player samples 4×/day, banned skip-all, `hasUpdateSinceState` |

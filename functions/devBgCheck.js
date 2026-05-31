@@ -72,17 +72,21 @@ function lookupCachedDeveloper(name, memoryCache) {
 async function persistDeveloperResults(db, appId, results, memoryCache) {
   if (!db || !results?.length) return;
 
-  const payload = {};
+  const configRef = db.doc(getConfigDocPath(appId));
+  const existing =
+    (await configRef.get()).data()?.devBgCheck?.developers || {};
+  const merged = { ...existing };
+
   for (const { key, name, isRussianRelated, explanation } of results) {
     const entry = normalizeDevEntry(name, { isRussianRelated, explanation });
     memoryCache.set(key, { ...entry, checkedAt: new Date() });
-    payload[key] = entry;
+    merged[key] = entry;
   }
 
-  await db.doc(getConfigDocPath(appId)).set(
+  await configRef.set(
     {
       devBgCheck: {
-        developers: payload,
+        developers: merged,
       },
     },
     { merge: true }
@@ -97,6 +101,52 @@ function aggregateVettingFromCache(developerNames, memoryCache) {
     if (cached?.isRussianRelated) {
       flags.push(`${cached.name}: ${cached.explanation}`);
     }
+  }
+
+  if (flags.length === 0) {
+    return { ruDeveloperAlert: false, ruDeveloperExplanation: '' };
+  }
+
+  return {
+    ruDeveloperAlert: true,
+    ruDeveloperExplanation: flags.join(' | '),
+  };
+}
+
+/**
+ * Apply RU vetting to a game: curator app-id list, NE GRAI, dev cache, per-dev lookup.
+ */
+function aggregateGameVetting(game, memoryCache) {
+  const { lookupDeterministicSources, lookupCuratorsByAppId } = require('./devSources');
+  const flags = [];
+  const seen = new Set();
+
+  const addFlag = (text) => {
+    const line = String(text || '').trim();
+    if (!line || seen.has(line)) return;
+    seen.add(line);
+    flags.push(line);
+  };
+
+  const appId = game?.id != null ? String(game.id) : '';
+  if (appId) {
+    const appHit = lookupCuratorsByAppId(appId);
+    if (appHit) addFlag(appHit.explanation);
+  }
+
+  const appIds = appId ? [appId] : [];
+  for (const name of game?.steamStatic?.developers || []) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) continue;
+
+    const cached = lookupCachedDeveloper(trimmed, memoryCache);
+    if (cached?.isRussianRelated) {
+      addFlag(`${cached.name}: ${cached.explanation}`);
+      continue;
+    }
+
+    const hit = lookupDeterministicSources(trimmed, { appIds });
+    if (hit) addFlag(`${trimmed}: ${hit.explanation}`);
   }
 
   if (flags.length === 0) {
@@ -139,6 +189,7 @@ module.exports = {
   lookupCachedDeveloper,
   persistDeveloperResults,
   aggregateVettingFromCache,
+  aggregateGameVetting,
   collectUncachedDevelopers,
   normalizeDevEntry,
 };
