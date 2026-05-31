@@ -46,15 +46,20 @@ const CURATORS = {
 };
 
 const SOURCE_URLS = {
-  [SOURCE_IDS.NE_GRAI]:
-    'https://addons.mozilla.org/en-US/firefox/addon/ne-hrai-tracker-steam/',
   [SOURCE_IDS.CURATOR_PLAYUA]: CURATORS.playua.url,
   [SOURCE_IDS.CURATOR_AVOID_RU]: CURATORS.avoidRu.url,
-  [SOURCE_IDS.DOU]: 'https://gamedev.dou.ua/',
   [SOURCE_IDS.OPENCORPORATES]: 'https://opencorporates.com/',
 };
 
+/** Sources that get a clickable citation link in RU alert text. */
+const LINKED_SOURCE_IDS = new Set([
+  SOURCE_IDS.CURATOR_PLAYUA,
+  SOURCE_IDS.CURATOR_AVOID_RU,
+  SOURCE_IDS.OPENCORPORATES,
+]);
+
 function sourceMarkdownLink(sourceId, label = SOURCE_LABELS[sourceId]) {
+  if (!LINKED_SOURCE_IDS.has(sourceId)) return label || '';
   const url = SOURCE_URLS[sourceId];
   if (!url || !label) return label || '';
   return `[${label}](${url})`;

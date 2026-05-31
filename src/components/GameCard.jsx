@@ -840,17 +840,19 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
             className={`game-card-text-slot ${ruAlert ? 'game-card-text-slot--ru' : ''}`}
           >
             {textSlotContent ? (
-              <p className="game-card-overview">
+              <div
+                className={`game-card-overview ${ruAlert ? 'game-card-overview--ru-links' : ''}`}
+              >
                 {ruAlert ? (
                   <TextWithLinks text={textSlotContent} />
                 ) : (
                   textSlotContent
                 )}
-              </p>
+              </div>
             ) : (
-              <p className="game-card-overview game-card-overview--empty" aria-hidden="true">
+              <div className="game-card-overview game-card-overview--empty" aria-hidden="true">
                 &nbsp;
-              </p>
+              </div>
             )}
           </div>
 

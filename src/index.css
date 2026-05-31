@@ -1155,11 +1155,30 @@ button {
   margin-bottom: 0.65rem;
 }
 
+.game-card-text-slot--ru {
+  height: auto;
+  min-height: 3.9rem;
+  position: relative;
+  z-index: 2;
+}
+
 .game-card-text-slot--ru .game-card-overview {
   color: #fca5a5;
 }
 
+.game-card-overview--ru-links {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+  max-height: none;
+}
+
 .game-card-text-slot--ru .text-with-links__a {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+  cursor: pointer;
   color: #fecaca;
   text-decoration: underline;
   text-underline-offset: 2px;
