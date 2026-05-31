@@ -3,6 +3,24 @@ const { FieldValue } = require('firebase-admin/firestore');
 const HLTB_BASE_URL = 'https://howlongtobeat.com';
 const DEFAULT_SEARCH_ENDPOINT = '/api/bleed';
 const MIN_TITLE_SIMILARITY = 0.55;
+const EDITION_SUFFIX_PATTERN =
+  /\s*[-–—]\s*(the\s+)?(definitive|deluxe|ultimate|complete|enhanced|goty|game of the year|gold|premium|special|collector'?s?|anniversary|director'?s?\s+cut|legendary|remastered?|extended|standalone|final\s+cut)(\s+edition|\s+collection|\s+bundle|\s+upgrade|\s+pack)?\s*$/i;
+const TRAILING_EDITION_PATTERN =
+  /\s+(the\s+)?(special|definitive|deluxe|ultimate|complete|enhanced|gold|premium|legendary|goty|game of the year|anniversary|collector'?s?)\s+edition\s*$/i;
+
+const ROMAN_TO_ARABIC = {
+  xii: '12',
+  xi: '11',
+  x: '10',
+  ix: '9',
+  viii: '8',
+  vii: '7',
+  vi: '6',
+  iv: '4',
+  iii: '3',
+  ii: '2',
+  i: '1',
+};
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const AUTH_CACHE_MS = 3600000;
@@ -24,12 +42,44 @@ function getHltbHeaders(extra = {}) {
   };
 }
 
+function stripMarketingSuffixes(value) {
+  let text = String(value || '').trim();
+  if (!text) return '';
+
+  for (let i = 0; i < 3; i += 1) {
+    const next = text
+      .replace(EDITION_SUFFIX_PATTERN, '')
+      .replace(TRAILING_EDITION_PATTERN, '')
+      .trim();
+    if (!next || next === text) break;
+    text = next;
+  }
+
+  return text;
+}
+
+function normalizeRomanTokens(text) {
+  return String(text || '')
+    .split(' ')
+    .map((word) => ROMAN_TO_ARABIC[word] || word)
+    .join(' ');
+}
+
 function normalizeTitle(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const stripped = stripMarketingSuffixes(value);
+  return normalizeRomanTokens(
+    stripped
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+}
+
+function buildSearchQueries(gameName) {
+  const trimmed = gameName.trim();
+  const stripped = stripMarketingSuffixes(trimmed);
+  return [...new Set([stripped, trimmed].filter(Boolean))];
 }
 
 function titleSimilarity(a, b) {
@@ -254,7 +304,14 @@ function mapHltbGame(match, steamName) {
 }
 
 async function pickBestMatch(gameName, existingHltbId) {
-  const results = await searchHltb(gameName.trim(), { limit: 8 });
+  const queries = buildSearchQueries(gameName);
+  let results = [];
+
+  for (const query of queries) {
+    results = await searchHltb(query, { limit: 8 });
+    if (results.length > 0) break;
+  }
+
   if (!Array.isArray(results) || results.length === 0) {
     return null;
   }
@@ -301,4 +358,6 @@ module.exports = {
   fetchHltbForGame,
   normalizeTitle,
   titleSimilarity,
+  stripMarketingSuffixes,
+  buildSearchQueries,
 };

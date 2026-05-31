@@ -544,7 +544,7 @@ function HypeBreakdownTooltip({ breakdown }) {
         className="card-tooltip-line card-tooltip-line--metacritic"
         style={{ color: metacritic.color }}
       >
-        Metacritic ×{metacritic.factor.toFixed(2)} — {metacritic.label}
+        Critics ×{metacritic.factor.toFixed(2)} — {metacritic.label}
       </p>
       <p className="card-tooltip-final">Total Hype: {final}</p>
     </div>

@@ -3,6 +3,7 @@ import { resolveLibraryState } from './libraryState';
 import {
   getDevelopmentStatus,
   getMetacriticScore,
+  getCriticsSource,
   getReviewPercent,
 } from './gameAccessors';
 
@@ -104,22 +105,25 @@ export function getMetacriticColor(metacriticScore) {
   return 'var(--accent-red)';
 }
 
-export function getMetacriticFactor(metacriticScore) {
+export function getMetacriticFactor(metacriticScore, criticsSource = null) {
   if (metacriticScore == null || metacriticScore === '') {
     return {
       factor: 1.0,
-      label: 'No Metacritic score',
+      label: 'No critics score',
       color: 'var(--text-muted)',
       score: null,
+      source: null,
     };
   }
   const score = Math.min(100, Math.max(0, Number(metacriticScore)));
   const factor = 0.96 + (score / 100) * 0.08;
+  const sourceLabel = criticsSource || 'Metacritic';
   return {
     factor,
-    label: `Metacritic ${score}`,
+    label: `${sourceLabel} ${score}`,
     color: getMetacriticColor(score),
     score,
+    source: sourceLabel,
   };
 }
 
@@ -171,7 +175,10 @@ export function calculateTotalHype(game) {
   };
   const status = getStatusFactor(getDevelopmentStatus(game));
   const steamReview = getSteamReviewFactor(getReviewPercent(game));
-  const metacritic = getMetacriticFactor(getMetacriticScore(game));
+  const metacritic = getMetacriticFactor(
+    getMetacriticScore(game),
+    getCriticsSource(game)
+  );
 
   const raw =
     tierBase *
