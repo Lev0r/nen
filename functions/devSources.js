@@ -1,11 +1,10 @@
 /**
- * Developer vetting sources (restricted list for Gemini + deterministic lookups).
+ * Developer vetting sources (restricted list for deterministic lookups).
  *
  * 1. NE GRAI extension database (ГРАЙ project)
  * 2. Steam curator «Обережно, русняві ігри» (PlayUA) — 42985013
  * 3. Steam curator «Avoid russian games» — 45452241
- * 4. GameDev DOU — context-only (no reliable public search API)
- * 5. OpenCorporates — optional API (OPENCORPORATES_API_KEY)
+ * 4. GameDev DOU — context-only (no automated lookup)
  */
 const { readFileSync, existsSync } = require('fs');
 const { join } = require('path');
@@ -18,7 +17,6 @@ const SOURCE_IDS = {
   CURATOR_PLAYUA: 'curator_playua',
   CURATOR_AVOID_RU: 'curator_avoid_ru',
   DOU: 'gamedev_dou',
-  OPENCORPORATES: 'opencorporates',
 };
 
 const SOURCE_LABELS = {
@@ -27,7 +25,6 @@ const SOURCE_LABELS = {
     'Steam-куратор «Обережно, русняві ігри» (PlayUA)',
   [SOURCE_IDS.CURATOR_AVOID_RU]: 'Steam-куратор «Avoid russian games»',
   [SOURCE_IDS.DOU]: 'GameDev DOU (gamedev.dou.ua)',
-  [SOURCE_IDS.OPENCORPORATES]: 'OpenCorporates',
 };
 
 const CURATORS = {
@@ -48,14 +45,12 @@ const CURATORS = {
 const SOURCE_URLS = {
   [SOURCE_IDS.CURATOR_PLAYUA]: CURATORS.playua.url,
   [SOURCE_IDS.CURATOR_AVOID_RU]: CURATORS.avoidRu.url,
-  [SOURCE_IDS.OPENCORPORATES]: 'https://opencorporates.com/',
 };
 
 /** Sources that get a clickable citation link in RU alert text. */
 const LINKED_SOURCE_IDS = new Set([
   SOURCE_IDS.CURATOR_PLAYUA,
   SOURCE_IDS.CURATOR_AVOID_RU,
-  SOURCE_IDS.OPENCORPORATES,
 ]);
 
 function sourceMarkdownLink(sourceId, label = SOURCE_LABELS[sourceId]) {
@@ -79,13 +74,6 @@ function curatorMarkdownLinks(curatorKeys) {
       return `[${curator.label}](${curator.url})`;
     })
     .join('; ');
-}
-
-function openCorporatesCompanyUrl(jurisdiction, companyNumber) {
-  const j = String(jurisdiction || '').trim().toLowerCase();
-  const n = String(companyNumber || '').trim();
-  if (j && n) return `https://opencorporates.com/companies/${j}/${n}`;
-  return SOURCE_URLS[SOURCE_IDS.OPENCORPORATES];
 }
 
 let neGraiSet = null;
@@ -312,142 +300,15 @@ function lookupCurators(developerName, options = {}) {
   return null;
 }
 
-const RU_JURISDICTIONS = new Set([
-  'ru',
-  'russia',
-  'russian federation',
-  'россия',
-  'російська федерація',
-]);
-
-function summarizeOpenCorporatesCompany(company) {
-  const jurisdiction = company?.jurisdiction_code || company?.jurisdiction || '';
-  const name = company?.name || company?.company?.name || '';
-  const companyNumber = company?.company_number || '';
-  const registeredAddress = company?.registered_address_in_full || '';
-  return { name, jurisdiction, companyNumber, registeredAddress };
-}
-
-async function fetchOpenCorporatesContext(developerName, apiKey) {
-  if (!apiKey) {
-    return { configured: false, hits: [], excerpt: 'OpenCorporates API key not configured.' };
-  }
-
-  const url = new URL('https://api.opencorporates.com/v0.4/companies/search');
-  url.searchParams.set('q', developerName);
-  url.searchParams.set('format', 'json');
-  url.searchParams.set('api_token', apiKey);
-
-  try {
-    const res = await fetch(url.toString());
-    if (!res.ok) {
-      const text = await res.text();
-      return {
-        configured: true,
-        hits: [],
-        excerpt: `OpenCorporates search failed (${res.status}): ${text.slice(0, 120)}`,
-      };
-    }
-
-    const data = await res.json();
-    const companies = (data?.results?.companies || [])
-      .slice(0, 5)
-      .map(({ company }) => summarizeOpenCorporatesCompany(company));
-
-    const ruHits = companies.filter((c) =>
-      RU_JURISDICTIONS.has(String(c.jurisdiction || '').toLowerCase())
-    );
-
-    const excerpt =
-      companies.length === 0
-        ? `OpenCorporates: no companies found for "${developerName}".`
-        : companies
-            .map(
-              (c) =>
-                `- ${c.name} (${c.jurisdiction}${c.companyNumber ? ` #${c.companyNumber}` : ''})`
-            )
-            .join('\n');
-
-    return { configured: true, hits: companies, ruHits, excerpt };
-  } catch (err) {
-    return {
-      configured: true,
-      hits: [],
-      excerpt: `OpenCorporates request error: ${err.message}`,
-    };
-  }
-}
-
-function lookupOpenCorporatesDeterministic(ocContext) {
-  if (!ocContext?.ruHits?.length) return null;
-
-  const hit = ocContext.ruHits[0];
-  const ocUrl = openCorporatesCompanyUrl(hit.jurisdiction, hit.companyNumber);
-  return {
-    isRussianRelated: true,
-    source: SOURCE_IDS.OPENCORPORATES,
-    explanation: `[${SOURCE_LABELS[SOURCE_IDS.OPENCORPORATES]}](${ocUrl}): «${hit.name}» registered in ${hit.jurisdiction}`,
-  };
-}
-
-function buildDeveloperSourceContext(developerName, ocContext, options = {}) {
-  const neGrai = lookupNeGrai(developerName);
-  const curator = lookupCurators(developerName, options);
-  const appIds = options.appIds || [];
-  const curatorAppHits = appIds
-    .map((appId) => lookupCuratorsByAppId(appId))
-    .filter(Boolean);
-
-  const lines = [
-    `Studio: "${developerName}"`,
-    `1. ${SOURCE_LABELS[SOURCE_IDS.NE_GRAI]}: ${
-      neGrai ? `LISTED — ${neGrai.explanation}` : 'not listed'
-    }`,
-    `2. ${SOURCE_LABELS[SOURCE_IDS.CURATOR_PLAYUA]}: ${
-      curator?.source === SOURCE_IDS.CURATOR_PLAYUA
-        ? `LISTED — ${curator.explanation}`
-        : curatorAppHits.some((h) => h.source === SOURCE_IDS.CURATOR_PLAYUA)
-          ? `LISTED — ${curatorAppHits.find((h) => h.source === SOURCE_IDS.CURATOR_PLAYUA).explanation}`
-          : 'not on PlayUA curator app list for known game app IDs'
-    }`,
-    `3. ${SOURCE_LABELS[SOURCE_IDS.CURATOR_AVOID_RU]}: ${
-      curator?.source === SOURCE_IDS.CURATOR_AVOID_RU
-        ? `LISTED — ${curator.explanation}`
-        : curatorAppHits.some((h) => h.source === SOURCE_IDS.CURATOR_AVOID_RU)
-          ? `LISTED — ${curatorAppHits.find((h) => h.source === SOURCE_IDS.CURATOR_AVOID_RU).explanation}`
-          : 'not on Avoid russian games curator app list for known game app IDs'
-    }`,
-    `4. ${SOURCE_LABELS[SOURCE_IDS.DOU]}: no automated search API — only cite if explicit excerpt is provided below.`,
-    `5. ${SOURCE_LABELS[SOURCE_IDS.OPENCORPORATES]}:\n${ocContext?.excerpt || 'not queried'}`,
-  ];
-
-  return {
-    developerName,
-    neGrai,
-    curator,
-    ocContext,
-    contextText: lines.join('\n'),
-  };
-}
-
 /**
- * Deterministic lookup across bundled/API sources. Returns null if inconclusive.
+ * Deterministic lookup across bundled sources. Returns null if not listed.
  */
-async function lookupDeterministicSources(developerName, options = {}) {
+function lookupDeterministicSources(developerName, options = {}) {
   const neGrai = lookupNeGrai(developerName);
   if (neGrai) return neGrai;
 
   const curator = lookupCurators(developerName, options);
   if (curator) return curator;
-
-  if (options.openCorporatesApiKey) {
-    const ocContext = await fetchOpenCorporatesContext(
-      developerName,
-      options.openCorporatesApiKey
-    );
-    const ocHit = lookupOpenCorporatesDeterministic(ocContext);
-    if (ocHit) return ocHit;
-  }
 
   return null;
 }
@@ -490,9 +351,6 @@ module.exports = {
   lookupCurators,
   lookupCuratorsByAppId,
   lookupCuratorsByDeveloperApps,
-  fetchOpenCorporatesContext,
-  lookupOpenCorporatesDeterministic,
-  buildDeveloperSourceContext,
   lookupDeterministicSources,
   allBundledSourcesNegative,
   getSourceMetadata,

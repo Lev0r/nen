@@ -64,8 +64,6 @@ exports.addGameFromSteam = onCall(
       return { gameId: game.id, vettingSkipped: true, reason: 'non-active libraryState' };
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || null;
-
     const developers = game.steamStatic?.developers || [];
     const devAppIdMap = {};
     for (const name of developers) {
@@ -76,7 +74,7 @@ exports.addGameFromSteam = onCall(
     try {
       const { stats, memoryCache, ...vetting } = await vetAllDevelopers(
         developers,
-        apiKey,
+        null,
         {
           db,
           appId,

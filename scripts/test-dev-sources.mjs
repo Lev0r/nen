@@ -26,7 +26,7 @@ async function main() {
   for (const { name, appIds } of samples) {
     const ne = lookupNeGrai(name);
     const cu = lookupCurators(name, { appIds });
-    const det = await lookupDeterministicSources(name, { appIds });
+    const det = lookupDeterministicSources(name, { appIds });
     console.log('\n---', name, appIds.length ? `(apps: ${appIds.join(',')})` : '---');
     console.log('NE GRAI:', ne?.explanation || 'not listed');
     console.log('Curators:', cu?.explanation || 'not listed');

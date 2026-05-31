@@ -25,11 +25,9 @@
  *   2. Run `firebase login` + `firebase use <project>` (Application Default Credentials).
  *      Project ID is read from the active Firebase CLI project or `.firebaserc`.
  *
- * Gemini: loads GEMINI_API_KEY from functions/.env (if present) or process.env.
- * RU developer vetting runs only when the final saved libraryState is `active`.
- * Developer results are cached in config/default `devBgCheck.developers` (shared with
- * addGameFromSteam). Bulk import pre-vets all unique developers once in batched Gemini
- * calls (default 5 per request, GEMINI_VET_BATCH_SIZE env).
+ * Developer vetting uses bundled NE GRAI + Steam curator source lists.
+ * Results are cached in config/default `devBgCheck.developers` (shared with
+ * addGameFromSteam). Bulk import pre-vets all unique developers once.
  *
  * Do not run against production without reviewing the JSON and using --dry-run first.
  */
@@ -47,7 +45,7 @@ const require = createRequire(join(ROOT, 'functions/package.json'));
 const { initializeApp, getApps, applicationDefault, cert } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { fetchSteamGame, parseAppId } = require('./steam');
-const { vetAllDevelopers, getBatchSize } = require('./gemini');
+const { vetAllDevelopers } = require('./gemini');
 const {
   ensureMemoryCache,
   aggregateVettingFromCache,
@@ -441,7 +439,6 @@ async function main() {
 
   loadDotEnvFile(join(ROOT, '.env.local'));
   loadDotEnvFile(join(ROOT, 'functions/.env'));
-  const geminiApiKey = process.env.GEMINI_API_KEY || null;
   const ownershipKeys = resolveLegacyOwnershipKeys();
 
   const raw = readFileSync(jsonPath, 'utf8');
@@ -485,7 +482,7 @@ async function main() {
     }
   }
 
-  // Phase 2: pre-vet unique developers from active games (cache + batched Gemini)
+  // Phase 2: pre-vet unique developers from active games (cache + bundled sources)
   const uniqueDevs = new Set();
   for (const { prepared } of preparedGames) {
     if (prepared.status !== 'ready' || !prepared.shouldVet) continue;
@@ -500,15 +497,14 @@ async function main() {
 
   console.log(
     `\nDeveloper vetting: ${uniqueDevs.size} unique across active games` +
-      ` (${cacheHitsBefore} cached, ${uncachedBefore.length} to resolve)` +
-      ` batch size ${getBatchSize()}`
+      ` (${cacheHitsBefore} cached, ${uncachedBefore.length} to resolve)`
   );
 
   const devAppIdMap = buildDevAppIdMap(preparedGames);
 
   if (uniqueDevs.size > 0) {
     try {
-      const { stats } = await vetAllDevelopers([...uniqueDevs], geminiApiKey, {
+      const { stats } = await vetAllDevelopers([...uniqueDevs], null, {
         db: dryRun ? null : db,
         appId,
         memoryCache: devCache,
@@ -517,8 +513,7 @@ async function main() {
       });
       console.log(
         `Vetting complete: ${stats.cacheHits} cache hits, ` +
-          `${stats.sourceHits} source list hit(s), ${stats.bundledClears} cleared without Gemini, ` +
-          `${stats.geminiBatches} Gemini batch(es), ${stats.geminiDevelopers} Gemini slot(s)`
+          `${stats.sourceHits} source list hit(s), ${stats.bundledClears} cleared (not in sources)`
       );
     } catch (err) {
       console.error(`Developer pre-vetting failed: ${err.message}`);
