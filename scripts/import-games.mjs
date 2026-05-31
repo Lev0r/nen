@@ -87,18 +87,28 @@ function parseArgs(argv) {
       appId = args[i + 1];
       if (!appId) throw new Error('--app-id requires a value');
       i += 1;
+    } else if (arg.startsWith('--app-id=')) {
+      appId = arg.slice('--app-id='.length);
+      if (!appId) throw new Error('--app-id requires a value');
     } else if (arg.startsWith('--')) {
       throw new Error(`Unknown flag: ${arg}`);
     } else if (!jsonPath) {
       jsonPath = arg;
+    } else if (!appId || appId === 'default_app') {
+      // npm/PowerShell sometimes drops `--app-id` and passes only the value.
+      appId = arg;
     } else {
-      throw new Error(`Unexpected argument: ${arg}`);
+      throw new Error(
+        `Unexpected argument: ${arg}\n` +
+          'Usage: node scripts/import-games.mjs "path/to/games.json" [--dry-run] [--app-id default_app]\n' +
+          'Tip (PowerShell): quote the JSON path; --app-id is optional (defaults to default_app).'
+      );
     }
   }
 
   if (!jsonPath) {
     throw new Error(
-      'Usage: node scripts/import-games.mjs path/to/games.json [--dry-run] [--app-id default_app]'
+      'Usage: node scripts/import-games.mjs "path/to/games.json" [--dry-run] [--app-id default_app]'
     );
   }
 
