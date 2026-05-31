@@ -320,8 +320,8 @@ Hovering the Total Hype ring shows how the number was built: each user's nicknam
 RU flags are **deterministic** — no Gemini. Sources:
 
 1. **NE GRAI** extension database (bundled JSON, ~3800 publisher names)
-2. **Steam curator «Обережно, русняві ігри» (PlayUA)** — app-ID list
-3. **Steam curator «Avoid russian games»** — app-ID list
+2. **Steam curator «Обережно, русняві ігри» (PlayUA)** — not recommended / informational app IDs
+3. **Steam curator «Avoid russian games»** — not recommended / informational app IDs; **recommended** = curator clearance after dev check (does not override NE GRAI)
 
 GameDev DOU is documented as context-only (no automated lookup). OpenCorporates was removed.
 

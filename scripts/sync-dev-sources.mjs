@@ -60,7 +60,7 @@ async function main() {
 
   console.log(`Wrote JSON under ${stats.dataDir}`);
   console.log(
-    `NE GRAI: ${stats.neGraiCount} names | PlayUA: ${stats.playuaAppCount} apps | Avoid RU: ${stats.avoidRuAppCount} apps` +
+    `NE GRAI: ${stats.neGraiCount} names | PlayUA flagged: ${stats.playuaFlaggedCount} | Avoid RU flagged: ${stats.avoidRuFlaggedCount}, cleared: ${stats.avoidRuClearedCount}` +
       (stats.devIndexCount ? ` | dev index: ${stats.devIndexCount}` : '')
   );
 

@@ -92,10 +92,46 @@ function applyNeGraiData(data) {
   };
 }
 
+function buildCuratorAppSets(entry) {
+  const flagged = new Set();
+  const cleared = new Set();
+
+  if (entry?.apps && typeof entry.apps === 'object') {
+    for (const [appId, recType] of Object.entries(entry.apps)) {
+      const id = String(appId).trim();
+      if (!id) continue;
+      if (recType === 'not_recommended' || recType === 'informational') {
+        flagged.add(id);
+      } else if (recType === 'recommended') {
+        cleared.add(id);
+      }
+    }
+    return { flagged, cleared };
+  }
+
+  // Legacy sync format: every listed app was treated as flagged.
+  for (const appId of entry?.appIds || []) {
+    const id = String(appId).trim();
+    if (id) flagged.add(id);
+  }
+  for (const appId of entry?.flaggedAppIds || []) {
+    const id = String(appId).trim();
+    if (id) flagged.add(id);
+  }
+  for (const appId of entry?.clearedAppIds || []) {
+    const id = String(appId).trim();
+    if (id) cleared.add(id);
+  }
+
+  return { flagged, cleared };
+}
+
 function applyCuratorAppIdsData(data) {
+  const playua = buildCuratorAppSets(data?.curators?.playua);
+  const avoidRu = buildCuratorAppSets(data?.curators?.avoidRu);
   curatorAppIds = {
-    playua: new Set(data?.curators?.playua?.appIds || []),
-    avoidRu: new Set(data?.curators?.avoidRu?.appIds || []),
+    playua,
+    avoidRu,
     meta: data?.meta || {},
   };
 }
@@ -194,22 +230,43 @@ function lookupCuratorsByAppId(appId) {
   const id = String(appId || '').trim();
   if (!id) return null;
 
-  if (sets.playua.has(id)) {
+  if (sets.playua.flagged.has(id)) {
     return {
       isRussianRelated: true,
       source: SOURCE_IDS.CURATOR_PLAYUA,
       appId: id,
-      explanation: `${sourceMarkdownLink(SOURCE_IDS.CURATOR_PLAYUA)}: game ${steamAppMarkdownLink(id)} is on the curator list`,
+      explanation: `${sourceMarkdownLink(SOURCE_IDS.CURATOR_PLAYUA)}: game ${steamAppMarkdownLink(id)} flagged by curator (not recommended / informational)`,
     };
   }
-  if (sets.avoidRu.has(id)) {
+  if (sets.avoidRu.flagged.has(id)) {
     return {
       isRussianRelated: true,
       source: SOURCE_IDS.CURATOR_AVOID_RU,
       appId: id,
-      explanation: `${sourceMarkdownLink(SOURCE_IDS.CURATOR_AVOID_RU)}: game ${steamAppMarkdownLink(id)} is on the curator list`,
+      explanation: `${sourceMarkdownLink(SOURCE_IDS.CURATOR_AVOID_RU)}: game ${steamAppMarkdownLink(id)} flagged by curator (not recommended / informational)`,
     };
   }
+
+  return null;
+}
+
+/**
+ * Curator explicitly recommended this app after a developer background check.
+ * Does not override NE GRAI — use only as a negative-source absence signal.
+ */
+function lookupCuratorClearanceByAppId(appId) {
+  const sets = loadCuratorAppIds();
+  const id = String(appId || '').trim();
+  if (!id) return null;
+
+  if (sets.avoidRu.cleared.has(id)) {
+    return {
+      source: SOURCE_IDS.CURATOR_AVOID_RU,
+      appId: id,
+      explanation: `${sourceMarkdownLink(SOURCE_IDS.CURATOR_AVOID_RU)}: game ${steamAppMarkdownLink(id)} recommended after developer check`,
+    };
+  }
+
   return null;
 }
 
@@ -329,8 +386,10 @@ function getSourceMetadata() {
     },
     curators: {
       appIdsUpdatedAt: appIds.meta?.updatedAt || null,
-      playuaAppCount: appIds.playua.size,
-      avoidRuAppCount: appIds.avoidRu.size,
+      playuaFlaggedCount: appIds.playua.flagged.size,
+      playuaClearedCount: appIds.playua.cleared.size,
+      avoidRuFlaggedCount: appIds.avoidRu.flagged.size,
+      avoidRuClearedCount: appIds.avoidRu.cleared.size,
       devIndexCount: curatorDevIndex?.size || 0,
       devIndexUpdatedAt: curatorMeta?.updatedAt || null,
     },
@@ -350,6 +409,7 @@ module.exports = {
   lookupNeGrai,
   lookupCurators,
   lookupCuratorsByAppId,
+  lookupCuratorClearanceByAppId,
   lookupCuratorsByDeveloperApps,
   lookupDeterministicSources,
   allBundledSourcesNegative,

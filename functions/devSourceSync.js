@@ -68,8 +68,46 @@ async function downloadNeGraiList() {
   };
 }
 
-async function fetchCuratorAppIds(curatorId) {
-  const appIds = new Set();
+/** Steam curator rec types that mean "avoid / RU-related". */
+const CURATOR_NEGATIVE_REC_TYPES = new Set(['not_recommended', 'informational']);
+
+/** Curator explicitly cleared the game after a developer background check. */
+const CURATOR_POSITIVE_REC_TYPES = new Set(['recommended']);
+
+function parseCuratorRecommendations(html) {
+  /** @type {Map<string, string>} */
+  const apps = new Map();
+  const blocks = String(html || '').split('class="recommendation"').slice(1);
+
+  for (const block of blocks) {
+    const appMatch = block.match(/data-ds-appid="(\d+)"/);
+    const typeMatch = block.match(/class='color_([^']+)'>/);
+    if (!appMatch || !typeMatch) continue;
+
+    const appId = appMatch[1];
+    const recType = typeMatch[1];
+    const existing = apps.get(appId);
+
+    if (!existing) {
+      apps.set(appId, recType);
+      continue;
+    }
+
+    // If Steam ever shows conflicting rows, negative vetting wins over clearance.
+    if (
+      CURATOR_NEGATIVE_REC_TYPES.has(recType) &&
+      CURATOR_POSITIVE_REC_TYPES.has(existing)
+    ) {
+      apps.set(appId, recType);
+    }
+  }
+
+  return apps;
+}
+
+async function fetchCuratorApps(curatorId) {
+  /** @type {Map<string, string>} */
+  const apps = new Map();
   let start = 0;
   const pageSize = 50;
   let total = Infinity;
@@ -82,8 +120,8 @@ async function fetchCuratorAppIds(curatorId) {
     const data = await res.json();
     total = Number(data.total_count) || 0;
     const html = String(data.results_html || '');
-    for (const m of html.matchAll(/data-ds-appid="(\d+)"/g)) {
-      appIds.add(m[1]);
+    for (const [appId, recType] of parseCuratorRecommendations(html)) {
+      apps.set(appId, recType);
     }
 
     start += pageSize;
@@ -91,21 +129,43 @@ async function fetchCuratorAppIds(curatorId) {
     await sleep(200);
   }
 
-  return [...appIds];
+  return Object.fromEntries(apps);
+}
+
+function splitCuratorApps(apps) {
+  const flaggedAppIds = [];
+  const clearedAppIds = [];
+
+  for (const [appId, recType] of Object.entries(apps || {})) {
+    if (CURATOR_NEGATIVE_REC_TYPES.has(recType)) flaggedAppIds.push(appId);
+    else if (CURATOR_POSITIVE_REC_TYPES.has(recType)) clearedAppIds.push(appId);
+  }
+
+  flaggedAppIds.sort();
+  clearedAppIds.sort();
+  return { flaggedAppIds, clearedAppIds };
 }
 
 async function syncCuratorAppIds() {
   const curators = {};
   for (const [key, curator] of Object.entries(CURATORS)) {
-    const appIds = await fetchCuratorAppIds(curator.id);
-    curators[key] = { id: curator.id, label: curator.label, appIds };
+    const apps = await fetchCuratorApps(curator.id);
+    const { flaggedAppIds, clearedAppIds } = splitCuratorApps(apps);
+    curators[key] = {
+      id: curator.id,
+      label: curator.label,
+      apps,
+      flaggedAppIds,
+      clearedAppIds,
+    };
   }
 
   return {
     curators,
     meta: {
       updatedAt: new Date().toISOString(),
-      note: 'Use app ID membership for vetting; optional dev index via --build-dev-index',
+      note:
+        'Only not_recommended + informational app IDs flag RU; recommended = curator clearance after dev check.',
     },
   };
 }
@@ -152,8 +212,13 @@ async function buildCuratorDeveloperIndex(appIdsData, curatorDelayMs = 800) {
   const curatorApps = {};
 
   for (const [key, entry] of Object.entries(appIdsData.curators)) {
-    const appIds = entry.appIds || [];
-    curatorApps[key] = { id: entry.id, label: entry.label, appCount: appIds.length };
+    const appIds = entry.flaggedAppIds || entry.appIds || [];
+    curatorApps[key] = {
+      id: entry.id,
+      label: entry.label,
+      appCount: appIds.length,
+      clearedAppCount: entry.clearedAppIds?.length || 0,
+    };
 
     for (let i = 0; i < appIds.length; i += 1) {
       const appId = appIds[i];
@@ -246,8 +311,10 @@ async function writeDevSourcesToFirestore(appId, payload) {
 
   return {
     neGraiCount: payload.neGrai?.names?.length || 0,
-    playuaAppCount: payload.curatorAppIds?.curators?.playua?.appIds?.length || 0,
-    avoidRuAppCount: payload.curatorAppIds?.curators?.avoidRu?.appIds?.length || 0,
+    playuaFlaggedCount: payload.curatorAppIds?.curators?.playua?.flaggedAppIds?.length || 0,
+    playuaClearedCount: payload.curatorAppIds?.curators?.playua?.clearedAppIds?.length || 0,
+    avoidRuFlaggedCount: payload.curatorAppIds?.curators?.avoidRu?.flaggedAppIds?.length || 0,
+    avoidRuClearedCount: payload.curatorAppIds?.curators?.avoidRu?.clearedAppIds?.length || 0,
     devIndexCount: payload.curatorDevelopers?.meta?.developerCount || 0,
   };
 }
@@ -263,8 +330,10 @@ async function syncDevSourcesToFiles(options = {}, dataDir = DATA_DIR) {
   writeDevSourcesToFiles(payload, dataDir);
   return {
     neGraiCount: payload.neGrai?.names?.length || 0,
-    playuaAppCount: payload.curatorAppIds?.curators?.playua?.appIds?.length || 0,
-    avoidRuAppCount: payload.curatorAppIds?.curators?.avoidRu?.appIds?.length || 0,
+    playuaFlaggedCount: payload.curatorAppIds?.curators?.playua?.flaggedAppIds?.length || 0,
+    playuaClearedCount: payload.curatorAppIds?.curators?.playua?.clearedAppIds?.length || 0,
+    avoidRuFlaggedCount: payload.curatorAppIds?.curators?.avoidRu?.flaggedAppIds?.length || 0,
+    avoidRuClearedCount: payload.curatorAppIds?.curators?.avoidRu?.clearedAppIds?.length || 0,
     devIndexCount: payload.curatorDevelopers?.meta?.developerCount || 0,
     dataDir,
   };
@@ -305,7 +374,7 @@ const syncDevSourcesScheduled = onSchedule(
       const stats = await syncDevSourcesToFirestore(DEFAULT_APP_ID);
       console.log(
         `syncDevSourcesScheduled: NE GRAI ${stats.neGraiCount}, ` +
-          `PlayUA ${stats.playuaAppCount}, Avoid RU ${stats.avoidRuAppCount} app IDs`
+          `PlayUA flagged ${stats.playuaFlaggedCount}, Avoid RU flagged ${stats.avoidRuFlaggedCount} / cleared ${stats.avoidRuClearedCount}`
       );
     } catch (err) {
       console.error('syncDevSourcesScheduled failed:', err);

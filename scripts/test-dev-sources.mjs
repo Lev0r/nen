@@ -18,7 +18,9 @@ const samples = [
   { name: 'Gaijin Entertainment', appIds: [] },
   { name: 'Mundfish', appIds: [] },
   { name: 'CD Projekt RED', appIds: [] },
-  { name: 'Unknown Studio XYZ', appIds: ['1643320'] }, // S.T.A.L.K.E.R. 2 — often on RU curator lists
+  { name: 'Unknown Studio XYZ', appIds: ['668580'] }, // Atomic Heart — PlayUA + Avoid RU not recommended
+  { name: 'Unknown Studio XYZ', appIds: ['1643320'] }, // S.T.A.L.K.E.R. 2 — Avoid RU recommended (cleared)
+  { name: 'Unknown Studio XYZ', appIds: ['4595550'] }, // Avoid RU recommended (cleared)
 ];
 
 async function main() {
@@ -33,8 +35,12 @@ async function main() {
     console.log('Deterministic:', det?.explanation || 'cleared (not in sources)');
   }
 
-  const appHit = lookupCuratorsByAppId('1643320');
-  console.log('\nDirect app lookup 1643320:', appHit?.explanation || 'not on curator lists');
+  const appHit = lookupCuratorsByAppId('668580');
+  console.log('\nDirect app lookup 668580 (should flag):', appHit?.explanation || 'not flagged');
+  const stalker = lookupCuratorsByAppId('1643320');
+  console.log('Direct app lookup 1643320 (curator cleared):', stalker?.explanation || 'not flagged');
+  const cleared = lookupCuratorsByAppId('4595550');
+  console.log('Direct app lookup 4595550 (curator cleared):', cleared?.explanation || 'not flagged');
 }
 
 main();
