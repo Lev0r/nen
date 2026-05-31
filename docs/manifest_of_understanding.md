@@ -2,7 +2,7 @@
 
 This document serves as the **single source of truth** and **system context prompt** for scaffolding, developing, and deploying the **Nen?** co-op gaming tracker. It is designed to be read directly by AI coding assistants and developers to ensure alignment with system constraints, schemas, and architectural patterns.
 
-> **Progress, handoff, deploy runbook, and remaining tasks:** see [`docs/AGENT_TODO.md`](./AGENT_TODO.md).
+> **Agent onboarding, checklist, and ops:** see [`docs/AGENT_INTRO.md`](./AGENT_INTRO.md), [`docs/FEATURE_CHECKLIST.md`](./FEATURE_CHECKLIST.md), [`docs/OPS.md`](./OPS.md).
 
 ---
 
@@ -367,7 +367,7 @@ Extract from store API (`data[appId].data`) and write to nested objects:
 
 **`steamStatic`**
 * **`name`** $\rightarrow$ `name`
-* **`developers`** $\rightarrow$ `developers` (triggers AI Russian screening)
+* **`developers`** $\rightarrow$ `developers` (triggers list-based RU vetting)
 * **`publishers`** $\rightarrow$ `publishers`
 * **`thumbnail`** $\rightarrow$ `header_image`
 * **`screenshots`** $\rightarrow$ `screenshots.slice(0, 5).map(s => s.path_full)`
@@ -464,4 +464,4 @@ The dashboard should feel like a premium, sleek gaming platform (similar to Stea
 
 ## 6. Progress & remaining work
 
-See **`docs/AGENT_TODO.md`** for the live checklist, deploy runbook, bulk import instructions, key decisions, and agent workflow. Do not maintain a separate implementation roadmap in this file.
+See **[`docs/FEATURE_CHECKLIST.md`](./FEATURE_CHECKLIST.md)** for implemented vs pending features and **[`docs/AGENT_INTRO.md`](./AGENT_INTRO.md)** for agent read order. Do not maintain a duplicate roadmap in this file.
