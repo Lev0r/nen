@@ -41,6 +41,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Feature | Status | Notes |
 | :--- | :---: | :--- |
 | 5 lifecycle states + sidebar tabs | ✅ | |
+| **TBA games — separate sub-tab under Active** | 📋 | **User request** — exclude TBA from default Active tab; reduce noise |
 | Lifecycle modal + update badge | ✅ | |
 | `hasUpdateSinceState` from sync | ✅ | |
 | Finished rating 1–5 stars | ✅ | |
@@ -60,6 +61,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | MetacriticFactor + ITAD fallback | ✅ | |
 | Sort library by Total Hype | ✅ | Client-side compute |
 | Dynamic BG from top 5 hype | ✅ | Screenshots, env gate |
+| **Card visibility vs dynamic BG** | 📋 | **User request** — reduce BG noise; darken unhovered thumbnails |
 
 ---
 
@@ -75,6 +77,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | GFN catalog sync + badge | ✅ | Weekly + manual |
 | Player stats (official API, 28 samples) | ✅ | Skip TBA/banned |
 | Refresh single game from Steam | 📋 | P1 — not built |
+| **Steam wishlist sync** (new games) | 📋 | **User request** — Web API key + public profiles |
+| **Steam library sync** (ownership) | 📋 | **User request** — reconcile `owned.user0/user1` from Steam libraries |
 | "Ready to Play" filter preset | ⏸ | Use chips instead |
 
 ---
@@ -95,7 +99,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Bulk `revet-ru-games.mjs` | ✅ | CLI only |
 | Curator rec type parsing | ✅ | Commit 9e3f1fd |
 | **Sich Ukrainian Spirit sources** | 📋 | **User request** — group + 5 curators + child groups |
-| Maintenance: Sync dev sources button | 📋 | Callable exists, no UI |
+| **Maintenance: dev BG source controls** | 📋 | **User request** — sync button, freshness, counts, bulk re-vet |
 | Gemini vetting | 🚫 | Removed 2026-05-31 |
 | OpenCorporates | 🚫 | Removed |
 
@@ -133,6 +137,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Sidebar layout | ✅ | |
 | Maintenance modal + error log | ✅ | |
 | Error acknowledge dot | ✅ | |
+| **Errors panel — group by source/severity** | 📋 | **User request** — richer detail per error |
 | Mobile UX pass | 📋 | P1 |
 | News feed UI | 🚫 | Dropped |
 
@@ -145,6 +150,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Deploy runbook | ✅ | [OPS.md](./OPS.md) |
 | Env var documentation | ✅ | |
 | Production smoke test checklist | ⏳ | User-driven |
+| **Test & polish 2026-05-31 release** | 📋 | **User request** — maintenance syncs, RU flow, notifications |
+| **Local Cloud Functions testing** | 📋 | **User request** — emulator workflow documented + validated |
 | Real import of 147 games | ⏳ | `docs/all games.json` ready |
 | Post-deploy RU source refresh | ⏳ | syncDevSources + revet |
 | CI/CD pipeline | ⏸ | Deferred |
@@ -173,6 +180,10 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - [ ] Sync GFN
 - [ ] Dynamic background rotating
 - [ ] Edit modal scrollable; hype picker readable
+- [ ] TBA games excluded from default Active tab (when implemented)
+- [ ] Errors panel grouped by source/severity (when implemented)
+- [ ] Dev BG source controls in Maintenance (when implemented)
+- [ ] Wishlist / library ownership sync (when implemented)
 
 ---
 

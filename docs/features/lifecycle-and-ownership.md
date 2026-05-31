@@ -15,6 +15,10 @@
 | `finished` | Finished |
 | `banned` | Banned |
 
+### Planned (user request)
+
+- **TBA sub-tab** — games with `steamStatic.developmentStatus === 'tba'` live under Active as a separate subcategory; default Active tab excludes TBA (less noise in main view)
+
 - **`resolveLibraryState`** — `src/utils/libraryState.js` (legacy `abandoned` → `banned`)
 - **`LifecycleModal`** — card-triggered; optional note; finished rating when `finished`
 - **`stateMeta`** — `versionAtEntry`, `enteredAt`, `note` on state change via `buildStateMetaUpdates`

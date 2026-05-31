@@ -31,6 +31,7 @@ Tag list built from **full library** (`collectSteamTags(games)`), not current ta
 
 ## Planned changes (not implemented)
 
+- **TBA sub-tab under Active** — default Active excludes `developmentStatus === 'tba'`; TBA lives in nested subcategory (see [Lifecycle](./lifecycle-and-ownership.md))
 - **Remove co-op-related tags from filter UI** — all library games are co-op-focused; co-op tag chips add noise
 - **Co-op validation on add** — warn if Steam categories lack co-op IDs (9, 38, 39, 48): *"This game does not have a co-op tag. Are you sure you want to add it?"*
 - **Ready to Play preset** — deferred (use ownership + lifecycle chips)

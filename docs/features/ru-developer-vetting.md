@@ -67,6 +67,14 @@ Manual RU toggle in edit modal updates **game doc only** — does not clear glob
 - Filter: **RU alert** (`ruOnly` in `gameFilters.js`)
 - Edit modal: toggle + **Run dev check**
 
+### Planned maintenance controls (user request)
+
+| Control | Purpose |
+| :--- | :--- |
+| Sync dev sources | Callable `syncDevSources` — refresh NE GRAI + curator lists in Firestore |
+| Source freshness | Show `devBgCheck.sources.syncedAt` and per-source counts |
+| Bulk re-vet | Re-run `aggregateGameVetting` across library after source refresh |
+
 ## Ops after source change
 
 1. Deploy functions (or call `syncDevSources`)
@@ -76,7 +84,7 @@ See [OPS](../OPS.md) — no DB wipe required for source updates.
 
 ## Gaps
 
-- No Maintenance UI for `syncDevSources` or bulk re-vet
+- **Dev BG source maintenance UI** (user request) — `syncDevSources` button, freshness + counts, bulk re-vet; see [Maintenance](./maintenance-and-errors.md)
 - `lookupCuratorClearanceByAppId` exists but unused in aggregation
 - Sich curators not in codebase yet
 - Weekly scheduled sync does not build optional dev-name index by default

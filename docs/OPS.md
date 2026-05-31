@@ -116,6 +116,38 @@ No DB wipe needed. Stale `vettingError` clears on successful Run dev check.
 
 ---
 
+## Local Cloud Functions testing (planned)
+
+Partial wiring exists; workflow needs validation and documentation.
+
+| Piece | Location |
+| :--- | :--- |
+| Emulator script | `cd functions && npm run serve` → `firebase emulators:start --only functions` |
+| Client hook | `VITE_USE_FUNCTIONS_EMULATOR=true` in `.env.local` (dev only) |
+| Connect | `src/firebase.js` → `connectFunctionsEmulator(functions, '127.0.0.1', 5001)` |
+
+**Notes:**
+
+- Today the SPA still uses **production Firestore/Auth** when emulating functions — only callables route locally
+- Callable auth (`ALLOWED_EMAIL_0/1`) and secrets (`ITAD_API_KEY`, etc.) must be in `functions/.env`
+- Consider adding `emulators` block to `firebase.json` if ports or UI are needed
+- Document smoke paths: `addGameFromSteam`, `syncSteamLibrary`, `syncDevSources`, `vetGameDevelopers`
+
+---
+
+## 2026-05-31 release — test & polish (planned)
+
+Validate and improve recently shipped behavior before/at bulk import:
+
+- Maintenance modal — Load meta info, GFN sync, error acknowledge dot
+- RU filter + Run dev check + curator parsing
+- Sync timeouts (540s client) and user-facing error messages
+- Notifications / toasts / inline feedback consistency
+
+See smoke checklist in [FEATURE_CHECKLIST.md](./FEATURE_CHECKLIST.md).
+
+---
+
 ## Firestore console paths
 
 `artifacts` → `default_app` → `public` → `data` → `games` / `config` → `default`

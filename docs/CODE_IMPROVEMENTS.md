@@ -10,7 +10,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | :--- | :--- | :--- | :--- |
 | M1 | Auth | Unify allowlist — env vars vs hardcoded `firestore.rules` emails | Drift / security footgun |
 | M2 | RU vetting | Add Sich curators (`37941500`, `44677918`, `45525669`, `45830587`, `45985173`) | User-requested source; finish RU flow |
-| M3 | Maintenance | Expose `syncDevSources` in UI + `cloudFunctions.js` wrapper | Production source refresh without CLI |
+| M3 | Maintenance | Dev BG source controls in UI — `syncDevSources` wrapper, freshness/counts, bulk re-vet | Production source refresh without CLI |
 | M4 | Ops | Document/trigger post-deploy: deploy → syncDevSources → revet | False RU flags until sources + games refreshed |
 | M5 | Sync | Monitor full-library sync timeout at ~400–500 games | 540s sequential job may fail |
 | M6 | HLTB | Treat HLTB as fragile; surface failures clearly | Unofficial API, auth can break |
@@ -30,6 +30,11 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | S6 | Auth | Loading spinner during `AuthProvider` init | Blank flash on load |
 | S7 | Callables | `addGameFromSteam` client timeout aligned with 120s function | Inconsistent with sync wrappers |
 | S8 | Steam | Remove or wire `fetchGeForceNowReady` dead code | Confusing vs catalog-only badge |
+| S9 | UI | Card visibility — dim dynamic BG, darken unhovered thumbnails | User request; readability vs glass cards |
+| S10 | Lifecycle | TBA sub-tab under Active (exclude from default Active pool) | User request; TBA noise in main view |
+| S11 | Maintenance | Errors panel — group by source + severity, expand detail | User request; flat list hard to scan |
+| S12 | Steam | Wishlist sync (discover new games) + library sync (ownership) | User request; needs Steam Web API key |
+| S13 | QA | Test & improve 2026-05-31 release (syncs, RU, notifications) | Shipped features need validation pass |
 
 ---
 
@@ -59,7 +64,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 
 | ID | Item | Notes |
 | :--- | :--- | :--- |
-| D1 | Wishlist sync | Steam Web API key + public profiles |
+| D1 | ~~Wishlist sync~~ | Moved to **S12** (wishlist + library ownership sync) |
 | D2 | Banned tab passcode | Privacy for two trusted users |
 | D3 | Ready to Play filter preset | Use chips instead |
 | D4 | Hosting CI / GitHub Action deploy | Manual deploy today |
@@ -98,5 +103,6 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | No automated tests | Smoke scripts only (`test-dev-sources.mjs`) |
 | No E2E for filters/modals | Manual checklist in FEATURE_CHECKLIST |
 | Subagent findings not in CI | Pre-import manual smoke test remains critical |
+| Local functions testing undocumented | `functions/package.json` has `serve`; `VITE_USE_FUNCTIONS_EMULATOR` in dev — validate workflow, add OPS runbook |
 
 Update this file when closing items or discovering new debt.

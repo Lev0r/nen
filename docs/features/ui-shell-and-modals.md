@@ -21,6 +21,11 @@ LoginGate → DashboardShell
 
 `DynamicBackground.jsx` — top 5 non-banned games by Total Hype; Steam **screenshots**; 60s slide / 4s crossfade. Disable: `VITE_ENABLE_DYNAMIC_BG=false` at build time.
 
+### Planned (user request)
+
+- Reduce visual noise from dynamic BG so cards remain readable (opacity/blur/contrast tuning)
+- Darken **unhovered** card thumbnails; restore full brightness on hover/focus
+
 ## Modals
 
 | Modal | Trigger | Notes |
@@ -49,3 +54,4 @@ See [Bulk import](./bulk-import.md) for CLI path. Client duplicate check by app 
 - Mobile UX pass (tooltips, sidebar drawer)
 - AddGameModal Escape / backdrop dismiss (other modals have it)
 - "Refresh from Steam" in edit modal
+- Card visibility pass — dim dynamic BG, darken unhovered thumbnails (see Planned above)

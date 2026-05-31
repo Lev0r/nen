@@ -41,6 +41,20 @@ UI checks **global catalog** at render time — not per-game `geforceNowReady` f
 
 ~700 writes/day @ 147 games. Timeout risk grows ~400–500 games — may need batching.
 
+## Planned (user request)
+
+### Steam wishlist sync
+
+- Pull each user's public Steam wishlist via Web API
+- Surface **new** wishlist titles not yet in Firestore — candidate games to add (lifecycle `active` or dedicated flow)
+- Requires Steam Web API key + public profile URLs/IDs per user
+
+### Steam library sync (ownership)
+
+- Reconcile `owned.user0` / `owned.user1` against each user's Steam **owned games** library
+- Distinct from existing 6h **metadata** sync (`syncLibrarySteam`) — this updates ownership flags, not scrape fields
+- Same API key / profile prerequisites as wishlist sync
+
 ## See also
 
 - [RU vetting](./ru-developer-vetting.md) — runs on add after scrape
