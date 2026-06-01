@@ -336,20 +336,26 @@ async function pickBestMatch(gameName, existingHltbId) {
 
 async function fetchHltbForGame(gameName, existingHltbId = null) {
   if (!gameName?.trim()) {
-    return { data: null, error: 'Missing game name' };
+    return { data: null, error: 'Missing game name', detail: null };
   }
 
   try {
     const match = await pickBestMatch(gameName, existingHltbId);
     if (!match) {
-      return { data: null, error: 'No confident HLTB match' };
+      return { data: null, error: 'No confident HLTB match', detail: null };
     }
 
-    return { data: mapHltbGame(match, gameName), error: null };
+    const mapped = mapHltbGame(match, gameName);
+    if (!mapped) {
+      return { data: null, error: 'HLTB match has no playtime data', detail: null };
+    }
+
+    return { data: mapped, error: null, detail: null };
   } catch (err) {
     return {
       data: null,
       error: err.message || 'HLTB fetch failed',
+      detail: err.stack || null,
     };
   }
 }

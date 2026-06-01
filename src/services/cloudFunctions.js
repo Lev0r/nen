@@ -20,6 +20,12 @@ const syncSteamLibraryFn = httpsCallable(functions, 'syncSteamLibrary', {
   timeout: SYNC_CALL_TIMEOUT_MS,
 });
 const vetGameDevelopersFn = httpsCallable(functions, 'vetGameDevelopers');
+const syncDevSourcesFn = httpsCallable(functions, 'syncDevSources', {
+  timeout: SYNC_CALL_TIMEOUT_MS,
+});
+const revetAllGamesFn = httpsCallable(functions, 'revetAllGames', {
+  timeout: SYNC_CALL_TIMEOUT_MS,
+});
 
 export async function previewSteamGame(steamInput, appId = 'default_app') {
   const result = await previewSteamGameFn({ steamInput, appId });
@@ -52,5 +58,15 @@ export async function syncSteamLibrary(appId = 'default_app') {
 
 export async function runDevCheck(gameId, appId = 'default_app') {
   const result = await vetGameDevelopersFn({ gameId, appId });
+  return result.data;
+}
+
+export async function syncDevSources(appId = 'default_app', options = {}) {
+  const result = await syncDevSourcesFn({ appId, ...options });
+  return result.data;
+}
+
+export async function revetAllGames(appId = 'default_app') {
+  const result = await revetAllGamesFn({ appId });
   return result.data;
 }

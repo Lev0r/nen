@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  onSnapshot,
+  doc,
+  updateDoc,
+  writeBatch,
+  deleteField,
+} from 'firebase/firestore';
 import { db } from '../firebase';
 import { calculateTotalHype } from '../utils/hypeScore';
 import { buildStateMetaUpdates } from '../utils/libraryState';
+import { buildClearInfoUpdates, gameHasInfoStatus } from '../utils/gameAccessors';
 
 /** Singleton config doc under the config subcollection (path must have even segment count). */
 export const CONFIG_DOC_ID = 'default';
@@ -35,6 +43,35 @@ export function useAppConfig(appId = 'default_app') {
 export function updateGame(appId, gameId, updates) {
   const gameRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
   return updateDoc(gameRef, updates);
+}
+
+export async function clearInfoErrorsFromGames(appId, games) {
+  const targets = games.filter(gameHasInfoStatus);
+  if (targets.length === 0) return 0;
+
+  const batchSize = 400;
+  let cleared = 0;
+
+  for (let offset = 0; offset < targets.length; offset += batchSize) {
+    const chunk = targets.slice(offset, offset + batchSize);
+    const batch = writeBatch(db);
+
+    for (const game of chunk) {
+      const rawUpdates = buildClearInfoUpdates(game);
+      const updates = {};
+      for (const [path, value] of Object.entries(rawUpdates)) {
+        updates[path] = deleteField();
+      }
+      if (Object.keys(updates).length === 0) continue;
+      const gameRef = doc(db, `artifacts/${appId}/public/data/games`, game.id);
+      batch.update(gameRef, updates);
+      cleared += 1;
+    }
+
+    await batch.commit();
+  }
+
+  return cleared;
 }
 
 export function setGameLifecycle(

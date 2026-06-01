@@ -167,11 +167,113 @@ export function getAvgPlayers7d(game) {
 
 const ITAD_CONFIG_ERROR = 'ITAD_API_KEY not configured';
 
-function pushOperationError(errors, seen, { source, label, message, at = null }) {
-  const text = String(message || '').trim();
-  if (!text || text === ITAD_CONFIG_ERROR || seen.has(source)) return;
-  seen.add(source);
-  errors.push({ source, label, message: text, at });
+const SOURCE_LABELS = {
+  hltb: 'HowLongToBeat',
+  itad: 'IsThereAnyDeal',
+  vetting: 'Developer vetting',
+  'steam-sync': 'Steam library sync',
+  firestore: 'Firestore',
+  'game-data': 'Game data',
+  action: 'Action',
+  library: 'Library',
+};
+
+export function getSourceLabel(source) {
+  return SOURCE_LABELS[source] || source;
+}
+
+function resolveHltbOperationEntry(hltb) {
+  if (!hltb) return null;
+
+  const status = hltb.status;
+  if (status === 'info' && hltb.infoMessage) {
+    return {
+      source: 'hltb',
+      severity: 'info',
+      message: hltb.infoMessage,
+      errorKey: hltb.errorKey || null,
+      count: hltb.occurrenceCount || 1,
+      at: hltb.lastOccurrenceAt ?? hltb.syncedAt ?? null,
+      detail: hltb.detail ?? null,
+    };
+  }
+
+  if ((status === 'warning' || status === 'error') && hltb.lastError) {
+    return {
+      source: 'hltb',
+      severity: status,
+      message: hltb.lastError,
+      errorKey: hltb.errorKey || null,
+      count: hltb.occurrenceCount || 1,
+      at: hltb.lastOccurrenceAt ?? hltb.syncedAt ?? null,
+      detail: hltb.detail ?? null,
+    };
+  }
+
+  if (hltb.lastError) {
+    return {
+      source: 'hltb',
+      severity: 'warning',
+      message: hltb.lastError,
+      errorKey: hltb.errorKey || null,
+      count: hltb.occurrenceCount || 1,
+      at: hltb.lastOccurrenceAt ?? hltb.syncedAt ?? null,
+      detail: hltb.detail ?? null,
+    };
+  }
+
+  return null;
+}
+
+function resolveItadOperationEntry(steamDynamic) {
+  if (!steamDynamic) return null;
+
+  const status = steamDynamic.itadStatus;
+  if (status === 'info' && steamDynamic.itadInfoMessage) {
+    return {
+      source: 'itad',
+      severity: 'info',
+      message: steamDynamic.itadInfoMessage,
+      errorKey: steamDynamic.itadErrorKey || null,
+      count: steamDynamic.itadOccurrenceCount || 1,
+      at: steamDynamic.itadLastOccurrenceAt ?? steamDynamic.itadSyncedAt ?? null,
+      detail: steamDynamic.itadDetail ?? null,
+    };
+  }
+
+  if ((status === 'warning' || status === 'error') && steamDynamic.itadLastError) {
+    if (steamDynamic.itadLastError === ITAD_CONFIG_ERROR) return null;
+    return {
+      source: 'itad',
+      severity: status,
+      message: steamDynamic.itadLastError,
+      errorKey: steamDynamic.itadErrorKey || null,
+      count: steamDynamic.itadOccurrenceCount || 1,
+      at: steamDynamic.itadLastOccurrenceAt ?? steamDynamic.itadSyncedAt ?? null,
+      detail: steamDynamic.itadDetail ?? null,
+    };
+  }
+
+  if (steamDynamic.itadLastError && steamDynamic.itadLastError !== ITAD_CONFIG_ERROR) {
+    return {
+      source: 'itad',
+      severity: 'warning',
+      message: steamDynamic.itadLastError,
+      errorKey: steamDynamic.itadErrorKey || null,
+      count: steamDynamic.itadOccurrenceCount || 1,
+      at: steamDynamic.itadLastOccurrenceAt ?? steamDynamic.itadSyncedAt ?? null,
+      detail: steamDynamic.itadDetail ?? null,
+    };
+  }
+
+  return null;
+}
+
+function pushOperationEntry(errors, seen, entry) {
+  const text = String(entry.message || '').trim();
+  if (!text || seen.has(entry.source)) return;
+  seen.add(entry.source);
+  errors.push(entry);
 }
 
 /**
@@ -181,55 +283,99 @@ export function getGameOperationErrors(game) {
   const errors = [];
   const seen = new Set();
 
-  pushOperationError(errors, seen, {
-    source: 'hltb',
-    label: 'HowLongToBeat',
-    message: game?.steamStatic?.hltb?.lastError,
-    at: game?.steamStatic?.hltb?.syncedAt ?? null,
-  });
+  const hltbEntry = resolveHltbOperationEntry(game?.steamStatic?.hltb);
+  if (hltbEntry) {
+    pushOperationEntry(errors, seen, hltbEntry);
+  }
 
-  pushOperationError(errors, seen, {
-    source: 'itad',
-    label: 'IsThereAnyDeal',
-    message: game?.steamDynamic?.itadLastError,
-    at: game?.steamDynamic?.itadSyncedAt ?? null,
-  });
+  const itadEntry = resolveItadOperationEntry(game?.steamDynamic);
+  if (itadEntry) {
+    pushOperationEntry(errors, seen, itadEntry);
+  }
 
   const thirdParty = game?.thirdPartyErrors;
-  if (thirdParty?.hltb) {
-    pushOperationError(errors, seen, {
+  if (thirdParty?.hltb && !seen.has('hltb')) {
+    pushOperationEntry(errors, seen, {
       source: 'hltb',
-      label: 'HowLongToBeat',
+      severity: 'warning',
       message: thirdParty.hltb,
+      errorKey: null,
+      count: 1,
       at: game?.steamStatic?.hltb?.syncedAt ?? null,
+      detail: null,
     });
   }
-  if (thirdParty?.itad) {
-    pushOperationError(errors, seen, {
+  if (thirdParty?.itad && !seen.has('itad')) {
+    pushOperationEntry(errors, seen, {
       source: 'itad',
-      label: 'IsThereAnyDeal',
+      severity: 'warning',
       message: thirdParty.itad,
+      errorKey: null,
+      count: 1,
       at: game?.steamDynamic?.itadSyncedAt ?? null,
+      detail: null,
     });
   }
 
-  pushOperationError(errors, seen, {
-    source: 'vetting',
-    label: 'Developer vetting',
-    message: game?.vettingError,
-    at: game?.vettingErrorAt ?? null,
-  });
+  if (game?.vettingError) {
+    pushOperationEntry(errors, seen, {
+      source: 'vetting',
+      severity: 'warning',
+      message: game.vettingError,
+      errorKey: null,
+      count: 1,
+      at: game.vettingErrorAt ?? null,
+      detail: null,
+    });
+  }
 
-  pushOperationError(errors, seen, {
-    source: 'steam-sync',
-    label: 'Steam library sync',
-    message: game?.lastSyncError,
-    at: game?.lastSyncErrorAt ?? null,
-  });
+  if (game?.lastSyncError) {
+    pushOperationEntry(errors, seen, {
+      source: 'steam-sync',
+      severity: 'warning',
+      message: game.lastSyncError,
+      errorKey: null,
+      count: 1,
+      at: game.lastSyncErrorAt ?? null,
+      detail: null,
+    });
+  }
 
   return errors;
 }
 
 export function hasGameOperationErrors(game) {
   return getGameOperationErrors(game).length > 0;
+}
+
+export function gameHasInfoStatus(game) {
+  const hltb = game?.steamStatic?.hltb;
+  if (hltb?.status === 'info' && hltb?.infoMessage) return true;
+  const dynamic = game?.steamDynamic;
+  return dynamic?.itadStatus === 'info' && Boolean(dynamic?.itadInfoMessage);
+}
+
+export function buildClearInfoUpdates(game) {
+  const updates = {};
+  const hltb = game?.steamStatic?.hltb;
+  if (hltb?.status === 'info') {
+    updates['steamStatic.hltb.status'] = null;
+    updates['steamStatic.hltb.infoMessage'] = null;
+    updates['steamStatic.hltb.errorKey'] = null;
+    updates['steamStatic.hltb.occurrenceCount'] = null;
+    updates['steamStatic.hltb.lastOccurrenceAt'] = null;
+    updates['steamStatic.hltb.detail'] = null;
+  }
+
+  const dynamic = game?.steamDynamic;
+  if (dynamic?.itadStatus === 'info') {
+    updates['steamDynamic.itadStatus'] = null;
+    updates['steamDynamic.itadInfoMessage'] = null;
+    updates['steamDynamic.itadErrorKey'] = null;
+    updates['steamDynamic.itadOccurrenceCount'] = null;
+    updates['steamDynamic.itadLastOccurrenceAt'] = null;
+    updates['steamDynamic.itadDetail'] = null;
+  }
+
+  return updates;
 }

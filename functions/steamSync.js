@@ -8,8 +8,13 @@ const {
   fetchCurrentPlayers,
   computeAvgPlayers7d,
 } = require('./steam');
-const { applyHltbToStatic, applyItadToDynamic } = require('./thirdParty');
+const { applyHltbToStatic, applyItadToDynamic, isActionableSeverity } = require('./thirdParty');
 const { getItadApiKey } = require('./itad');
+const {
+  HLTB_INFO_FIELD_DELETES,
+  ITAD_INFO_FIELD_DELETES,
+  isStaleInfo,
+} = require('./errorStatus');
 
 const DEFAULT_APP_ID = 'default_app';
 const STEAM_CALL_DELAY_MS = 300;
@@ -163,6 +168,62 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function buildHltbInfoPurgeUpdates(hltb, cutoffMs) {
+  if (hltb?.status !== 'info') return null;
+  const lastMs = timestampToMs(hltb.lastOccurrenceAt ?? hltb.syncedAt);
+  if (!isStaleInfo(lastMs, cutoffMs)) return null;
+
+  const updates = {};
+  for (const field of HLTB_INFO_FIELD_DELETES) {
+    updates[`steamStatic.hltb.${field}`] = FieldValue.delete();
+  }
+  return updates;
+}
+
+function buildItadInfoPurgeUpdates(steamDynamic, cutoffMs) {
+  if (steamDynamic?.itadStatus !== 'info') return null;
+  const lastMs = timestampToMs(
+    steamDynamic.itadLastOccurrenceAt ?? steamDynamic.itadSyncedAt
+  );
+  if (!isStaleInfo(lastMs, cutoffMs)) return null;
+
+  const updates = {};
+  for (const field of ITAD_INFO_FIELD_DELETES) {
+    updates[`steamDynamic.${field}`] = FieldValue.delete();
+  }
+  return updates;
+}
+
+async function purgeStaleInfoFields(appId = DEFAULT_APP_ID) {
+  const db = getFirestore();
+  const snapshot = await db.collection(gamesCollectionPath(appId)).get();
+  const cutoffMs = Date.now() - MS_7D;
+  let purged = 0;
+
+  for (const doc of snapshot.docs) {
+    const game = doc.data();
+    const updates = {
+      ...buildHltbInfoPurgeUpdates(game.steamStatic?.hltb, cutoffMs),
+      ...buildItadInfoPurgeUpdates(game.steamDynamic, cutoffMs),
+    };
+
+    if (Object.keys(updates).length === 0) continue;
+
+    try {
+      await doc.ref.update(updates);
+      purged++;
+    } catch (err) {
+      console.error(`purgeStaleInfoFields failed for ${doc.id}:`, err);
+    }
+  }
+
+  if (purged > 0) {
+    console.log(`purgeStaleInfoFields: cleared info status on ${purged} game(s)`);
+  }
+
+  return purged;
+}
+
 async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = {}) {
   const db = getFirestore();
   const snapshot = await db.collection(gamesCollectionPath(appId)).get();
@@ -284,7 +345,7 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
         updates.steamStatic = steamStatic;
         if (hltbResult.steamStatic?.hltb?.hltbId && !hltbResult.error) {
           hltbSyncs++;
-        } else if (hltbResult.error) {
+        } else if (hltbResult.error && isActionableSeverity(hltbResult.severity)) {
           hltbErrors++;
         }
         if (hltbResult.clearThirdPartyError) {
@@ -301,7 +362,7 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
         updates.steamDynamic = steamDynamic;
         if (itadResult.changed && !itadResult.error) {
           itadSyncs++;
-        } else if (itadResult.error && itadResult.error !== 'ITAD_API_KEY not configured') {
+        } else if (itadResult.error && isActionableSeverity(itadResult.severity)) {
           itadErrors++;
         }
         if (itadResult.clearThirdPartyError) {
@@ -356,6 +417,7 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
 }
 
 async function syncLibrarySteamHandler() {
+  await purgeStaleInfoFields(DEFAULT_APP_ID);
   const stats = await syncLibrarySteamCore(DEFAULT_APP_ID, { force: false });
   await writeSteamLibrarySyncMeta(DEFAULT_APP_ID, stats);
 }
@@ -400,4 +462,5 @@ module.exports = {
   syncLibrarySteam,
   syncSteamLibrary,
   syncLibrarySteamCore,
+  purgeStaleInfoFields,
 };

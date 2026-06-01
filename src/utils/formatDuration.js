@@ -149,6 +149,22 @@ export function formatDateTime(input) {
   });
 }
 
+const ERROR_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Compact datetime for Maintenance errors (e.g. "31-May 18:11").
+ */
+export function formatErrorDateTime(input) {
+  const start = parseDate(input);
+  if (!start) return null;
+
+  const day = String(start.getDate()).padStart(2, '0');
+  const month = ERROR_MONTHS[start.getMonth()];
+  const hours = String(start.getHours()).padStart(2, '0');
+  const minutes = String(start.getMinutes()).padStart(2, '0');
+  return `${day}-${month} ${hours}:${minutes}`;
+}
+
 /**
  * Whole days elapsed since a date (0 = today).
  */

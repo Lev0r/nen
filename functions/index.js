@@ -3,7 +3,7 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { fetchSteamGame, parseAppId } = require('./steam');
 const { vetAllDevelopers } = require('./devVetting');
-const { aggregateGameVetting } = require('./devBgCheck');
+const { aggregateGameVetting, ensureMemoryCache } = require('./devBgCheck');
 const { enrichNewGameThirdParty } = require('./thirdParty');
 const { syncLibrarySteam, syncSteamLibrary } = require('./steamSync');
 const { syncGfnCatalog, syncGfnCatalogScheduled } = require('./gfnSync');
@@ -283,3 +283,68 @@ exports.syncGfnCatalog = syncGfnCatalog;
 exports.syncGfnCatalogScheduled = syncGfnCatalogScheduled;
 exports.syncDevSources = syncDevSources;
 exports.syncDevSourcesScheduled = syncDevSourcesScheduled;
+
+exports.revetAllGames = onCall(
+  {
+    region: 'europe-west1',
+    timeoutSeconds: 540,
+    memory: '512MiB',
+    cors: true,
+  },
+  async (request) => {
+    assertAllowedUser(request.auth);
+
+    const appId = request.data?.appId || 'default_app';
+    const db = getFirestore();
+    const gamesSnap = await db.collection(`artifacts/${appId}/public/data/games`).get();
+    const games = gamesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    const devCache = new Map();
+    await ensureMemoryCache(devCache, db, appId);
+
+    const uniqueDevs = new Set();
+    const devAppIdMap = {};
+    for (const game of games) {
+      for (const name of game.steamStatic?.developers || []) {
+        const trimmed = String(name || '').trim();
+        if (!trimmed) continue;
+        uniqueDevs.add(trimmed);
+        if (!devAppIdMap[trimmed]) devAppIdMap[trimmed] = [];
+        if (!devAppIdMap[trimmed].includes(game.id)) devAppIdMap[trimmed].push(game.id);
+      }
+    }
+
+    if (uniqueDevs.size > 0) {
+      await vetAllDevelopers([...uniqueDevs], {
+        db,
+        appId,
+        memoryCache: devCache,
+        devAppIdMap,
+        forceRefresh: true,
+      });
+    }
+
+    let updated = 0;
+    let flagged = 0;
+
+    for (const game of games) {
+      const vetting = aggregateGameVetting(game, devCache);
+      const changed =
+        vetting.ruDeveloperAlert !== (game.ruDeveloperAlert === true) ||
+        vetting.ruDeveloperExplanation !== String(game.ruDeveloperExplanation || '');
+
+      if (vetting.ruDeveloperAlert) flagged += 1;
+      if (!changed) continue;
+
+      updated += 1;
+      await db.doc(`artifacts/${appId}/public/data/games/${game.id}`).update(vetting);
+    }
+
+    return {
+      gameCount: games.length,
+      flagged,
+      updated,
+      uniqueDevelopers: uniqueDevs.size,
+    };
+  }
+);

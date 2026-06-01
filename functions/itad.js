@@ -89,6 +89,10 @@ async function lookupItadGame(steamAppId, { gameTitle = null } = {}) {
     };
   }
 
+  if (!gameTitle?.trim()) {
+    return { data: null, error: 'Game not found on ITAD' };
+  }
+
   if (gameTitle?.trim()) {
     const searchResult = await itadFetch(
       `/games/search/v1?title=${encodeURIComponent(gameTitle.trim())}&results=5`
@@ -151,7 +155,11 @@ function mapHistoricalLow(historyLow) {
 async function fetchItadPriceMeta(steamAppId, { gameTitle = null } = {}) {
   const lookup = await lookupItadGame(steamAppId, { gameTitle });
   if (lookup.error) {
-    return { data: null, error: lookup.error };
+    return { data: null, error: lookup.error, detail: null };
+  }
+
+  if (!lookup.data?.id) {
+    return { data: null, error: 'Game not found on ITAD', detail: null };
   }
 
   const itadId = lookup.data.id;
@@ -165,13 +173,13 @@ async function fetchItadPriceMeta(steamAppId, { gameTitle = null } = {}) {
   ]);
 
   if (pricesResult.error) {
-    return { data: null, error: pricesResult.error };
+    return { data: null, error: pricesResult.error, detail: pricesResult.error };
   }
 
   const critics = infoResult.error ? null : pickCriticsReview(infoResult.data?.reviews);
   const entry = Array.isArray(pricesResult.data) ? pricesResult.data[0] : null;
   if (!entry) {
-    return { data: null, error: 'No ITAD price data' };
+    return { data: null, error: 'No ITAD price data', detail: null };
   }
 
   const steamDeal = pickSteamDeal(entry.deals);
@@ -196,6 +204,7 @@ async function fetchItadPriceMeta(steamAppId, { gameTitle = null } = {}) {
       criticsCount: critics?.count ?? null,
     },
     error: null,
+    detail: null,
   };
 }
 
