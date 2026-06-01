@@ -447,7 +447,8 @@ Extract from store API (`data[appId].data`) and write to nested objects:
 
 ### F6: Card display rules
 
-* **Price hidden** when both users own the game (`owned.user0 && owned.user1`); reads `steamDynamic.price`.
+* **Price hidden** when both users own the game (`owned.user0 && owned.user1`); header shows **"Owned by both players"** instead of price (reads `steamDynamic.price` when shown).
+* **Historical low** badge in the price row — **only when the game is on sale**.
 * **GeForce NOW badge** when `geforceNowReady === true`.
 * **SteamDB link** — `https://steamdb.info/app/{appId}/` in card actions.
 * **Owned indicator** — three distinct icons (not circles): backpack / crystal / crossed pickaxes with gray → amber → green.
@@ -474,12 +475,12 @@ The dashboard should feel like a premium, sleek gaming platform (similar to Stea
 
 * **Color Palette**: Dark obsidian base (`#121620`), **mint accent** (`#14e8a0`) for scores and primary actions — **no blue** in primary UI. Crimson red for RU alerts; yellow for early access / warnings.
 * **Layout**: Lifecycle navigation and actions live in the **left sidebar** (no top header bar). Browser tab title: **`Nen?`**.
-* **Dynamic background**: Layered CSS wave mesh — warm graphite base, sage/forest/bronze blobs drifting along a top-right → bottom-left diagonal. Disable via `VITE_ENABLE_DYNAMIC_BG=false`.
+* **Dynamic background**: Layered CSS wave mesh — warm graphite base, coral/moss/teal blobs drifting along a top-right → bottom-left diagonal. Disable via `VITE_ENABLE_DYNAMIC_BG=false`.
 * **Lifecycle badge on thumbnail**: Hidden when viewing a sidebar lifecycle tab; shown when any filter is active (full-library scope).
 * **Aero Glassmorphism**: Cards and panels use translucent backdrop filters.
-* **Total Hype ring**: Bottom-right on the card thumbnail; shows the Total Hype integer **without a `%` symbol**. Color scales red → yellow → mint by score. Click opens a small tier picker for the **active user only** (opaque panel for readability). Hover shows the full score breakdown tooltip.
-* **Owned indicator**: Bottom-left on the thumbnail; three distinct icons (hands → sword → crossed swords). Click toggles ownership for the active user.
-* **Price**: Hidden when both users own the game.
+* **Total Hype ring**: Bottom-right; vertical center aligned with the **thumbnail bottom border** (overlaps thumbnail and card body). Opaque graphite center and track; graphite outline; score-colored glow. Shows the Total Hype integer **without a `%` symbol**. Color scales red → yellow → mint by score. Click opens a small tier picker for the **active user only** (opaque panel for readability). Hover shows the full score breakdown tooltip.
+* **Owned indicator**: Bottom-left inside the thumbnail; three distinct icons (hands → sword → crossed swords). Click toggles ownership for the active user.
+* **Price**: In the card header under the title; hidden when both users own — replaced by **"Owned by both players"**.
 * **GeForce NOW**: Badge on thumbnail (dark pill); reads global GFN catalog in Firestore.
 * **Lifecycle badge**: Opens lifecycle modal; optional **finished rating** stars (1–5); update pulse badge when `hasUpdateSinceState`.
 * **Steam overview**: Truncated `steamStatic.steamOverview` on card.

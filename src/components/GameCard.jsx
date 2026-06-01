@@ -33,6 +33,7 @@ import {
 import {
   calculateTotalHype,
   getScoreColor,
+  getScoreGlowShadow,
   getOwnershipStage,
   getStatusColor,
   formatStatusLabel,
@@ -633,47 +634,31 @@ export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecyc
     setEditOpen(true);
   };
 
-  const renderPriceMeta = () => {
-    if (bothOwn) return null;
-
-    return (
-      <span className="game-card-meta-price">
-        {isOnSale ? (
-          <span className="sale-price">
-            <span className="sale-original">{originalPrice}</span>
-            {price}
-            {salePercent > 0 && (
-              <span className="sale-discount">-{salePercent}%</span>
-            )}
-            {isHistoricalLow && (
-              <FloatingTooltip
-                anchorClassName="floating-tooltip-anchor--meta-inline"
-                content={buildHistoricalLowTooltip(game)}
-              >
-                <span className="game-card-historical-low-badge" aria-label="Historical low price">
-                  <HistoricalLowIcon />
-                </span>
-              </FloatingTooltip>
-            )}
-          </span>
-        ) : (
-          <>
-            {price}
-            {isHistoricalLow && (
-              <FloatingTooltip
-                anchorClassName="floating-tooltip-anchor--meta-inline"
-                content={buildHistoricalLowTooltip(game)}
-              >
-                <span className="game-card-historical-low-badge" aria-label="Historical low price">
-                  <HistoricalLowIcon />
-                </span>
-              </FloatingTooltip>
-            )}
-          </>
-        )}
-      </span>
-    );
-  };
+  const renderHeaderPrice = () => (
+    <p className="game-card-price">
+      {isOnSale ? (
+        <span className="sale-price">
+          <span className="sale-original">{originalPrice}</span>
+          <span className="sale-current">{price}</span>
+          {salePercent > 0 && (
+            <span className="sale-discount">-{salePercent}%</span>
+          )}
+          {isHistoricalLow && (
+            <FloatingTooltip
+              anchorClassName="floating-tooltip-anchor--meta-inline"
+              content={buildHistoricalLowTooltip(game)}
+            >
+              <span className="game-card-historical-low-badge" aria-label="Historical low price">
+                <HistoricalLowIcon />
+              </span>
+            </FloatingTooltip>
+          )}
+        </span>
+      ) : (
+        price
+      )}
+    </p>
+  );
 
   const showFinishedRating =
     libraryState === 'finished' && game.finishedRating != null;
@@ -754,14 +739,14 @@ export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecyc
               type="button"
               ref={hypeRingRef}
               className="card-indicator-btn card-indicator-btn--hype"
-              style={{ boxShadow: `0 0 10px ${scoreColor}66` }}
               onClick={openPicker}
               aria-label={`Total Hype ${total}. Click to change your tier.`}
             >
               <div
                 className="hype-ring-outer"
                 style={{
-                  background: `conic-gradient(${scoreColor} ${total}%, rgba(30, 41, 59, 0.65) 0)`,
+                  background: `conic-gradient(${scoreColor} ${total}%, var(--bg-dark) 0)`,
+                  boxShadow: getScoreGlowShadow(total),
                 }}
               >
                 <div className="hype-ring-inner">{total}</div>
@@ -835,6 +820,13 @@ export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecyc
                   <h3 className="game-card-title">{gameName}</h3>
                 </a>
               </FloatingTooltip>
+            </div>
+            <div className="game-card-price-row">
+              {bothOwn ? (
+                <p className="game-card-owned-both">Owned by both players</p>
+              ) : (
+                price && renderHeaderPrice()
+              )}
             </div>
           </div>
 
@@ -956,11 +948,6 @@ export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecyc
                     ~{hltbPrimaryHours}h
                   </a>
                 </FloatingTooltip>
-              </div>
-            )}
-            {!bothOwn && price && (
-              <div className="game-card-meta-item game-card-meta-item--price">
-                {renderPriceMeta()}
               </div>
             )}
             {showFinishedRating && (

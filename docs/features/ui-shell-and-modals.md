@@ -20,9 +20,9 @@ LoginGate → DashboardShell
 
 ## Dynamic background
 
-`DynamicBackground.jsx` — layered CSS wave mesh (blurred blobs + diagonal sheen, top-right → bottom-left flow). Warm graphite base with sage + forest + bronze tones. No external library. Disable: `VITE_ENABLE_DYNAMIC_BG=false`. Respects `prefers-reduced-motion`.
+`DynamicBackground.jsx` — layered CSS wave mesh (blurred blobs + diagonal sheen, top-right → bottom-left flow). Warm graphite base with coral, moss, and teal wave tones. No external library. Disable: `VITE_ENABLE_DYNAMIC_BG=false`. Respects `prefers-reduced-motion`.
 
-Card thumbnails: full color at rest; slight scale on card hover. Lifecycle badge on thumbnail: **hidden** on lifecycle tabs; shown when filters scope the full library.
+Card thumbnails: **120px** height, full color at rest; slight scale on card hover. Lifecycle badge on thumbnail: **hidden** on lifecycle tabs; shown when filters scope the full library.
 
 ## Modals
 
@@ -38,15 +38,15 @@ Glassmorphism: `.modal-backdrop` + `.glass-panel` in `index.css`.
 
 ## GameCard highlights
 
-- Title-only header with truncation tooltip
-- Meta line: centered cluster — items intrinsic width, pipe-separated (price/rating last)
-- Cards, sidebar, and panels share `--glass-bg` (transparent warm graphite)
+- Header: title + price row (mid-size typography under title); truncation tooltip on title
+- Price row: sale price + discount; **historical low icon only when on sale**; **"Owned by both players"** when both users own (keeps header height stable)
+- Meta line: version, critics, players, HLTB, finished rating — intrinsic-width cluster, pipe-separated
+- Cards, sidebar, and panels share `--glass-bg` (warm graphite glass)
 - Finished rating: color-coded 1–5 in meta; click opens edit modal at rating (`focusRating`)
-- Hype ring (bottom-right), ownership (bottom-left), lifecycle (top), screenshots (top-right)
-- Unified semi-transparent overlay chrome + glow on thumb controls
+- Hype ring (bottom-right): vertical center on thumbnail bottom border (overlaps thumb + body); opaque graphite fill, graphite outline, score-colored glow
+- Ownership (bottom-left inside thumb), lifecycle (top), screenshots (top-right)
 - Footer: SteamDB | notes (rectangular, separator) | edit
 - RU badge on thumbnail bottom-center; unified badge height/radius (6px)
-- Meta trailing: price + finished rating aligned right
 - Tooltips: players, reviews, version, release/EA duration
 
 ## Add game flow

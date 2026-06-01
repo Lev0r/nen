@@ -38,7 +38,7 @@ Clamped 0–100. Computed client-side in `src/utils/hypeScore.js`; sorted in `sr
 
 ## UI
 
-- Hype ring on `GameCard` — click opens `HypePicker` (active user only)
+- Hype ring on `GameCard` — bottom-right, straddling thumbnail bottom edge; opaque graphite fill + score-colored glow; click opens `HypePicker` (active user only)
 - Hover tooltip — full breakdown with nicknames
 - [Dynamic background](./ui-shell-and-modals.md) — top 5 non-banned by hype
 

@@ -223,6 +223,11 @@ export function getScoreColor(score) {
   return 'var(--accent-red)';
 }
 
+export function getScoreGlowShadow(score) {
+  const color = getScoreColor(score);
+  return `0 0 14px color-mix(in srgb, ${color} 55%, transparent)`;
+}
+
 export function getOwnershipStage(owned) {
   const count = [owned?.user0, owned?.user1].filter(Boolean).length;
   return count;

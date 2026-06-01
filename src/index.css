@@ -37,7 +37,7 @@
   --accent-a-50: rgba(76, 201, 160, 0.5);
   --accent-a-55: rgba(76, 201, 160, 0.55);
 
-  --glass-bg: rgba(24, 22, 20, 0.46);
+  --glass-bg: rgba(24, 22, 20, 0.66);
   --glass-bg-sidebar: var(--glass-bg);
   --glass-bg-sidebar-footer: rgba(18, 16, 14, 0.42);
   --glass-bg-card-footer: rgba(12, 10, 9, 0.58);
@@ -49,9 +49,9 @@
   --shadow-neon-red: 0 0 8px rgba(232, 93, 93, 0.32);
   --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.35);
 
-  --wave-sage: rgba(76, 201, 160, 0.38);
-  --wave-forest: rgba(52, 98, 82, 0.48);
-  --wave-warm: rgba(130, 102, 74, 0.32);
+  --wave-coral: rgba(156, 44, 30, 0.742);
+  --wave-moss: rgba(36, 100, 30, 0.538);
+  --wave-teal: rgba(23, 122, 129, 0.564);
   --wave-graphite: rgba(38, 35, 32, 0.85);
 
   --badge-height: 1.375rem;
@@ -123,8 +123,8 @@ body {
   top: -35%;
   right: -30%;
   border-radius: 42% 58% 55% 45% / 48% 42% 58% 52%;
-  background: radial-gradient(ellipse at 35% 35%, var(--wave-sage) 0%, transparent 72%);
-  animation: dynamic-wave-a 34s ease-in-out infinite alternate;
+  background: radial-gradient(ellipse at 35% 35%, var(--wave-coral) 0%, transparent 72%);
+  animation: dynamic-wave-a 10s ease-in-out infinite alternate;
 }
 
 .dynamic-bg-wave--b {
@@ -133,8 +133,8 @@ body {
   bottom: -40%;
   left: -25%;
   border-radius: 55% 45% 40% 60% / 52% 58% 42% 48%;
-  background: radial-gradient(ellipse at 55% 55%, var(--wave-forest) 0%, transparent 70%);
-  animation: dynamic-wave-b 46s ease-in-out infinite alternate;
+  background: radial-gradient(ellipse at 55% 55%, var(--wave-moss) 0%, transparent 70%);
+  animation: dynamic-wave-b 14s ease-in-out infinite alternate;
 }
 
 .dynamic-bg-wave--c {
@@ -143,8 +143,8 @@ body {
   top: 20%;
   right: -5%;
   border-radius: 48% 52% 58% 42% / 44% 56% 44% 56%;
-  background: radial-gradient(ellipse at 50% 50%, var(--wave-warm) 0%, transparent 68%);
-  animation: dynamic-wave-c 28s ease-in-out infinite alternate;
+  background: radial-gradient(ellipse at 50% 50%, var(--wave-teal) 0%, transparent 68%);
+  animation: dynamic-wave-c 11s ease-in-out infinite alternate;
 }
 
 @keyframes dynamic-sheen-flow {
@@ -1026,10 +1026,10 @@ button {
 .game-card-thumb {
   position: relative;
   flex-shrink: 0;
-  height: 160px;
-  min-height: 160px;
+  height: 120px;
+  min-height: 120px;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 16px 16px 0 0;
   border-bottom: 1px solid var(--glass-border);
 }
@@ -1074,9 +1074,10 @@ button {
 
 .floating-tooltip-anchor.card-indicator--hype {
   right: 12px;
-  bottom: 12px;
+  bottom: -28px;
   width: 56px;
   height: 56px;
+  z-index: 20;
 }
 
 .card-indicator-btn {
@@ -1107,6 +1108,9 @@ button {
 
 .card-indicator-btn--hype {
   padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .floating-tooltip {
@@ -1281,13 +1285,15 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  border: 2px solid var(--bg-dark);
 }
 
 .hype-ring-inner {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: var(--badge-pill-bg);
+  background: var(--bg-dark);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1349,9 +1355,9 @@ button {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.5rem;
-  margin-bottom: 0.65rem;
+  margin-bottom: 0.25rem;
   min-height: 2rem;
   padding: 0;
 }
@@ -1375,7 +1381,6 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-align: center;
   letter-spacing: 0.02em;
 }
 
@@ -1389,10 +1394,18 @@ button {
 .game-card-price-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.65rem;
   margin-bottom: 0.65rem;
-  min-height: 1.75rem;
+  min-height: 1.35rem;
+}
+
+.game-card-owned-both {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  line-height: 1.2;
 }
 
 .game-card-notes-tooltip-anchor {
@@ -1497,7 +1510,7 @@ button {
   min-height: 2.35rem;
   display: flex;
   align-items: flex-start;
-  align-content: flex-start;
+  align-content: center;
   gap: 0.5rem 0.65rem;
   flex-wrap: wrap;
   margin-bottom: 0.65rem;
@@ -1510,7 +1523,6 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
   gap: 0;
   margin-top: auto;
   padding-top: 0.15rem;
@@ -1604,12 +1616,11 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 0.35rem;
   color: var(--accent-mint);
-  vertical-align: middle;
 }
 
 .game-card-historical-low-icon {
+  display: block;
   width: 0.95rem;
   height: 0.95rem;
 }
@@ -1642,16 +1653,41 @@ button {
 
 .game-card-price {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   margin: 0;
+  line-height: 1.2;
+}
+
+.game-card-price .sale-price {
+  font-size: 0.8125rem;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.game-card-price .floating-tooltip-anchor--meta-inline {
+  display: inline-flex;
+  align-items: center;
+}
+
+.game-card-price .game-card-historical-low-badge {
+  margin: 0;
+}
+
+.game-card-price .sale-original {
+  font-size: 0.75rem;
+}
+
+.game-card-price .sale-discount {
+  font-size: 0.75rem;
 }
 
 .sale-price {
   color: var(--accent-mint);
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .sale-original {

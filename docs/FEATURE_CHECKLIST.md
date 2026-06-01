@@ -196,6 +196,13 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - RU badge moved to thumbnail bottom-center
 - Unified badge height/radius (6px) across status, reviews, GFN, lifecycle, update
 
+## Session log — 2026-06-02 (card layout + gradient tuning)
+
+- Gradient wave palette: coral / moss / teal; faster wave animation; stronger glass opacity
+- Card header: price under title (mid-size); "Owned by both players" when both own; historical low icon on sale only
+- Thumbnail height 120px; hype ring centered on thumbnail bottom border (opaque graphite + glow)
+- Meta line: version, critics, players, HLTB, finished rating (no price)
+
 ## Session log — 2026-06-02 (UI polish follow-ups + ops sign-off)
 
 - Lighter lavender/mint gradient (visible against cards; reduced overlay)
@@ -233,7 +240,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - [x] Sync GFN
 - [x] Dynamic gradient background visible; card thumbnails full color
 - [x] Edit modal scrollable; hype picker readable; `focusRating` scroll on rating click
-- [x] Footer notes button rectangular with separator; meta price/rating trailing right
+- [x] Footer notes button rectangular with separator; header price row + meta finished rating
 - [ ] Wishlist / library ownership sync (when implemented)
 
 ---
