@@ -806,6 +806,20 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
               </svg>
             </button>
           )}
+
+          {ruAlert && (
+            <FloatingTooltip
+              wide
+              anchorClassName="ru-alert-badge-anchor ru-alert-badge-anchor--thumb"
+              content={
+                <CardTooltipText>
+                  {stripMarkdownLinks(game.ruDeveloperExplanation) || 'Russian developer alert'}
+                </CardTooltipText>
+              }
+            >
+              <span className="ru-alert-badge ru-alert-badge--thumb">RU</span>
+            </FloatingTooltip>
+          )}
         </div>
 
         <div className="game-card-body">
@@ -819,14 +833,6 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
                   <h3 className="game-card-title">{gameName}</h3>
                 </a>
               </FloatingTooltip>
-              {ruAlert && (
-                <span
-                  className="ru-alert-badge"
-                  title={stripMarkdownLinks(game.ruDeveloperExplanation) || 'Russian developer alert'}
-                >
-                  RU
-                </span>
-              )}
             </div>
           </div>
 
@@ -885,29 +891,6 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
           </div>
 
           <div className="game-card-meta-line">
-            {!bothOwn && price && (
-              <div className="game-card-meta-item game-card-meta-item--price">
-                {renderPriceMeta()}
-              </div>
-            )}
-            {showFinishedRating && (
-              <div className="game-card-meta-item">
-                <FloatingTooltip
-                  anchorClassName="floating-tooltip-anchor--meta-inline"
-                  content={
-                    <CardTooltipText>
-                      Shared finished rating ({game.finishedRating}/5) — {getNickname(0)} &amp;{' '}
-                      {getNickname(1)}
-                    </CardTooltipText>
-                  }
-                >
-                  <FinishedRatingMetaDigit
-                    rating={game.finishedRating}
-                    onClick={() => openEditModal({ focusRating: true })}
-                  />
-                </FloatingTooltip>
-              </div>
-            )}
             {currentVersion && (
               <div className="game-card-meta-item">
                 <FloatingTooltip
@@ -971,6 +954,33 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
                     ~{hltbPrimaryHours}h
                   </a>
                 </FloatingTooltip>
+              </div>
+            )}
+            {((!bothOwn && price) || showFinishedRating) && (
+              <div className="game-card-meta-trailing">
+                {!bothOwn && price && (
+                  <div className="game-card-meta-item game-card-meta-item--price">
+                    {renderPriceMeta()}
+                  </div>
+                )}
+                {showFinishedRating && (
+                  <div className="game-card-meta-item">
+                    <FloatingTooltip
+                      anchorClassName="floating-tooltip-anchor--meta-inline"
+                      content={
+                        <CardTooltipText>
+                          Shared finished rating ({game.finishedRating}/5) — {getNickname(0)} &amp;{' '}
+                          {getNickname(1)}
+                        </CardTooltipText>
+                      }
+                    >
+                      <FinishedRatingMetaDigit
+                        rating={game.finishedRating}
+                        onClick={() => openEditModal({ focusRating: true })}
+                      />
+                    </FloatingTooltip>
+                  </div>
+                )}
               </div>
             )}
           </div>

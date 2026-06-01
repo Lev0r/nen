@@ -26,6 +26,12 @@
 
   --shadow-neon-mint: 0 0 6px rgba(20, 232, 160, 0.18);
   --shadow-neon-red: 0 0 8px rgba(239, 68, 68, 0.35);
+
+  --badge-height: 1.375rem;
+  --badge-radius: 6px;
+  --badge-pad-x: 0.5rem;
+  --badge-font-size: 0.72rem;
+  --badge-pill-bg: rgba(11, 15, 25, 0.75);
 }
 
 * {
@@ -36,10 +42,7 @@
 
 body {
   font-family: var(--font-body);
-  background-color: var(--bg-dark);
-  background-image: 
-    radial-gradient(circle at 15% 50%, rgba(20, 232, 160, 0.07), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(52, 211, 153, 0.05), transparent 25%);
+  background-color: var(--bg-darker);
   color: var(--text-main);
   min-height: 100vh;
   overflow-x: hidden;
@@ -57,13 +60,14 @@ body {
 
 .dynamic-bg-gradient {
   position: absolute;
-  inset: -20%;
+  inset: -25%;
   background:
-    radial-gradient(ellipse 55% 45% at 18% 42%, rgba(20, 232, 160, 0.07), transparent 70%),
-    radial-gradient(ellipse 50% 40% at 82% 58%, rgba(45, 212, 191, 0.05), transparent 70%),
-    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(20, 232, 160, 0.04), transparent 65%),
-    linear-gradient(145deg, #0a0e16 0%, #121620 45%, #0d1219 100%);
-  background-size: 140% 140%, 140% 140%, 130% 130%, 100% 100%;
+    radial-gradient(ellipse 60% 50% at 15% 35%, rgba(20, 232, 160, 0.28), transparent 68%),
+    radial-gradient(ellipse 55% 45% at 85% 65%, rgba(45, 212, 191, 0.22), transparent 68%),
+    radial-gradient(ellipse 50% 40% at 55% 15%, rgba(52, 211, 153, 0.14), transparent 62%),
+    radial-gradient(ellipse 45% 35% at 30% 85%, rgba(20, 232, 160, 0.12), transparent 60%),
+    linear-gradient(145deg, #0c1420 0%, #101c28 35%, #141e2e 65%, #0a0e16 100%);
+  background-size: 140% 140%, 140% 140%, 130% 130%, 120% 120%, 100% 100%;
   animation: dynamic-bg-drift 48s ease-in-out infinite alternate;
   will-change: transform;
 }
@@ -83,9 +87,9 @@ body {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(10, 14, 22, 0.62) 0%, rgba(10, 14, 22, 0.78) 100%),
-    radial-gradient(circle at 15% 50%, rgba(20, 232, 160, 0.025), transparent 35%),
-    radial-gradient(circle at 85% 30%, rgba(52, 211, 153, 0.02), transparent 35%);
+    linear-gradient(180deg, rgba(10, 14, 22, 0.18) 0%, rgba(10, 14, 22, 0.38) 100%),
+    radial-gradient(circle at 15% 50%, rgba(20, 232, 160, 0.05), transparent 40%),
+    radial-gradient(circle at 85% 30%, rgba(52, 211, 153, 0.04), transparent 40%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1066,12 +1070,17 @@ button {
 }
 
 .steam-reviews-badge {
-  font-size: 0.8rem;
+  font-size: var(--badge-font-size);
   font-weight: 600;
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
+  padding: 0 var(--badge-pad-x);
+  min-height: var(--badge-height);
+  border-radius: var(--badge-radius);
   border: 1px solid currentColor;
   background: rgba(0, 0, 0, 0.2);
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .metacritic-badge,
@@ -1122,15 +1131,20 @@ button {
 }
 
 .gfn-badge {
-  font-size: 0.75rem;
+  font-size: var(--badge-font-size);
   font-weight: 700;
   letter-spacing: 0.04em;
-  padding: 0.2rem 0.45rem;
-  border-radius: 6px;
+  padding: 0 var(--badge-pad-x);
+  min-height: var(--badge-height);
+  border-radius: var(--badge-radius);
   color: #76b900;
   border: 1px solid rgba(118, 185, 0, 0.65);
   background: rgba(118, 185, 0, 0.15);
   cursor: help;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .gfn-badge--thumb {
@@ -1185,19 +1199,33 @@ button {
 }
 
 .ru-alert-badge {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
   flex-shrink: 0;
   background: rgba(239, 68, 68, 0.95);
   color: #fff;
-  padding: 0.15rem 0.45rem;
-  border-radius: 6px;
-  font-size: 0.7rem;
+  padding: 0 var(--badge-pad-x);
+  min-height: var(--badge-height);
+  border-radius: var(--badge-radius);
+  font-size: var(--badge-font-size);
   font-weight: 800;
   letter-spacing: 0.05em;
   box-shadow: var(--shadow-neon-red);
+  border: 1px solid rgba(239, 68, 68, 0.85);
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+.ru-alert-badge-anchor--thumb {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 14;
+}
+
+.ru-alert-badge--thumb {
+  cursor: help;
 }
 
 .game-card-body {
@@ -1270,6 +1298,7 @@ button {
   flex: 1;
   min-width: 0;
   z-index: auto;
+  border-right: 1px solid var(--glass-border);
 }
 
 .game-card-notes-btn {
@@ -1287,13 +1316,18 @@ button {
   transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
+.game-card-footer-group button.game-card-footer-btn,
+.game-card-footer-group a.game-card-footer-btn,
+.game-card-footer-group .game-card-notes-btn {
+  border-radius: 0;
+}
+
 .game-card-footer-btn.game-card-notes-btn {
   width: 100%;
   flex: 1;
   min-height: 42px;
-  border-radius: 0;
   border: none;
-  border-right: 1px solid var(--glass-border);
+  border-right: none;
 }
 
 .game-card-notes-btn:hover {
@@ -1308,8 +1342,28 @@ button {
 }
 
 .game-card-footer-btn.game-card-notes-btn--active {
-  border-right: 1px solid var(--glass-border);
   background: rgba(20, 232, 160, 0.08);
+}
+
+.game-card-meta-trailing {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.game-card-meta-line > .game-card-meta-item + .game-card-meta-trailing,
+.game-card-meta-line > .game-card-meta-trailing:not(:only-child) {
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  padding-left: 0.65rem;
+}
+
+.game-card-meta-trailing .game-card-meta-item:first-child {
+  padding-left: 0;
+}
+
+.game-card-meta-trailing .game-card-meta-item:last-child {
+  padding-right: 0;
 }
 
 .game-card-notes-icon {
@@ -1480,8 +1534,16 @@ button {
 }
 
 .game-card-tag-muted {
-  font-size: 0.75rem;
+  font-size: var(--badge-font-size);
   color: var(--text-muted);
+  padding: 0 var(--badge-pad-x);
+  min-height: var(--badge-height);
+  border-radius: var(--badge-radius);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .game-card-title-link {
@@ -1536,13 +1598,18 @@ button {
 }
 
 .status-badge {
-  font-size: 0.75rem;
+  font-size: var(--badge-font-size);
   font-weight: 600;
-  padding: 0.2rem 0.55rem;
-  border-radius: 6px;
+  padding: 0 var(--badge-pad-x);
+  min-height: var(--badge-height);
+  border-radius: var(--badge-radius);
   border: 1px solid;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .game-card-version {
@@ -1608,6 +1675,18 @@ button {
   border-right: 1px solid var(--glass-border);
   text-decoration: none;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+.game-card-footer-group > .game-card-footer-btn:last-child {
+  border-right: none;
+}
+
+.game-card-footer-group > .game-card-footer-btn:first-child {
+  border-bottom-left-radius: 15px;
+}
+
+.game-card-footer-group > button.game-card-footer-btn:last-child {
+  border-bottom-right-radius: 15px;
 }
 
 .game-card-footer-btn:last-child {
@@ -2212,14 +2291,18 @@ button {
 .lifecycle-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
+  justify-content: center;
+  padding: 0 var(--badge-pad-x);
+  min-height: var(--badge-height);
+  border-radius: var(--badge-radius);
   border: 1px solid;
-  font-size: 0.72rem;
+  font-size: var(--badge-font-size);
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.15s ease;
   font-family: inherit;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .lifecycle-badge:hover {
@@ -2260,13 +2343,17 @@ button {
 .update-available-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
+  justify-content: center;
+  padding: 0 var(--badge-pad-x);
+  min-height: var(--badge-height);
+  border-radius: var(--badge-radius);
   border: 1px solid var(--accent-yellow);
   background: rgba(245, 158, 11, 0.15);
   color: var(--accent-yellow);
-  font-size: 0.72rem;
+  font-size: var(--badge-font-size);
   font-weight: 600;
+  line-height: 1;
+  box-sizing: border-box;
   animation: update-pulse 2s ease-in-out infinite;
 }
 

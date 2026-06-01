@@ -43,7 +43,9 @@ Glassmorphism: `.modal-backdrop` + `.glass-panel` in `index.css`.
 - Finished rating: color-coded 1–5 in meta; click opens edit modal at rating (`focusRating`)
 - Hype ring (bottom-right), ownership (bottom-left), lifecycle (top), screenshots (top-right)
 - Unified semi-transparent overlay chrome + glow on thumb controls
-- Footer: SteamDB | notes (rectangular) | edit
+- Footer: SteamDB | notes (rectangular, separator) | edit
+- RU badge on thumbnail bottom-center; unified badge height/radius (6px)
+- Meta trailing: price + finished rating aligned right
 - Tooltips: players, reviews, version, release/EA duration
 
 ## Add game flow
