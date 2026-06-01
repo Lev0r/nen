@@ -63,8 +63,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Per-user tier picker (DRG theme) | ✅ | |
 | MetacriticFactor + ITAD fallback | ✅ | |
 | Sort library by Total Hype | ✅ | Client-side compute |
-| Dynamic BG from top 5 hype | ✅ | Screenshots today; **round 2:** gradient animation |
-| **Card visibility vs dynamic BG** | ✅ | Reduced BG noise; dimmed unhovered thumbnails — **round 2:** always-dim baseline |
+| Dynamic BG animated gradient | ✅ | Slow mint/dark CSS gradient; `VITE_ENABLE_DYNAMIC_BG=false` to disable |
+| **Card thumbnail dimming** | ✅ | Always slightly dimmed; brighten on card hover |
 | Clash Display + General Sans fonts | ✅ | Card redesign, reduced visual noise |
 
 ---
@@ -140,7 +140,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Maintenance modal + error log | ✅ | |
 | Error acknowledge dot | ✅ | |
 | **Errors panel — group by source/severity** | ✅ | Counters, clear info, weekly purge |
-| **UI polish round 2** | 📋 | See [UI polish round 2](#ui-polish-round-2-planned) below |
+| **UI polish round 2** | ✅ | Gradient BG, meta price/rating, overlay unify — see session log |
 | Mobile UX pass | 📋 | P1 (fold into round 2 or separate) |
 | News feed UI | 🚫 | Dropped |
 
@@ -184,64 +184,14 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - Sync/revet progress logging; `revet-ru-games --verbose` decision trace; dry-run source-load fix
 - `test-dev-sources.mjs` regression suite (8 NE GRAI cases + format/dedup checks)
 
-## UI polish round 2 (planned)
+## Session log — 2026-06-01 evening (UI polish round 2)
 
-Structured backlog for the next card/shell pass. Primary files: `DynamicBackground.jsx`, `GameCard.jsx`, `index.css`, `GameEditModal.jsx`.
-
-### 1. Background — gradient instead of screenshots
-
-| Item | Detail |
-| :--- | :--- |
-| Replace screenshot carousel | Disable top-5 hype screenshot BG; use a slow, pleasant animated gradient instead |
-| Motion | Subtle, eye-friendly; no harsh flicker |
-| Env | Keep build-time toggle pattern (`VITE_ENABLE_DYNAMIC_BG` or successor) |
-
-### 2. Card header — title only
-
-| Item | Detail |
-| :--- | :--- |
-| Single-line header | After price moves out, header is **game name only** (one line, ellipsis) |
-| Title row padding | Remove left/right padding on `.game-card-title-row` |
-| Truncated title tooltip | Hover shows full game name when text overflows |
-
-### 3. Meta line — price + finished rating
-
-| Item | Detail |
-| :--- | :--- |
-| Move price/sale | Relocate from `.game-card-price-row` into `.game-card-meta-line` with pipe separators (version · critics · players · HLTB pattern) |
-| Alignment | Left-aligned meta — do not center price |
-| Sale / historical low | Keep sale styling + historical-low badge in meta |
-| Both own | Keep rule: hide price when both users own |
-| Finished rating | Move from tags row into meta, **after price** |
-| Rating display | Show color-coded digit **1–5** only (not star badge in tags) |
-| Rating tooltip | Hover: per-user label (nickname / “personal rating” / “owner rating”) |
-| Rating click | Open `GameEditModal` scrolled to finished-rating section (mirror `editFocusNotes`) |
-
-### 4. Thumbnail — always slightly dimmed
-
-| Item | Detail |
-| :--- | :--- |
-| Baseline | All card thumbnails slightly darkened by default (less color noise, still readable) |
-| Hover | Hovered card brightens + scale (keep current lift) |
-| Change from today | Dim is **always on**; not only when another card is hovered (`:has(.game-card:hover)` grid rule) |
-
-### 5. Thumbnail overlay icons — unified chrome
-
-Applies to: screenshots, owned, lifecycle, total hype (and GFN if present).
-
-| Item | Detail |
-| :--- | :--- |
-| Glow / outline | Consistent glow on all; fix missing hype glow and screenshots glow |
-| Background | Unified semi-transparent pill BG (match screenshots style); hype ring must not use opaque fill |
-| Shape | Keep circular indicators; unify `box-shadow`, border, and backdrop |
-
-### 6. Footer — notes + edit
-
-| Item | Detail |
-| :--- | :--- |
-| Notes button shape | Rectangular middle segment — no rounded corners |
-| Separator | Visible divider between notes and edit buttons |
-| SteamDB | Unchanged first segment |
+- Animated gradient background replaces screenshot carousel
+- Card header: title only + truncation tooltip; price + finished rating in meta line
+- Finished rating: color-coded digit 1–5; click → edit modal (`focusRating`)
+- Thumbnails always slightly dimmed; brighten on hover
+- Unified overlay icon chrome (owned, hype, lifecycle, screenshots, GFN)
+- Footer: rectangular notes button + separator before edit
 
 ## Session log — 2026-05-31 (shipped)
 

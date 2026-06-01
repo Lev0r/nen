@@ -20,11 +20,9 @@ LoginGate → DashboardShell
 
 ## Dynamic background
 
-`DynamicBackground.jsx` — today: top 5 non-banned games by Total Hype; Steam **screenshots**; 60s slide / 4s crossfade. Disable: `VITE_ENABLE_DYNAMIC_BG=false` at build time.
+`DynamicBackground.jsx` — slow animated mint/dark CSS gradient (48s drift). Disable: `VITE_ENABLE_DYNAMIC_BG=false` at build time. Respects `prefers-reduced-motion`.
 
-**Planned (round 2):** replace screenshots with slow animated gradient — see [FEATURE_CHECKLIST](../FEATURE_CHECKLIST.md) § UI polish round 2.
-
-Reduced visual noise: lower BG opacity/contrast; card thumbnails dimmed on hover grid. **Round 2:** always-slightly-dim baseline; brighten on card hover only.
+Card thumbnails: always slightly dimmed; brighten + scale on card hover.
 
 ## Modals
 
@@ -40,16 +38,13 @@ Glassmorphism: `.modal-backdrop` + `.glass-panel` in `index.css`.
 
 ## GameCard highlights
 
-- Card redesign — cleaner layout, reduced visual noise
-- Hype ring (bottom-right), ownership indicator (bottom-left)
-- Lifecycle badge, update pulse, GFN pill, RU border
-- Price in header today — **round 2:** move to meta line; title-only header
-- Finished rating in tags today — **round 2:** meta line, numeric 1–5, click → edit modal rating section
+- Title-only header with truncation tooltip
+- Meta line: price/sale (left-aligned, pipe-separated) · finished rating digit · version · critics · players · HLTB
+- Finished rating: color-coded 1–5 in meta; click opens edit modal at rating (`focusRating`)
+- Hype ring (bottom-right), ownership (bottom-left), lifecycle (top), screenshots (top-right)
+- Unified semi-transparent overlay chrome + glow on thumb controls
+- Footer: SteamDB | notes (rectangular) | edit
 - Tooltips: players, reviews, version, release/EA duration
-
-### Planned — UI polish round 2
-
-See [FEATURE_CHECKLIST](../FEATURE_CHECKLIST.md) § UI polish round 2 for full spec (gradient BG, title tooltip, thumbnail icon unify, footer notes/edit).
 
 ## Add game flow
 

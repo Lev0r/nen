@@ -26,7 +26,7 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Sidebar layout (no top header) | Phase 9 redesign | 2026 |
 | Mint palette, no blue | User preference | 2026 |
 | Browser title `Nen?` only | User preference | 2026 |
-| Dynamic BG from screenshots, top 5 hype | Thumbnails too blurry | 2026 |
+| Dynamic BG animated gradient | Replaced screenshot slideshow (too noisy/blurry) | 2026-06-01 |
 | News feed UI dropped | `hasUpdateSinceState` badge instead | 2026 |
 | **Clash Display + General Sans fonts** | Card redesign; cinematic titles + clean UI body | 2026-06-01 |
 | **Card visibility pass** | Dim dynamic BG + unhovered thumbnails for readability | 2026-06-01 |

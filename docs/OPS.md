@@ -184,7 +184,7 @@ Partial wiring exists; workflow needs validation and documentation.
 
 | Item | Status |
 | :--- | :--- |
-| **UI polish round 2** | Planned — see [FEATURE_CHECKLIST.md](./FEATURE_CHECKLIST.md) § UI polish round 2 |
+| **UI polish round 2** | Shipped — rebuild hosting to deploy (`npm run build && firebase deploy --only hosting`) |
 | Post–vetting-deploy re-vet | Run if new lookup/message logic not yet applied to game docs |
 
 ---

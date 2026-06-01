@@ -474,7 +474,7 @@ The dashboard should feel like a premium, sleek gaming platform (similar to Stea
 
 * **Color Palette**: Dark obsidian base (`#121620`), **mint accent** (`#14e8a0`) for scores and primary actions — **no blue** in primary UI. Crimson red for RU alerts; yellow for early access / warnings.
 * **Layout**: Lifecycle navigation and actions live in the **left sidebar** (no top header bar). Browser tab title: **`Nen?`**.
-* **Dynamic background**: Full-viewport slideshow of **Steam screenshots** from top 5 non-banned games by Total Hype (~60s per slide). Disable via `VITE_ENABLE_DYNAMIC_BG=false` at build time (default on).
+* **Dynamic background**: Full-viewport slow animated mint/dark CSS gradient. Disable via `VITE_ENABLE_DYNAMIC_BG=false` at build time (default on). Respects `prefers-reduced-motion`.
 * **Aero Glassmorphism**: Cards and panels use translucent backdrop filters.
 * **Total Hype ring**: Bottom-right on the card thumbnail; shows the Total Hype integer **without a `%` symbol**. Color scales red → yellow → mint by score. Click opens a small tier picker for the **active user only** (opaque panel for readability). Hover shows the full score breakdown tooltip.
 * **Owned indicator**: Bottom-left on the thumbnail; three distinct icons (hands → sword → crossed swords). Click toggles ownership for the active user.

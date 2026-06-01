@@ -48,7 +48,7 @@ import ScreenshotsModal from './ScreenshotsModal';
 import GameEditModal from './GameEditModal';
 import LifecycleModal from './LifecycleModal';
 import FloatingTooltip from './FloatingTooltip';
-import { FinishedRatingDisplay } from './FinishedRatingPicker';
+import { FinishedRatingMetaDigit } from './FinishedRatingPicker';
 import {
   resolveLibraryState,
   getLibraryStateLabel,
@@ -576,6 +576,7 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
   const [screenshotsOpen, setScreenshotsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editFocusNotes, setEditFocusNotes] = useState(false);
+  const [editFocusRating, setEditFocusRating] = useState(false);
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
   const hypeRingRef = useRef(null);
@@ -625,6 +626,57 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
   const ruExplanation = ruAlert
     ? game.ruDeveloperExplanation || 'Russian developer ties flagged.'
     : null;
+
+  const openEditModal = ({ focusNotes = false, focusRating = false } = {}) => {
+    setEditFocusNotes(focusNotes);
+    setEditFocusRating(focusRating);
+    setEditOpen(true);
+  };
+
+  const renderPriceMeta = () => {
+    if (bothOwn) return null;
+
+    return (
+      <span className="game-card-meta-price">
+        {isOnSale ? (
+          <span className="sale-price">
+            <span className="sale-original">{originalPrice}</span>
+            {price}
+            {salePercent > 0 && (
+              <span className="sale-discount">-{salePercent}%</span>
+            )}
+            {isHistoricalLow && (
+              <FloatingTooltip
+                anchorClassName="floating-tooltip-anchor--meta-inline"
+                content={buildHistoricalLowTooltip(game)}
+              >
+                <span className="game-card-historical-low-badge" aria-label="Historical low price">
+                  <HistoricalLowIcon />
+                </span>
+              </FloatingTooltip>
+            )}
+          </span>
+        ) : (
+          <>
+            {price}
+            {isHistoricalLow && (
+              <FloatingTooltip
+                anchorClassName="floating-tooltip-anchor--meta-inline"
+                content={buildHistoricalLowTooltip(game)}
+              >
+                <span className="game-card-historical-low-badge" aria-label="Historical low price">
+                  <HistoricalLowIcon />
+                </span>
+              </FloatingTooltip>
+            )}
+          </>
+        )}
+      </span>
+    );
+  };
+
+  const showFinishedRating =
+    libraryState === 'finished' && game.finishedRating != null;
 
   const toggleOwned = async () => {
     const key = `owned.user${userIndex}`;
@@ -700,14 +752,14 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
               type="button"
               ref={hypeRingRef}
               className="card-indicator-btn card-indicator-btn--hype"
+              style={{ boxShadow: `0 0 10px ${scoreColor}66` }}
               onClick={openPicker}
               aria-label={`Total Hype ${total}. Click to change your tier.`}
             >
               <div
                 className="hype-ring-outer"
                 style={{
-                  background: `conic-gradient(${scoreColor} ${total}%, #1e293b 0)`,
-                  boxShadow: `0 0 6px ${scoreColor}66`,
+                  background: `conic-gradient(${scoreColor} ${total}%, rgba(30, 41, 59, 0.65) 0)`,
                 }}
               >
                 <div className="hype-ring-inner">{total}</div>
@@ -759,9 +811,14 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
         <div className="game-card-body">
           <div className="game-card-header">
             <div className="game-card-title-row">
-              <a href={steamUrl} target="_blank" rel="noreferrer" className="game-card-title-link">
-                <h3 className="game-card-title">{gameName}</h3>
-              </a>
+              <FloatingTooltip
+                anchorClassName="floating-tooltip-anchor--title"
+                content={<CardTooltipText>{gameName}</CardTooltipText>}
+              >
+                <a href={steamUrl} target="_blank" rel="noreferrer" className="game-card-title-link">
+                  <h3 className="game-card-title">{gameName}</h3>
+                </a>
+              </FloatingTooltip>
               {ruAlert && (
                 <span
                   className="ru-alert-badge"
@@ -770,48 +827,6 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
                   RU
                 </span>
               )}
-            </div>
-
-            <div className="game-card-price-row">
-              <div className="game-card-price-slot">
-                {!bothOwn && (
-                  <p className="game-card-price">
-                    {isOnSale ? (
-                      <span className="sale-price">
-                        <span className="sale-original">{originalPrice}</span>
-                        {price}
-                        {salePercent > 0 && (
-                          <span className="sale-discount">-{salePercent}%</span>
-                        )}
-                        {isHistoricalLow && (
-                          <FloatingTooltip
-                            anchorClassName="floating-tooltip-anchor--meta-inline"
-                            content={buildHistoricalLowTooltip(game)}
-                          >
-                            <span className="game-card-historical-low-badge" aria-label="Historical low price">
-                              <HistoricalLowIcon />
-                            </span>
-                          </FloatingTooltip>
-                        )}
-                      </span>
-                    ) : (
-                      <>
-                        {price}
-                        {isHistoricalLow && (
-                          <FloatingTooltip
-                            anchorClassName="floating-tooltip-anchor--meta-inline"
-                            content={buildHistoricalLowTooltip(game)}
-                          >
-                            <span className="game-card-historical-low-badge" aria-label="Historical low price">
-                              <HistoricalLowIcon />
-                            </span>
-                          </FloatingTooltip>
-                        )}
-                      </>
-                    )}
-                  </p>
-                )}
-              </div>
             </div>
           </div>
 
@@ -824,9 +839,6 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
           )}
 
           <div className="game-card-tags">
-            {libraryState === 'finished' && game.finishedRating && (
-              <FinishedRatingDisplay rating={game.finishedRating} />
-            )}
             {hasUpdateSinceState && (
               <FloatingTooltip
                 anchorClassName="floating-tooltip-anchor--meta"
@@ -873,6 +885,29 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
           </div>
 
           <div className="game-card-meta-line">
+            {!bothOwn && price && (
+              <div className="game-card-meta-item game-card-meta-item--price">
+                {renderPriceMeta()}
+              </div>
+            )}
+            {showFinishedRating && (
+              <div className="game-card-meta-item">
+                <FloatingTooltip
+                  anchorClassName="floating-tooltip-anchor--meta-inline"
+                  content={
+                    <CardTooltipText>
+                      Shared finished rating ({game.finishedRating}/5) — {getNickname(0)} &amp;{' '}
+                      {getNickname(1)}
+                    </CardTooltipText>
+                  }
+                >
+                  <FinishedRatingMetaDigit
+                    rating={game.finishedRating}
+                    onClick={() => openEditModal({ focusRating: true })}
+                  />
+                </FloatingTooltip>
+              </div>
+            )}
             {currentVersion && (
               <div className="game-card-meta-item">
                 <FloatingTooltip
@@ -985,10 +1020,7 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
               <button
                 type="button"
                 className={`game-card-footer-btn game-card-notes-btn ${hasUserNotes ? 'game-card-notes-btn--active' : ''}`}
-                onClick={() => {
-                  setEditFocusNotes(true);
-                  setEditOpen(true);
-                }}
+                onClick={() => openEditModal({ focusNotes: true })}
                 aria-label={hasUserNotes ? 'View or edit notes' : 'Add a note'}
               >
                 <NotesChatIcon />
@@ -997,7 +1029,7 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
             <button
               type="button"
               className="game-card-footer-btn"
-              onClick={() => setEditOpen(true)}
+              onClick={() => openEditModal()}
               aria-label="Edit game"
               title="Edit game"
             >
@@ -1046,9 +1078,11 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
           game={game}
           isOpen={editOpen}
           focusNotes={editFocusNotes}
+          focusRating={editFocusRating}
           onClose={() => {
             setEditOpen(false);
             setEditFocusNotes(false);
+            setEditFocusRating(false);
           }}
         />
       )}

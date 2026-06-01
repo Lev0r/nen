@@ -2,6 +2,22 @@ import React from 'react';
 
 const STARS = [1, 2, 3, 4, 5];
 
+const RATING_COLORS = {
+  1: 'var(--accent-red)',
+  2: '#f97316',
+  3: 'var(--accent-yellow)',
+  4: 'var(--accent-teal)',
+  5: 'var(--accent-mint)',
+};
+
+export function getFinishedRatingColor(rating) {
+  const value = Number(rating);
+  if (!Number.isInteger(value) || value < 1 || value > 5) {
+    return 'var(--text-muted)';
+  }
+  return RATING_COLORS[value];
+}
+
 export default function FinishedRatingPicker({
   value,
   onChange,
@@ -24,6 +40,7 @@ export default function FinishedRatingPicker({
         {STARS.map((star) => (
           <button
             key={star}
+            id={`${idPrefix}-star-${star}`}
             type="button"
             className={`finished-rating-star${
               rating != null && star <= rating ? ' finished-rating-star--filled' : ''
@@ -66,5 +83,24 @@ export function FinishedRatingDisplay({ rating, className = '' }) {
         {'☆'.repeat(5 - value)}
       </span>
     </span>
+  );
+}
+
+export function FinishedRatingMetaDigit({ rating, className = '', onClick }) {
+  const value = Number(rating);
+  if (!Number.isInteger(value) || value < 1 || value > 5) return null;
+
+  const color = getFinishedRatingColor(value);
+
+  return (
+    <button
+      type="button"
+      className={`finished-rating-meta-digit${className ? ` ${className}` : ''}`}
+      style={{ color }}
+      onClick={onClick}
+      aria-label={`Finished rating ${value} out of 5. Click to edit.`}
+    >
+      {value}
+    </button>
   );
 }

@@ -82,13 +82,20 @@ function initForm(game) {
   };
 }
 
-export default function GameEditModal({ game, isOpen, onClose, focusNotes = false }) {
+export default function GameEditModal({
+  game,
+  isOpen,
+  onClose,
+  focusNotes = false,
+  focusRating = false,
+}) {
   const [form, setForm] = useState(() => initForm(game));
   const [saving, setSaving] = useState(false);
   const [devChecking, setDevChecking] = useState(false);
   const [devCheckMessage, setDevCheckMessage] = useState('');
   const [error, setError] = useState('');
   const notesSectionRef = useRef(null);
+  const ratingSectionRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen || !game) return;
@@ -103,6 +110,13 @@ export default function GameEditModal({ game, isOpen, onClose, focusNotes = fals
     const firstNote = document.getElementById('edit-user-note-0');
     firstNote?.focus();
   }, [isOpen, focusNotes]);
+
+  useEffect(() => {
+    if (!isOpen || !focusRating) return;
+    ratingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const firstStar = document.getElementById('edit-finished-rating-star-1');
+    firstStar?.focus();
+  }, [isOpen, focusRating]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -297,17 +311,19 @@ export default function GameEditModal({ game, isOpen, onClose, focusNotes = fals
                 </button>
               ))}
             </div>
-            <FinishedRatingPicker
-              idPrefix="edit-finished-rating"
-              value={form.finishedRating}
-              onChange={(value) => setField('finishedRating', value)}
-              disabled={saving}
-              className={
-                form.libraryState === 'finished'
-                  ? 'finished-rating-picker--prominent'
-                  : 'finished-rating-picker--muted'
-              }
-            />
+            <div ref={ratingSectionRef}>
+              <FinishedRatingPicker
+                idPrefix="edit-finished-rating"
+                value={form.finishedRating}
+                onChange={(value) => setField('finishedRating', value)}
+                disabled={saving}
+                className={
+                  form.libraryState === 'finished'
+                    ? 'finished-rating-picker--prominent'
+                    : 'finished-rating-picker--muted'
+                }
+              />
+            </div>
             <label className="game-edit-label" htmlFor="edit-lifecycle-note">
               Lifecycle note <span className="lifecycle-note-optional">(optional)</span>
             </label>

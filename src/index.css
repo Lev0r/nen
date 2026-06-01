@@ -45,37 +45,54 @@ body {
   overflow-x: hidden;
 }
 
-/* Dynamic rotating background (Phase 13) */
+/* Dynamic animated background (Phase 13) */
 .dynamic-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
+  background-color: var(--bg-darker);
 }
 
-.dynamic-bg-layer {
+.dynamic-bg-gradient {
   position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  opacity: 0;
-  transition: opacity var(--dynamic-bg-fade-ms, 4s) ease-in-out;
-  will-change: opacity;
+  inset: -20%;
+  background:
+    radial-gradient(ellipse 55% 45% at 18% 42%, rgba(20, 232, 160, 0.07), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 82% 58%, rgba(45, 212, 191, 0.05), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(20, 232, 160, 0.04), transparent 65%),
+    linear-gradient(145deg, #0a0e16 0%, #121620 45%, #0d1219 100%);
+  background-size: 140% 140%, 140% 140%, 130% 130%, 100% 100%;
+  animation: dynamic-bg-drift 48s ease-in-out infinite alternate;
+  will-change: transform;
 }
 
-.dynamic-bg-layer--active {
-  opacity: 1;
+@keyframes dynamic-bg-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    background-position: 0% 40%, 100% 60%, 50% 100%, center;
+  }
+  100% {
+    transform: translate3d(-2%, -1.5%, 0) scale(1.04);
+    background-position: 100% 55%, 0% 45%, 50% 90%, center;
+  }
 }
 
 .dynamic-bg-overlay {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(10, 14, 22, 0.88) 0%, rgba(10, 14, 22, 0.94) 100%),
-    radial-gradient(circle at 15% 50%, rgba(20, 232, 160, 0.03), transparent 30%),
-    radial-gradient(circle at 85% 30%, rgba(52, 211, 153, 0.02), transparent 30%);
+    linear-gradient(180deg, rgba(10, 14, 22, 0.62) 0%, rgba(10, 14, 22, 0.78) 100%),
+    radial-gradient(circle at 15% 50%, rgba(20, 232, 160, 0.025), transparent 35%),
+    radial-gradient(circle at 85% 30%, rgba(52, 211, 153, 0.02), transparent 35%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dynamic-bg-gradient {
+    animation: none;
+    transform: none;
+  }
 }
 
 /* Glassmorphism Utilities */
@@ -916,16 +933,13 @@ button {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0.55;
+  filter: saturate(0.82) brightness(0.78);
   transition:
     transform 0.3s ease,
     opacity 0.35s ease,
     filter 0.35s ease;
   will-change: transform;
-}
-
-.dashboard-grid:has(.game-card:hover) .game-card:not(:hover) .game-card-img {
-  opacity: 0.55;
-  filter: saturate(0.82) brightness(0.78);
 }
 
 .game-card:hover .game-card-img {
@@ -963,7 +977,7 @@ button {
   height: 100%;
   padding: 4px;
   border-radius: 50%;
-  background: var(--badge-pill-bg);
+  background: rgba(11, 15, 25, 0.75);
   border: 1px solid var(--glass-border);
   cursor: pointer;
   display: flex;
@@ -1120,7 +1134,7 @@ button {
 }
 
 .gfn-badge--thumb {
-  background: var(--badge-pill-bg);
+  background: rgba(11, 15, 25, 0.75);
   border-color: rgba(118, 185, 0, 0.65);
   box-shadow: 0 0 10px rgba(118, 185, 0, 0.45);
 }
@@ -1156,7 +1170,7 @@ button {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: var(--bg-dark);
+  background: rgba(11, 15, 25, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1206,9 +1220,18 @@ button {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.65rem;
   min-height: 2rem;
-  padding: 0 2.25rem;
+  padding: 0;
+}
+
+.floating-tooltip-anchor--title {
+  position: static;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
+  z-index: auto;
 }
 
 .game-card-title {
@@ -1373,6 +1396,46 @@ button {
   border-left: 1px solid rgba(255, 255, 255, 0.14);
 }
 
+.game-card-meta-price {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.game-card-meta-price .sale-price {
+  font-size: 0.75rem;
+}
+
+.game-card-meta-price .sale-original {
+  font-size: 0.7rem;
+}
+
+.game-card-meta-price .sale-discount {
+  font-size: 0.68rem;
+}
+
+.finished-rating-meta-digit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+}
+
+.finished-rating-meta-digit:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
 .game-card-critics-line,
 .game-card-metacritic-line {
   font-size: 0.75rem;
@@ -1504,10 +1567,12 @@ button {
   border-radius: 50%;
   background: rgba(11, 15, 25, 0.75);
   border: 1px solid var(--glass-border);
+  box-shadow: 0 0 8px rgba(148, 163, 184, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-main);
+  cursor: pointer;
 }
 
 .card-thumb-overlay-btn:hover {
@@ -2119,8 +2184,9 @@ button {
 }
 
 .lifecycle-badge--on-thumb {
-  background: var(--badge-pill-bg) !important;
+  background: rgba(11, 15, 25, 0.75) !important;
   white-space: nowrap;
+  box-shadow: 0 0 8px rgba(148, 163, 184, 0.35);
 }
 
 .lifecycle-badge--on-thumb.lifecycle-badge--active {

@@ -26,10 +26,6 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | S8 | Steam | Remove or wire `fetchGeForceNowReady` dead code | Confusing vs catalog-only badge |
 | S12 | Steam | Wishlist sync (discover new games) + library sync (ownership) | User request; needs Steam Web API key |
 | S13 | QA | Periodic release QA (syncs, RU, notifications) | Initial smoke test done 2026-06-01 |
-| **U1** | UI | **Round 2 — animated gradient BG** | Replace screenshot carousel; see FEATURE_CHECKLIST § UI polish round 2 |
-| **U2** | UI | **Round 2 — card header/meta layout** | Title-only header; price + rating in meta line |
-| **U3** | UI | **Round 2 — thumbnail dim + overlay unify** | Always-dim baseline; consistent icon glow/BG |
-| **U4** | UI | **Round 2 — footer notes/edit chrome** | Rectangular notes btn; separator before edit |
 
 ---
 
@@ -75,6 +71,10 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | — | `docs/DEV_CLI.md` handbook + npm seed aliases |
 | N14 | Publisher names in game-level vet loop (`collectVettingNames`) |
 | M7 | Production bulk import + smoke test (147 games) |
+| U1 | Animated gradient BG (replaces screenshot carousel) |
+| U2 | Card header/meta layout — title only; price + rating in meta |
+| U3 | Thumbnail always-dim + unified overlay icon chrome |
+| U4 | Footer notes/edit separator + rectangular notes btn |
 
 ---
 
