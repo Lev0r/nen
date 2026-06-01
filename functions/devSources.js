@@ -4,7 +4,7 @@
  * Runtime reads Firestore devBgCheck.sources only (via ensureLiveDevSources).
  * Local JSON export is optional for dev — see scripts/sync-dev-sources.mjs.
  */
-const { getConfigDocPath } = require('./devBgCheck');
+const { loadDevSourcesBundle, SCHEMA_VERSION } = require('./devSourceStore');
 const {
   CURATORS,
   getCuratorKeys,
@@ -60,24 +60,6 @@ function buildCuratorAppSets(entry) {
   const flagged = new Set();
   const cleared = new Set();
 
-  if (entry?.apps && typeof entry.apps === 'object') {
-    for (const [appId, recType] of Object.entries(entry.apps)) {
-      const id = String(appId).trim();
-      if (!id) continue;
-      if (recType === 'not_recommended' || recType === 'informational') {
-        flagged.add(id);
-      } else if (recType === 'recommended') {
-        cleared.add(id);
-      }
-    }
-    return { flagged, cleared };
-  }
-
-  // Legacy sync format: every listed app was treated as flagged.
-  for (const appId of entry?.appIds || []) {
-    const id = String(appId).trim();
-    if (id) flagged.add(id);
-  }
   for (const appId of entry?.flaggedAppIds || []) {
     const id = String(appId).trim();
     if (id) flagged.add(id);
@@ -126,23 +108,32 @@ function applyDevSourcesPayload(payload = {}) {
 }
 
 /**
- * Prefer Firestore devBgCheck.sources when present (weekly Cloud Function sync).
+ * Load split dev source docs from Firestore (schema v2).
  */
 async function ensureLiveDevSources(db, appId = 'default_app') {
   if (!db || !appId) return;
 
-  const snap = await db.doc(getConfigDocPath(appId)).get();
-  const sources = snap.data()?.devBgCheck?.sources;
-  if (!sources) return;
+  const bundle = await loadDevSourcesBundle(db, appId);
+  if (!bundle) return;
 
-  const syncedAt = sources.syncedAt;
+  const syncedAt = bundle.meta?.syncedAt;
   const key =
     syncedAt && typeof syncedAt.toMillis === 'function'
       ? String(syncedAt.toMillis())
-      : String(syncedAt || sources.neGrai?.updatedAt || '');
+      : String(syncedAt || bundle.meta?.neGraiUpdatedAt || '');
   if (!key || loadedSourcesKey === key) return;
 
-  applyDevSourcesPayload(sources);
+  applyDevSourcesPayload({
+    neGrai: bundle.neGrai,
+    curatorAppIds: {
+      curators: bundle.curators,
+      meta: {
+        updatedAt: bundle.meta?.syncedAt,
+        schemaVersion: SCHEMA_VERSION,
+      },
+    },
+    curatorDevelopers: bundle.devIndex,
+  });
   loadedSourcesKey = key;
 }
 

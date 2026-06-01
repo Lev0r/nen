@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "import-games": "node scripts/import-games.mjs",
     "sync-dev-sources": "node scripts/sync-dev-sources.mjs",
-    "test-dev-sources": "node scripts/test-dev-sources.mjs"
+    "test-dev-sources": "node scripts/test-dev-sources.mjs",
+    "wipe-maintenance-errors": "node scripts/wipe-maintenance-errors.mjs",
+    "wipe-legacy-dev-sources": "node scripts/wipe-legacy-dev-sources.mjs"
   },
   "dependencies": {
     "firebase": "^12.14.0",

@@ -14,6 +14,7 @@ import { buildClearInfoUpdates, gameHasInfoStatus } from '../utils/gameAccessors
 
 /** Singleton config doc under the config subcollection (path must have even segment count). */
 export const CONFIG_DOC_ID = 'default';
+export const DEV_SOURCES_META_DOC_ID = 'dev-sources-meta';
 
 export function useAppConfig(appId = 'default_app') {
   const [config, setConfig] = useState(null);
@@ -38,6 +39,35 @@ export function useAppConfig(appId = 'default_app') {
   }, [appId]);
 
   return { config, loading };
+}
+
+export function useDevSourcesMeta(appId = 'default_app') {
+  const [meta, setMeta] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const metaRef = doc(
+      db,
+      `artifacts/${appId}/public/data/config`,
+      DEV_SOURCES_META_DOC_ID
+    );
+
+    const unsubscribe = onSnapshot(
+      metaRef,
+      (snapshot) => {
+        setMeta(snapshot.exists() ? snapshot.data() : null);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Dev sources meta subscription error:', error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [appId]);
+
+  return { meta, loading };
 }
 
 export function updateGame(appId, gameId, updates) {

@@ -5,13 +5,17 @@
 const { readFileSync, writeFileSync, mkdirSync, existsSync } = require('fs');
 const { join } = require('path');
 const AdmZip = require('adm-zip');
-const { FieldValue, getFirestore } = require('firebase-admin/firestore');
+const { getFirestore } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { normalizeDevName } = require('./devSources');
 const { CURATORS, getCuratorKeys } = require('./curatorRegistry');
 const { fetchJsonWithRetry } = require('./steamCache');
-const { getConfigDocPath, DEFAULT_APP_ID } = require('./devBgCheck');
+const { DEFAULT_APP_ID } = require('./devBgCheck');
+const {
+  loadExistingCuratorStates,
+  writeDevSourcesToFirestore,
+} = require('./devSourceStore');
 
 const NE_GRAI_XPI =
   'https://addons.mozilla.org/firefox/downloads/latest/ne-hrai-tracker-steam/latest.xpi';
@@ -120,20 +124,6 @@ async function fetchCuratorPage(curatorId, start = 0, pageSize = PAGE_SIZE) {
   };
 }
 
-function splitCuratorApps(apps) {
-  const flaggedAppIds = [];
-  const clearedAppIds = [];
-
-  for (const [appId, recType] of Object.entries(apps || {})) {
-    if (CURATOR_NEGATIVE_REC_TYPES.has(recType)) flaggedAppIds.push(appId);
-    else if (CURATOR_POSITIVE_REC_TYPES.has(recType)) clearedAppIds.push(appId);
-  }
-
-  flaggedAppIds.sort();
-  clearedAppIds.sort();
-  return { flaggedAppIds, clearedAppIds };
-}
-
 function emptyCuratorState(curator) {
   return {
     id: curator.id,
@@ -142,7 +132,6 @@ function emptyCuratorState(curator) {
     fetchedCount: 0,
     complete: false,
     lastSyncedAt: null,
-    apps: {},
     flaggedAppIds: [],
     clearedAppIds: [],
   };
@@ -157,39 +146,32 @@ function cloneCuratorState(entry, curator) {
     fetchedCount: Number(entry.fetchedCount) || 0,
     complete: Boolean(entry.complete),
     lastSyncedAt: entry.lastSyncedAt || null,
-    apps: { ...(entry.apps || {}) },
     flaggedAppIds: [...(entry.flaggedAppIds || [])],
     clearedAppIds: [...(entry.clearedAppIds || [])],
   };
 }
 
-function mergeAppRecType(apps, appId, recType) {
-  const existing = apps[appId];
-  if (!existing) {
-    apps[appId] = recType;
-    return;
-  }
-  if (
-    CURATOR_NEGATIVE_REC_TYPES.has(recType) &&
-    CURATOR_POSITIVE_REC_TYPES.has(existing)
-  ) {
-    apps[appId] = recType;
-    return;
-  }
-  apps[appId] = recType;
-}
-
-function applyAppsToState(state) {
-  const { flaggedAppIds, clearedAppIds } = splitCuratorApps(state.apps);
-  state.flaggedAppIds = flaggedAppIds;
-  state.clearedAppIds = clearedAppIds;
-}
-
 function mergePageAppsIntoState(state, pageApps) {
+  const flagged = new Set(state.flaggedAppIds || []);
+  const cleared = new Set(state.clearedAppIds || []);
+
   for (const [appId, recType] of pageApps) {
-    mergeAppRecType(state.apps, appId, recType);
+    const id = String(appId || '').trim();
+    if (!id) continue;
+
+    if (CURATOR_NEGATIVE_REC_TYPES.has(recType)) {
+      flagged.add(id);
+      cleared.delete(id);
+      continue;
+    }
+
+    if (CURATOR_POSITIVE_REC_TYPES.has(recType) && !flagged.has(id)) {
+      cleared.add(id);
+    }
   }
-  applyAppsToState(state);
+
+  state.flaggedAppIds = [...flagged].sort();
+  state.clearedAppIds = [...cleared].sort();
 }
 
 /**
@@ -225,11 +207,11 @@ async function syncOneCuratorIncremental(key, storedEntry, options = {}) {
   state.totalCount = totalCount;
 
   if (totalCount === 0) {
-    state.apps = {};
+    state.flaggedAppIds = [];
+    state.clearedAppIds = [];
     state.fetchedCount = 0;
     state.complete = true;
     state.lastSyncedAt = new Date().toISOString();
-    applyAppsToState(state);
     return { key, skipped: false, pagesFetched: 0, state };
   }
 
@@ -336,15 +318,11 @@ async function syncCuratorAppIdsIncremental(existingCurators = {}, options = {})
     progress.updated.length > 0 ||
     progress.pending.length > 0 ||
     progress.curatorsProcessed > 0;
-  const existingMeta = options.existingMeta || {};
 
   return {
     curators,
     meta: {
-      ...existingMeta,
-      updatedAt: anyChange
-        ? new Date().toISOString()
-        : existingMeta.updatedAt || new Date().toISOString(),
+      updatedAt: anyChange ? new Date().toISOString() : new Date().toISOString(),
       note: CURATOR_META_NOTE,
       incremental: true,
     },
@@ -478,28 +456,6 @@ function writeDevSourcesToFiles(payload, dataDir = DATA_DIR) {
   }
 }
 
-async function writeDevSourcesToFirestore(appId, payload) {
-  const db = getFirestore();
-  const sources = {
-    syncedAt: FieldValue.serverTimestamp(),
-  };
-
-  if (payload.neGrai) sources.neGrai = payload.neGrai;
-  if (payload.curatorAppIds) sources.curatorAppIds = payload.curatorAppIds;
-  if (payload.curatorDevelopers) sources.curatorDevelopers = payload.curatorDevelopers;
-
-  await db.doc(getConfigDocPath(appId)).set(
-    {
-      devBgCheck: {
-        sources,
-      },
-    },
-    { merge: true }
-  );
-
-  return summarizeDevSourceStats(payload);
-}
-
 function summarizeDevSourceStats(payload) {
   /** @type {Record<string, number|boolean>} */
   const stats = {
@@ -533,15 +489,11 @@ function buildSyncProgressStats(payload) {
 
 async function syncDevSourcesToFirestore(appId = DEFAULT_APP_ID, options = {}) {
   const db = getFirestore();
-  const snap = await db.doc(getConfigDocPath(appId)).get();
-  const sources = snap.data()?.devBgCheck?.sources || {};
-  const existingCurators = sources.curatorAppIds?.curators || {};
+  const existingCurators = await loadExistingCuratorStates(db, appId);
 
-  const payload = await fetchDevSourcePayload(
-    { ...options, existingMeta: sources.curatorAppIds?.meta },
-    existingCurators
-  );
-  const stats = await writeDevSourcesToFirestore(appId, payload);
+  const payload = await fetchDevSourcePayload(options, existingCurators);
+  await writeDevSourcesToFirestore(appId, payload);
+  const stats = summarizeDevSourceStats(payload);
   return {
     ...stats,
     ...buildSyncProgressStats(payload),
@@ -639,7 +591,6 @@ module.exports = {
   syncOneCuratorIncremental,
   syncDevSourcesToFiles,
   syncDevSourcesToFirestore,
-  writeDevSourcesToFirestore,
   writeDevSourcesToFiles,
   summarizeDevSourceStats,
   buildSyncProgressStats,

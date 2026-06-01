@@ -7,7 +7,7 @@
  *   node scripts/sync-dev-sources.mjs [--skip-curators] [--curators-only]
  *   node scripts/sync-dev-sources.mjs --build-dev-index [--curator-delay-ms 800]
  *
- * Seed Firestore directly (production path — no redeploy):
+ * Seed Firestore directly (split config docs — schema v2):
  *   node scripts/sync-dev-sources.mjs --to-firestore [--app-id default_app]
  *   node scripts/sync-dev-sources.mjs --to-firestore --build-dev-index
  *
@@ -172,7 +172,7 @@ async function main() {
       `Syncing to Firestore (appId=${args.appId})${args.full ? ' [full]' : ''}…`
     );
     const stats = await syncDevSourcesToFirestore(args.appId, syncOptions);
-    console.log(`Wrote devBgCheck.sources to Firestore (${args.appId})`);
+    console.log(`Wrote dev-sources-* docs to Firestore (${args.appId}, schema v2)`);
     console.log(formatStats(stats));
     return;
   }

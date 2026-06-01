@@ -109,13 +109,30 @@ node scripts/sync-dev-sources.mjs --curators-only
 node scripts/test-dev-sources.mjs
 ```
 
-### Dev source seed workflow
+### Dev source seed workflow (schema v2 — split config docs)
 
-Production functions read **`devBgCheck.sources` in Firestore only** — bundled JSON is not used at runtime.
+Production functions read **split Firestore docs** under `config/dev-sources-*` — not `devBgCheck.sources` on `config/default`.
 
-1. **First deploy / new curator** — `node scripts/sync-dev-sources.mjs --to-firestore` (or Maintenance → Sync dev sources after deploy)
+| Document ID | Contents |
+| :--- | :--- |
+| `dev-sources-meta` | Sync summary for Maintenance UI |
+| `dev-sources-ne-grai` | NE GRAI publisher names |
+| `dev-sources-curator-{key}` | Per-curator flagged/cleared app ID arrays |
+| `dev-sources-dev-index` | Optional developer index (`--build-dev-index`) |
+
+**Migrate from legacy blob:**
+
+```bash
+node scripts/wipe-legacy-dev-sources.mjs
+node scripts/sync-dev-sources.mjs --to-firestore --full
+node scripts/revet-ru-games.mjs
+```
+
+1. **First deploy / fresh seed** — `node scripts/sync-dev-sources.mjs --to-firestore --full`
 2. **Re-vet games** — Maintenance → Re-vet all games, or `node scripts/revet-ru-games.mjs`
-3. **Ongoing** — weekly `syncDevSourcesScheduled` (incremental; resumes partial curator fetches)
+3. **Ongoing** — weekly `syncDevSourcesScheduled` or Maintenance → Sync dev sources (incremental)
+
+**Clear maintenance error fields only:** `node scripts/wipe-maintenance-errors.mjs`
 
 ---
 

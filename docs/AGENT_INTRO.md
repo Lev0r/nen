@@ -61,7 +61,8 @@ nen/
 | Path | Purpose |
 | :--- | :--- |
 | `artifacts/{appId}/public/data/games/{steamAppId}` | Game documents (`default_app`) |
-| `artifacts/{appId}/public/data/config/default` | GFN catalog, devBgCheck cache/sources, sync meta |
+| `artifacts/{appId}/public/data/config/default` | GFN catalog, `devBgCheck.developers` cache, sync meta |
+| `artifacts/{appId}/public/data/config/dev-sources-*` | NE GRAI + curator lists (schema v2, one doc per source) |
 
 **Path segments must be even** — use `config/default`, not `config` alone.
 

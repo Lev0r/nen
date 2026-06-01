@@ -29,7 +29,27 @@ function loadLocalPayload() {
     payload.neGrai = JSON.parse(readFileSync(neGraiPath, 'utf8'));
   }
   if (existsSync(appIdsPath)) {
-    payload.curatorAppIds = JSON.parse(readFileSync(appIdsPath, 'utf8'));
+    const raw = JSON.parse(readFileSync(appIdsPath, 'utf8'));
+    /** @type {Record<string, object>} */
+    const curators = {};
+    for (const [key, entry] of Object.entries(raw.curators || {})) {
+      if (entry.flaggedAppIds || entry.clearedAppIds) {
+        curators[key] = entry;
+        continue;
+      }
+      const flagged = [];
+      const cleared = [];
+      for (const [appId, recType] of Object.entries(entry.apps || {})) {
+        if (recType === 'not_recommended' || recType === 'informational') flagged.push(appId);
+        else if (recType === 'recommended') cleared.push(appId);
+      }
+      curators[key] = {
+        ...entry,
+        flaggedAppIds: flagged.sort(),
+        clearedAppIds: cleared.sort(),
+      };
+    }
+    payload.curatorAppIds = { curators, meta: raw.meta || {} };
   }
   if (existsSync(devsPath)) {
     payload.curatorDevelopers = JSON.parse(readFileSync(devsPath, 'utf8'));

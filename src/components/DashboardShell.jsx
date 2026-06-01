@@ -4,7 +4,7 @@ import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
 import GameFiltersBar from './GameFiltersBar';
 import MaintenanceModal from './MaintenanceModal';
-import { useGames, useAppConfig, clearInfoErrorsFromGames } from '../services/db';
+import { useGames, useAppConfig, useDevSourcesMeta, clearInfoErrorsFromGames } from '../services/db';
 import { syncGfnCatalog, syncSteamLibrary, syncDevSources, revetAllGames } from '../services/cloudFunctions';
 import { getNickname } from '../utils/userConfig';
 import {
@@ -69,6 +69,7 @@ export default function DashboardShell() {
   const { userIndex, logout } = useAuth();
   const { games, loading, subscriptionError, loadErrors } = useGames('default_app');
   const { config } = useAppConfig('default_app');
+  const { meta: devSourcesMeta } = useDevSourcesMeta('default_app');
 
   const [activeTab, setActiveTab] = useState('active');
   const [activeSubTab, setActiveSubTab] = useState('active');
@@ -101,28 +102,27 @@ export default function DashboardShell() {
   }, [config?.steamLibrarySync?.syncedAt]);
 
   const devSourcesSyncedAtLabel = useMemo(() => {
-    const syncedAt = config?.devBgCheck?.sources?.syncedAt;
+    const syncedAt = devSourcesMeta?.syncedAt;
     return formatRelativeTimeShort(syncedAt);
-  }, [config?.devBgCheck?.sources?.syncedAt]);
+  }, [devSourcesMeta?.syncedAt]);
 
   const devSourceSummary = useMemo(() => {
-    const sources = config?.devBgCheck?.sources;
-    if (!sources) return null;
+    if (!devSourcesMeta || devSourcesMeta.schemaVersion !== 2) return null;
 
-    const neGraiCount = sources.neGrai?.names?.length ?? 0;
-    const curators = sources.curatorAppIds?.curators || {};
+    const neGraiCount = devSourcesMeta.neGraiCount ?? 0;
+    const curators = devSourcesMeta.curators || {};
     const curatorRows = Object.entries(curators)
       .map(([key, entry]) => ({
         key,
         label: entry?.label || key,
-        flaggedCount: entry?.flaggedAppIds?.length ?? 0,
-        clearedCount: entry?.clearedAppIds?.length ?? 0,
+        flaggedCount: entry?.flaggedCount ?? 0,
+        clearedCount: entry?.clearedCount ?? 0,
         complete: Boolean(entry?.complete),
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
 
-    return { neGraiCount, curatorRows };
-  }, [config?.devBgCheck?.sources]);
+    return { neGraiCount, curatorRows, pendingCurators: devSourcesMeta.pendingCurators || [] };
+  }, [devSourcesMeta]);
 
   const appErrors = useMemo(() => {
     const errors = collectAppErrors({ config, games, runtimeErrors });
