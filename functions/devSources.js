@@ -1,86 +1,50 @@
 /**
  * Developer vetting sources (restricted list for deterministic lookups).
  *
- * 1. NE GRAI extension database (ГРАЙ project)
- * 2. Steam curator «Обережно, русняві ігри» (PlayUA) — 42985013
- * 3. Steam curator «Avoid russian games» — 45452241
- * 4. GameDev DOU — context-only (no automated lookup)
+ * Runtime reads Firestore devBgCheck.sources only (via ensureLiveDevSources).
+ * Local JSON export is optional for dev — see scripts/sync-dev-sources.mjs.
  */
-const { readFileSync, existsSync } = require('fs');
-const { join } = require('path');
 const { getConfigDocPath } = require('./devBgCheck');
-
-const DATA_DIR = join(__dirname, 'data');
+const {
+  CURATORS,
+  getCuratorKeys,
+  buildCuratorSourceLabels,
+  buildCuratorSourceUrls,
+  primaryCuratorSourceId,
+} = require('./curatorRegistry');
 
 const SOURCE_IDS = {
   NE_GRAI: 'ne_grai',
-  CURATOR_PLAYUA: 'curator_playua',
-  CURATOR_AVOID_RU: 'curator_avoid_ru',
   DOU: 'gamedev_dou',
+  CURATOR_PLAYUA: CURATORS.playua.sourceId,
+  CURATOR_AVOID_RU: CURATORS.avoidRu.sourceId,
+  CURATOR_SICH1: CURATORS.sich1.sourceId,
+  CURATOR_SICH2: CURATORS.sich2.sourceId,
+  CURATOR_SICH3: CURATORS.sich3.sourceId,
+  CURATOR_SICH4: CURATORS.sich4.sourceId,
+  CURATOR_SICH5: CURATORS.sich5.sourceId,
 };
 
 const SOURCE_LABELS = {
   [SOURCE_IDS.NE_GRAI]: 'База даних розширення «НЕ ГРАЙ» (проєкт «ГРАЙ»)',
-  [SOURCE_IDS.CURATOR_PLAYUA]:
-    'Steam-куратор «Обережно, русняві ігри» (PlayUA)',
-  [SOURCE_IDS.CURATOR_AVOID_RU]: 'Steam-куратор «Avoid russian games»',
   [SOURCE_IDS.DOU]: 'GameDev DOU (gamedev.dou.ua)',
+  ...buildCuratorSourceLabels(),
 };
 
-const CURATORS = {
-  playua: {
-    id: '42985013',
-    url: 'https://store.steampowered.com/curator/42985013/',
-    label: SOURCE_LABELS[SOURCE_IDS.CURATOR_PLAYUA],
-    sourceId: SOURCE_IDS.CURATOR_PLAYUA,
-  },
-  avoidRu: {
-    id: '45452241',
-    url: 'https://store.steampowered.com/curator/45452241/',
-    label: SOURCE_LABELS[SOURCE_IDS.CURATOR_AVOID_RU],
-    sourceId: SOURCE_IDS.CURATOR_AVOID_RU,
-  },
-};
-
-const SOURCE_URLS = {
-  [SOURCE_IDS.CURATOR_PLAYUA]: CURATORS.playua.url,
-  [SOURCE_IDS.CURATOR_AVOID_RU]: CURATORS.avoidRu.url,
-};
+const SOURCE_URLS = buildCuratorSourceUrls();
 
 /** Sources that get a clickable citation link in RU alert text. */
-const LINKED_SOURCE_IDS = new Set([
-  SOURCE_IDS.CURATOR_PLAYUA,
-  SOURCE_IDS.CURATOR_AVOID_RU,
-]);
-
-function sourceMarkdownLink(sourceId, label = SOURCE_LABELS[sourceId]) {
-  if (!LINKED_SOURCE_IDS.has(sourceId)) return label || '';
-  const url = SOURCE_URLS[sourceId];
-  if (!url || !label) return label || '';
-  return `[${label}](${url})`;
-}
-
-function steamAppMarkdownLink(appId) {
-  const id = String(appId || '').trim();
-  if (!id) return '';
-  return `[app/${id}](https://store.steampowered.com/app/${id}/)`;
-}
-
-function curatorMarkdownLinks(curatorKeys) {
-  return (curatorKeys || [])
-    .map((key) => {
-      const curator = CURATORS[key];
-      if (!curator) return key;
-      return `[${curator.label}](${curator.url})`;
-    })
-    .join('; ');
-}
+const LINKED_SOURCE_IDS = new Set(getCuratorKeys().map((key) => CURATORS[key].sourceId));
 
 let neGraiSet = null;
 let curatorMeta = null;
 let curatorDevIndex = null;
+/** @type {Record<string, { flagged: Set<string>, cleared: Set<string> }> | null} */
 let curatorAppIds = null;
 let loadedSourcesKey = null;
+let warnedMissingNeGrai = false;
+let warnedMissingCuratorAppIds = false;
+let warnedMissingCuratorIndex = false;
 
 function applyNeGraiData(data) {
   const names = Array.isArray(data) ? data : data?.names || [];
@@ -127,11 +91,13 @@ function buildCuratorAppSets(entry) {
 }
 
 function applyCuratorAppIdsData(data) {
-  const playua = buildCuratorAppSets(data?.curators?.playua);
-  const avoidRu = buildCuratorAppSets(data?.curators?.avoidRu);
+  /** @type {Record<string, { flagged: Set<string>, cleared: Set<string> }>} */
+  const curators = {};
+  for (const key of getCuratorKeys()) {
+    curators[key] = buildCuratorAppSets(data?.curators?.[key]);
+  }
   curatorAppIds = {
-    playua,
-    avoidRu,
+    ...curators,
     meta: data?.meta || {},
   };
 }
@@ -141,6 +107,21 @@ function applyCuratorDevelopersData(data) {
   curatorDevIndex = new Map();
   for (const [normalized, entry] of Object.entries(data?.developers || {})) {
     curatorDevIndex.set(normalized, entry);
+  }
+}
+
+/**
+ * Apply a full or partial dev-sources payload (used by ensureLiveDevSources and local test scripts).
+ */
+function applyDevSourcesPayload(payload = {}) {
+  if (payload.neGrai) {
+    applyNeGraiData(payload.neGrai);
+  }
+  if (payload.curatorAppIds) {
+    applyCuratorAppIdsData(payload.curatorAppIds);
+  }
+  if (payload.curatorDevelopers) {
+    applyCuratorDevelopersData(payload.curatorDevelopers);
   }
 }
 
@@ -161,16 +142,7 @@ async function ensureLiveDevSources(db, appId = 'default_app') {
       : String(syncedAt || sources.neGrai?.updatedAt || '');
   if (!key || loadedSourcesKey === key) return;
 
-  if (sources.neGrai?.names?.length) {
-    applyNeGraiData(sources.neGrai);
-  }
-  if (sources.curatorAppIds?.curators) {
-    applyCuratorAppIdsData(sources.curatorAppIds);
-  }
-  if (sources.curatorDevelopers?.developers) {
-    applyCuratorDevelopersData(sources.curatorDevelopers);
-  }
-
+  applyDevSourcesPayload(sources);
   loadedSourcesKey = key;
 }
 
@@ -180,12 +152,9 @@ function resetDevSourcesCache() {
   curatorDevIndex = null;
   curatorAppIds = null;
   loadedSourcesKey = null;
-}
-
-function loadJson(relativePath, fallback = null) {
-  const fullPath = join(DATA_DIR, relativePath);
-  if (!existsSync(fullPath)) return fallback;
-  return JSON.parse(readFileSync(fullPath, 'utf8'));
+  warnedMissingNeGrai = false;
+  warnedMissingCuratorAppIds = false;
+  warnedMissingCuratorIndex = false;
 }
 
 function normalizeDevName(name) {
@@ -209,41 +178,81 @@ function namesMatch(a, b) {
   return false;
 }
 
-function loadNeGraiSet() {
+function sourceMarkdownLink(sourceId, label = SOURCE_LABELS[sourceId]) {
+  if (!LINKED_SOURCE_IDS.has(sourceId)) return label || '';
+  const url = SOURCE_URLS[sourceId];
+  if (!url || !label) return label || '';
+  return `[${label}](${url})`;
+}
+
+function steamAppMarkdownLink(appId) {
+  const id = String(appId || '').trim();
+  if (!id) return '';
+  return `[app/${id}](https://store.steampowered.com/app/${id}/)`;
+}
+
+function curatorMarkdownLinks(curatorKeys) {
+  return (curatorKeys || [])
+    .map((key) => {
+      const curator = CURATORS[key];
+      if (!curator) return key;
+      return `[${curator.sourceLabel}](${curator.url})`;
+    })
+    .join('; ');
+}
+
+function getNeGraiSet() {
   if (neGraiSet) return neGraiSet;
 
-  const data = loadJson('ne-grai-russian-publishers.json', { names: [] });
-  applyNeGraiData(data);
+  if (!warnedMissingNeGrai) {
+    console.warn(
+      'devSources: NE GRAI list not loaded — sync dev sources to Firestore or call ensureLiveDevSources'
+    );
+    warnedMissingNeGrai = true;
+  }
+  neGraiSet = {
+    names: [],
+    normalized: new Set(),
+    updatedAt: null,
+    version: null,
+  };
   return neGraiSet;
 }
 
-function loadCuratorAppIds() {
+function getCuratorAppIds() {
   if (curatorAppIds) return curatorAppIds;
 
-  const data = loadJson('curator-flagged-appids.json', { curators: {}, meta: {} });
-  applyCuratorAppIdsData(data);
+  if (!warnedMissingCuratorAppIds) {
+    console.warn(
+      'devSources: curator app IDs not loaded — sync dev sources to Firestore or call ensureLiveDevSources'
+    );
+    warnedMissingCuratorAppIds = true;
+  }
+
+  /** @type {Record<string, { flagged: Set<string>, cleared: Set<string> }>} */
+  const empty = {};
+  for (const key of getCuratorKeys()) {
+    empty[key] = { flagged: new Set(), cleared: new Set() };
+  }
+  curatorAppIds = { ...empty, meta: {} };
   return curatorAppIds;
 }
 
 function lookupCuratorsByAppId(appId) {
-  const sets = loadCuratorAppIds();
+  const sets = getCuratorAppIds();
   const id = String(appId || '').trim();
   if (!id) return null;
 
-  if (sets.playua.flagged.has(id)) {
+  for (const key of getCuratorKeys()) {
+    const curator = CURATORS[key];
+    const entry = sets[key];
+    if (!entry?.flagged?.has(id)) continue;
+
     return {
       isRussianRelated: true,
-      source: SOURCE_IDS.CURATOR_PLAYUA,
+      source: curator.sourceId,
       appId: id,
-      explanation: `${sourceMarkdownLink(SOURCE_IDS.CURATOR_PLAYUA)}: game ${steamAppMarkdownLink(id)} flagged by curator (not recommended / informational)`,
-    };
-  }
-  if (sets.avoidRu.flagged.has(id)) {
-    return {
-      isRussianRelated: true,
-      source: SOURCE_IDS.CURATOR_AVOID_RU,
-      appId: id,
-      explanation: `${sourceMarkdownLink(SOURCE_IDS.CURATOR_AVOID_RU)}: game ${steamAppMarkdownLink(id)} flagged by curator (not recommended / informational)`,
+      explanation: `${sourceMarkdownLink(curator.sourceId)}: game ${steamAppMarkdownLink(id)} flagged by curator (not recommended / informational)`,
     };
   }
 
@@ -255,15 +264,19 @@ function lookupCuratorsByAppId(appId) {
  * Does not override NE GRAI — use only as a negative-source absence signal.
  */
 function lookupCuratorClearanceByAppId(appId) {
-  const sets = loadCuratorAppIds();
+  const sets = getCuratorAppIds();
   const id = String(appId || '').trim();
   if (!id) return null;
 
-  if (sets.avoidRu.cleared.has(id)) {
+  for (const key of getCuratorKeys()) {
+    const curator = CURATORS[key];
+    const entry = sets[key];
+    if (!entry?.cleared?.has(id)) continue;
+
     return {
-      source: SOURCE_IDS.CURATOR_AVOID_RU,
+      source: curator.sourceId,
       appId: id,
-      explanation: `${sourceMarkdownLink(SOURCE_IDS.CURATOR_AVOID_RU)}: game ${steamAppMarkdownLink(id)} recommended after developer check`,
+      explanation: `${sourceMarkdownLink(curator.sourceId)}: game ${steamAppMarkdownLink(id)} recommended after developer check`,
     };
   }
 
@@ -283,20 +296,21 @@ function lookupCuratorsByDeveloperApps(developerName, appIds = []) {
   return null;
 }
 
-function loadCuratorIndex() {
+function getCuratorIndex() {
   if (curatorDevIndex) return curatorDevIndex;
 
-  const data = loadJson('curator-flagged-developers.json', {
-    developers: {},
-    meta: {},
-  });
-
-  applyCuratorDevelopersData(data);
+  if (!warnedMissingCuratorIndex) {
+    console.warn(
+      'devSources: curator developer index not loaded — optional; sync with --build-dev-index or ensureLiveDevSources'
+    );
+    warnedMissingCuratorIndex = true;
+  }
+  curatorDevIndex = new Map();
   return curatorDevIndex;
 }
 
 function lookupNeGrai(developerName) {
-  const set = loadNeGraiSet();
+  const set = getNeGraiSet();
   const normalized = normalizeDevName(developerName);
   if (set.normalized.has(normalized)) {
     const matched =
@@ -326,7 +340,7 @@ function lookupCurators(developerName, options = {}) {
   const byApps = lookupCuratorsByDeveloperApps(developerName, appIds);
   if (byApps) return byApps;
 
-  const index = loadCuratorIndex();
+  const index = getCuratorIndex();
   const normalized = normalizeDevName(developerName);
 
   const direct = index.get(normalized);
@@ -334,9 +348,7 @@ function lookupCurators(developerName, options = {}) {
     const curatorLinks = curatorMarkdownLinks(direct.curators);
     return {
       isRussianRelated: true,
-      source: direct.curators?.includes('playua')
-        ? SOURCE_IDS.CURATOR_PLAYUA
-        : SOURCE_IDS.CURATOR_AVOID_RU,
+      source: primaryCuratorSourceId(direct.curators) || SOURCE_IDS.CURATOR_PLAYUA,
       explanation: `${curatorLinks}: «${direct.name || developerName}» (${direct.appCount || 1} curated game(s))`,
     };
   }
@@ -346,9 +358,7 @@ function lookupCurators(developerName, options = {}) {
       const curatorLinks = curatorMarkdownLinks(entry.curators);
       return {
         isRussianRelated: true,
-        source: entry.curators?.includes('playua')
-          ? SOURCE_IDS.CURATOR_PLAYUA
-          : SOURCE_IDS.CURATOR_AVOID_RU,
+        source: primaryCuratorSourceId(entry.curators) || SOURCE_IDS.CURATOR_PLAYUA,
         explanation: `${curatorLinks}: «${entry.name}» (${entry.appCount || 1} curated game(s))`,
       };
     }
@@ -358,7 +368,7 @@ function lookupCurators(developerName, options = {}) {
 }
 
 /**
- * Deterministic lookup across bundled sources. Returns null if not listed.
+ * Deterministic lookup across synced sources. Returns null if not listed.
  */
 function lookupDeterministicSources(developerName, options = {}) {
   const neGrai = lookupNeGrai(developerName);
@@ -375,21 +385,28 @@ function allBundledSourcesNegative(developerName, options = {}) {
 }
 
 function getSourceMetadata() {
-  loadNeGraiSet();
-  const appIds = loadCuratorAppIds();
-  loadCuratorIndex();
+  const neGrai = getNeGraiSet();
+  const appIds = getCuratorAppIds();
+  getCuratorIndex();
+
+  /** @type {Record<string, { flaggedCount: number, clearedCount: number }>} */
+  const byCurator = {};
+  for (const key of getCuratorKeys()) {
+    byCurator[key] = {
+      flaggedCount: appIds[key]?.flagged?.size || 0,
+      clearedCount: appIds[key]?.cleared?.size || 0,
+    };
+  }
+
   return {
     neGrai: {
-      count: loadNeGraiSet().names.length,
-      updatedAt: loadNeGraiSet().updatedAt,
-      version: loadNeGraiSet().version,
+      count: neGrai.names.length,
+      updatedAt: neGrai.updatedAt,
+      version: neGrai.version,
     },
     curators: {
       appIdsUpdatedAt: appIds.meta?.updatedAt || null,
-      playuaFlaggedCount: appIds.playua.flagged.size,
-      playuaClearedCount: appIds.playua.cleared.size,
-      avoidRuFlaggedCount: appIds.avoidRu.flagged.size,
-      avoidRuClearedCount: appIds.avoidRu.cleared.size,
+      byCurator,
       devIndexCount: curatorDevIndex?.size || 0,
       devIndexUpdatedAt: curatorMeta?.updatedAt || null,
     },
@@ -403,9 +420,9 @@ module.exports = {
   CURATORS,
   normalizeDevName,
   namesMatch,
-  loadNeGraiSet,
-  loadCuratorAppIds,
-  loadCuratorIndex,
+  loadNeGraiSet: getNeGraiSet,
+  loadCuratorAppIds: getCuratorAppIds,
+  loadCuratorIndex: getCuratorIndex,
   lookupNeGrai,
   lookupCurators,
   lookupCuratorsByAppId,
@@ -416,4 +433,5 @@ module.exports = {
   getSourceMetadata,
   ensureLiveDevSources,
   resetDevSourcesCache,
+  applyDevSourcesPayload,
 };

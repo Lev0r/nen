@@ -1,10 +1,13 @@
 #!/usr/bin/env node
-/** Quick smoke test for devSources lookups. */
+/** Quick smoke test for devSources lookups (loads local JSON if present). */
 import { createRequire } from 'module';
+import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, '..');
+const DATA_DIR = join(ROOT, 'functions/data');
 const require = createRequire(join(__dirname, '../functions/package.json'));
 const {
   lookupNeGrai,
@@ -12,7 +15,27 @@ const {
   lookupCuratorsByAppId,
   lookupDeterministicSources,
   getSourceMetadata,
+  applyDevSourcesPayload,
+  resetDevSourcesCache,
 } = require('./devSources');
+
+function loadLocalPayload() {
+  const payload = {};
+  const neGraiPath = join(DATA_DIR, 'ne-grai-russian-publishers.json');
+  const appIdsPath = join(DATA_DIR, 'curator-flagged-appids.json');
+  const devsPath = join(DATA_DIR, 'curator-flagged-developers.json');
+
+  if (existsSync(neGraiPath)) {
+    payload.neGrai = JSON.parse(readFileSync(neGraiPath, 'utf8'));
+  }
+  if (existsSync(appIdsPath)) {
+    payload.curatorAppIds = JSON.parse(readFileSync(appIdsPath, 'utf8'));
+  }
+  if (existsSync(devsPath)) {
+    payload.curatorDevelopers = JSON.parse(readFileSync(devsPath, 'utf8'));
+  }
+  return payload;
+}
 
 const samples = [
   { name: 'Gaijin Entertainment', appIds: [] },
@@ -24,6 +47,15 @@ const samples = [
 ];
 
 async function main() {
+  resetDevSourcesCache();
+  const payload = loadLocalPayload();
+  if (Object.keys(payload).length) {
+    applyDevSourcesPayload(payload);
+    console.log('Loaded local JSON from functions/data/');
+  } else {
+    console.warn('No local JSON in functions/data/ — run npm run sync-dev-sources first');
+  }
+
   console.log('Source metadata:', getSourceMetadata());
   for (const { name, appIds } of samples) {
     const ne = lookupNeGrai(name);
