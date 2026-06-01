@@ -12,6 +12,7 @@ import {
   resolveLibraryState,
   getLibraryStateLabel,
 } from '../utils/libraryState';
+import { getDevelopmentStatus } from '../utils/gameAccessors';
 import {
   DEFAULT_GAME_FILTERS,
   filterGames,
@@ -34,6 +35,24 @@ const LIFECYCLE_TABS = LIBRARY_STATES.map((id) => ({
   label: getLibraryStateLabel(id),
 }));
 
+const ACTIVE_SUB_TABS = [
+  { id: 'active', label: 'Active' },
+  { id: 'tba', label: 'TBA' },
+];
+
+function isActiveLibraryGame(game) {
+  return resolveLibraryState(game) === 'active';
+}
+
+function isTbaGame(game) {
+  return getDevelopmentStatus(game) === 'tba';
+}
+
+function matchesActiveSubTab(game, subTab) {
+  if (!isActiveLibraryGame(game)) return false;
+  return subTab === 'tba' ? isTbaGame(game) : !isTbaGame(game);
+}
+
 function appendRuntimeError(setter, label, message) {
   setter((prev) => [
     ...prev,
@@ -53,6 +72,7 @@ export default function DashboardShell() {
   const { config } = useAppConfig('default_app');
 
   const [activeTab, setActiveTab] = useState('active');
+  const [activeSubTab, setActiveSubTab] = useState('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [gameFilters, setGameFilters] = useState(DEFAULT_GAME_FILTERS);
@@ -134,21 +154,51 @@ export default function DashboardShell() {
   }
 
   const tabCounts = LIFECYCLE_TABS.reduce((counts, tab) => {
-    counts[tab.id] = games.filter(
-      (game) => resolveLibraryState(game) === tab.id
+    if (tab.id === 'active') {
+      counts[tab.id] = games.filter(
+        (game) => isActiveLibraryGame(game) && !isTbaGame(game)
+      ).length;
+    } else {
+      counts[tab.id] = games.filter(
+        (game) => resolveLibraryState(game) === tab.id
+      ).length;
+    }
+    return counts;
+  }, {});
+
+  const activeSubTabCounts = ACTIVE_SUB_TABS.reduce((counts, subTab) => {
+    counts[subTab.id] = games.filter((game) =>
+      matchesActiveSubTab(game, subTab.id)
     ).length;
     return counts;
   }, {});
 
-  const lifecycleGames = games.filter(
-    (game) => resolveLibraryState(game) === activeTab
-  );
+  const lifecycleGames = games.filter((game) => {
+    if (activeTab === 'active') {
+      return matchesActiveSubTab(game, activeSubTab);
+    }
+    return resolveLibraryState(game) === activeTab;
+  });
   const filtersScopeGlobal = hasActiveFilters(gameFilters);
   const filterSourceGames = filtersScopeGlobal ? games : lifecycleGames;
   const filteredGames = filterGames(filterSourceGames, gameFilters, gfnSteamAppIds);
   const availableTags = collectSteamTags(games);
   const filtersActive = hasActiveFilters(gameFilters);
-  const activeTabLabel = LIFECYCLE_TABS.find((tab) => tab.id === activeTab)?.label ?? 'Active';
+  const activeTabLabel =
+    activeTab === 'active'
+      ? ACTIVE_SUB_TABS.find((subTab) => subTab.id === activeSubTab)?.label ?? 'Active'
+      : LIFECYCLE_TABS.find((tab) => tab.id === activeTab)?.label ?? 'Active';
+
+  function handleLifecycleTabClick(tabId) {
+    setActiveTab(tabId);
+    setActiveSubTab('active');
+    setGameFilters(DEFAULT_GAME_FILTERS);
+  }
+
+  function handleActiveSubTabClick(subTabId) {
+    setActiveSubTab(subTabId);
+    setGameFilters(DEFAULT_GAME_FILTERS);
+  }
 
   return (
     <>
@@ -162,16 +212,28 @@ export default function DashboardShell() {
 
         <nav className="sidebar-nav">
           {LIFECYCLE_TABS.map((tab) => (
-            <div
-              key={tab.id}
-              className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setGameFilters(DEFAULT_GAME_FILTERS);
-              }}
-            >
-              <span>{tab.label}</span>
-              <span className="nav-item-badge">{tabCounts[tab.id]}</span>
+            <div key={tab.id} className="nav-item-group">
+              <div
+                className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => handleLifecycleTabClick(tab.id)}
+              >
+                <span>{tab.label}</span>
+                <span className="nav-item-badge">{tabCounts[tab.id]}</span>
+              </div>
+              {tab.id === 'active' && activeTab === 'active' && (
+                <div className="nav-sub-nav" role="group" aria-label="Active subcategories">
+                  {ACTIVE_SUB_TABS.map((subTab) => (
+                    <div
+                      key={subTab.id}
+                      className={`nav-sub-item ${activeSubTab === subTab.id ? 'active' : ''}`}
+                      onClick={() => handleActiveSubTabClick(subTab.id)}
+                    >
+                      <span>{subTab.label}</span>
+                      <span className="nav-item-badge">{activeSubTabCounts[subTab.id]}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </nav>
