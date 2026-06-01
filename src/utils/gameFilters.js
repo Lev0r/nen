@@ -99,11 +99,30 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
   });
 }
 
+const EXCLUDED_STEAM_FILTER_TAGS = new Set([
+  'co-op',
+  'multi-player',
+  'online co-op',
+  'split screen co-op',
+  'shared/split screen co-op',
+  'cross-platform multiplayer',
+]);
+
+function isExcludedSteamFilterTag(tag) {
+  const normalized = tag.toLowerCase();
+  if (EXCLUDED_STEAM_FILTER_TAGS.has(normalized)) return true;
+  if (normalized.includes('co-op') || normalized.includes('coop')) return true;
+  if (normalized.includes('multi-player') || normalized.includes('multiplayer')) return true;
+  return false;
+}
+
 export function collectSteamTags(games) {
   const tagSet = new Set();
   for (const game of games) {
     for (const tag of getSteamTags(game)) {
-      tagSet.add(tag);
+      if (!isExcludedSteamFilterTag(tag)) {
+        tagSet.add(tag);
+      }
     }
   }
   return [...tagSet].sort((a, b) => a.localeCompare(b));

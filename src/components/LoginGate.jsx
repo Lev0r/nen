@@ -2,7 +2,15 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginGate({ children }) {
-  const { currentUser, loginWithGoogle, error } = useAuth();
+  const { currentUser, loginWithGoogle, error, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="login-container">
+        <div className="auth-loading-spinner" aria-label="Loading" role="status" />
+      </div>
+    );
+  }
 
   if (currentUser) {
     return <>{children}</>;

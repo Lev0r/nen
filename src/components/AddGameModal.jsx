@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { addGameFromSteam } from '../services/cloudFunctions';
 import { parseSteamAppId } from '../utils/steamInput';
 import { reportError } from '../utils/errorReport';
@@ -10,7 +10,20 @@ export default function AddGameModal({ isOpen, onClose, games = [] }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (!isOpen || loading) return;
+    const handleKey = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isOpen, loading, onClose]);
+
   if (!isOpen) return null;
+
+  const handleBackdropClick = () => {
+    if (!loading) onClose();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,8 +61,13 @@ export default function AddGameModal({ isOpen, onClose, games = [] }) {
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="glass-panel animate-fade-in add-game-modal">
+    <div className="modal-backdrop" onClick={handleBackdropClick}>
+      <div
+        className="glass-panel animate-fade-in add-game-modal"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-label="Add new game"
+      >
         <h2 className="add-game-modal-title">Add New Game</h2>
         <p className="add-game-modal-desc">
           Paste a Steam Store URL or App ID. Cloud Functions will scrape metadata and check
