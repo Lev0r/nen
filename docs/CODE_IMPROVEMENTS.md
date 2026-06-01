@@ -11,7 +11,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | ID | Area | Item | Rationale |
 | :--- | :--- | :--- | :--- |
 | M1 | Auth | Unify allowlist — env vars vs hardcoded `firestore.rules` emails | Drift / security footgun |
-| M4 | Ops | Document/trigger post-deploy: deploy → syncDevSources → revet | False RU flags until sources + games refreshed; UI exists, runbook could be tighter |
+| M4 | Ops | Run post-deploy: deploy → syncDevSources → revet | Documented in OPS + DEV_CLI; **user must run** after vetting logic changes |
 | M5 | Sync | Monitor full-library sync timeout at ~400–500 games | 540s sequential job may fail |
 | M6 | HLTB | Treat HLTB as fragile; surface failures clearly | Unofficial API, auth can break |
 | M7 | Import | Run production bulk import + smoke test | P0 user ops still pending |
@@ -46,7 +46,6 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | N11 | Filters | Search developers/publishers, not just name | Power user |
 | N12 | Export | Client-side library JSON backup | P1 |
 | N13 | RU | Use `lookupCuratorClearanceByAppId` in explanations | Clearer "cleared by curator" UX |
-| N14 | Vetting | Publisher names in game-level vet loop | Index already has publishers |
 | N15 | ITAD | Show ITAD price vs scraped Steam price | Data already fetched |
 
 ---
@@ -66,6 +65,12 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | S10 | TBA sub-tab under Active |
 | S11 | Errors panel — severity grouping + detail |
 | N2 | AddGameModal Escape + backdrop dismiss |
+| — | Config schema v3 (`maintenance-errors`, `maintenance-audit`, split config docs) |
+| — | Dev sources v2 Firestore split (`config/dev-sources-*`) |
+| — | NE GRAI exact match + `test-dev-sources.mjs` regression suite |
+| — | RU alert message format + aggregation dedup (dev+pub, app+curator) |
+| — | `docs/DEV_CLI.md` handbook + npm seed aliases |
+| N14 | Publisher names in game-level vet loop (`collectVettingNames`) |
 
 ---
 
@@ -112,6 +117,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | No automated tests | Smoke scripts only (`test-dev-sources.mjs`) |
 | No E2E for filters/modals | Manual checklist in FEATURE_CHECKLIST |
 | Subagent findings not in CI | Pre-import manual smoke test remains critical |
-| Local functions testing undocumented | `functions/package.json` has `serve`; `VITE_USE_FUNCTIONS_EMULATOR` in dev — validate workflow, add OPS runbook |
+| Local functions testing undocumented | `functions/package.json` has `serve`; `VITE_USE_FUNCTIONS_EMULATOR` in dev — validate workflow (OPS § planned) |
+| RU vetting regression not in CI | Run `npm run test-dev-sources` manually before deploy |
 
 Update this file when closing items or discovering new debt.

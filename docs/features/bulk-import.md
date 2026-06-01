@@ -1,6 +1,6 @@
 # Bulk Import & Admin Scripts
 
-**Related:** [Steam sync](./steam-sync-and-data.md) · [RU vetting](./ru-developer-vetting.md) · [OPS](../OPS.md)
+**Related:** [Steam sync](./steam-sync-and-data.md) · [RU vetting](./ru-developer-vetting.md) · [OPS](../OPS.md) · [DEV_CLI](../DEV_CLI.md) (full script reference)
 
 ## Import script
 
@@ -14,7 +14,7 @@ node scripts/import-games.mjs path/to/games.json [--dry-run] [--app-id default_a
 ### Pipeline
 
 1. Normalize entries → scrape Steam (450ms delay) → skip duplicates
-2. Pre-vet all unique developers once
+2. Pre-vet all unique developers and publishers once
 3. Write schema v2 docs with `aggregateGameVetting`
 
 ### Auth
@@ -27,14 +27,16 @@ node scripts/import-games.mjs path/to/games.json [--dry-run] [--app-id default_a
 | :--- | :--- |
 | Script + dry-run | Done |
 | Production import | **Pending** (M7 — user ops) |
-| Post-import `revet-ru-games.mjs` | Run after import if sources changed |
+| Post-import `revet-ru-games.mjs` | Run after import or vetting logic deploy |
 
 ## Dev source scripts
 
+See [DEV_CLI.md](../DEV_CLI.md) for full flags. Quick reference:
+
 ```bash
 # Seed Firestore directly (preferred for prod)
-node scripts/sync-dev-sources.mjs --to-firestore
-node scripts/sync-dev-sources.mjs --to-firestore --build-dev-index
+npm run sync-dev-sources:firestore:full   # Windows-safe alias
+# or: node scripts/sync-dev-sources.mjs --to-firestore --full
 
 # Export bundled JSON locally (dev only)
 node scripts/sync-dev-sources.mjs
@@ -47,8 +49,9 @@ Production runtime reads **Firestore only** — see [ru-developer-vetting.md](./
 
 | Script | Purpose |
 | :--- | :--- |
-| `revet-ru-games.mjs` | Re-apply RU flags to all Firestore games |
-| `test-dev-sources.mjs` | Smoke test lookups |
+| `revet-ru-games.mjs` | Re-apply RU flags; `--dry-run`, `--verbose` decision trace |
+| `test-dev-sources.mjs` | Regression smoke (NE GRAI exact match, message format, dedup) |
+| `migrate-config-v3.mjs` | One-time split of legacy `config/default` |
 | `fix-steam-links.mjs` | Resolve legacy "Title on Steam" placeholders |
 
 ## JSON formats

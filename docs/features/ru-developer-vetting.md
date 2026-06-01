@@ -88,3 +88,4 @@ See [OPS](../OPS.md) — no DB wipe required for source updates.
 
 - `lookupCuratorClearanceByAppId` exists but unused in aggregation
 - Weekly scheduled sync does not build optional dev-name index by default (`--build-dev-index`)
+- Stored game explanations stay on old text until bulk re-vet after message-format deploy

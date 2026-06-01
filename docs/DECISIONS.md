@@ -90,6 +90,8 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Commit/push only when user asks | User preference | 2026 |
 | Orchestrator + subagents for large tasks | User preference | 2026 |
 | `--to-firestore` seed script | Push sources to Firestore without full functions deploy | 2026-06-01 |
+| **Config schema v3** | Split monolithic config; errors on `maintenance-errors` | 2026-06-01 |
+| **DEV_CLI handbook** | Single reference for all admin scripts | 2026-06-01 |
 
 ## Explicitly dropped
 

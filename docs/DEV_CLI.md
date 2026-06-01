@@ -2,6 +2,8 @@
 
 Local admin scripts for Nen? — run from repo root unless noted.
 
+**Last updated:** 2026-06-01
+
 **Not covered here:** React app (`npm run dev`), production Maintenance buttons (Cloud Callables), scheduled functions.
 
 > **When adding a script:** update this handbook (summary table + full entry with parameters and examples).

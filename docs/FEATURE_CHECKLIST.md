@@ -104,10 +104,13 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | RU filter toggle | ✅ | |
 | Manual "Run dev check" | ✅ | |
 | Manual RU toggle per game | ✅ | Does not clear cache |
-| Bulk `revet-ru-games.mjs` | ✅ | CLI only |
+| Bulk `revet-ru-games.mjs` | ✅ | CLI; `--dry-run`, `--verbose`, decision trace |
 | Bulk re-vet via Maintenance UI | ✅ | `revetAllGames` callable |
 | Curator rec type parsing | ✅ | Commit 9e3f1fd |
 | **Maintenance: dev BG source controls** | ✅ | Sync button, freshness, counts, re-vet |
+| **NE GRAI exact match only** | ✅ | No substring/suffix stripping; regression tests |
+| **RU alert message format + dedup** | ✅ | Short NE GRAI text; curator link only; dev+pub dedup |
+| **`test-dev-sources.mjs` regression suite** | ✅ | NE GRAI false positives, format, curator dedup |
 | Gemini vetting | 🚫 | Removed 2026-05-31 |
 | OpenCorporates | 🚫 | Removed |
 
@@ -147,6 +150,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Feature | Status | Notes |
 | :--- | :---: | :--- |
 | Deploy runbook | ✅ | [OPS.md](./OPS.md) |
+| **Dev CLI handbook** | ✅ | [DEV_CLI.md](./DEV_CLI.md) — all admin scripts |
+| Config schema v3 migration | ✅ | `npm run migrate-config-v3` |
 | Env var documentation | ✅ | |
 | Production smoke test checklist | ⏳ | User-driven |
 | **Local Cloud Functions testing** | 📋 | **User request** — emulator workflow documented + validated |
@@ -158,6 +163,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 
 ## Session log — 2026-06-01 (shipped)
 
+**Morning — UI, lifecycle, maintenance**
+
 - Auth spinner; AddGame dismiss; co-op filter tag removal
 - Card redesign; Clash Display + General Sans; reduced visual noise
 - TBA sub-tab under Active (default Active excludes TBA)
@@ -165,6 +172,16 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - Firestore-only dev sources; Sich 5 curators; incremental sync; `--to-firestore` script
 - Maintenance dev BG UI (sync, freshness, re-vet)
 - Error severity taxonomy; grouping; counters; clear info; weekly purge
+
+**Afternoon — config v3, RU vetting hardening, ops**
+
+- Config schema v3: split `config/default` → dedicated docs; centralized `maintenance-errors` + `maintenance-audit`
+- Dev sources v2 split across `config/dev-sources-*` Firestore docs
+- NE GRAI **exact normalized match only** — fixes substring false positives (Rebellion, Iron Gate AB, etc.)
+- RU alert messages simplified; dedupe developer+publisher and app+curator double-hits
+- `docs/DEV_CLI.md` handbook; npm aliases for PowerShell-safe Firestore seed
+- Sync/revet progress logging; `revet-ru-games --verbose` decision trace; dry-run source-load fix
+- `test-dev-sources.mjs` regression suite (8 NE GRAI cases + format/dedup checks)
 
 ## Session log — 2026-05-31 (shipped)
 
@@ -184,9 +201,11 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - [ ] Add Game → Escape / backdrop dismiss
 - [ ] Maintenance → Load meta info
 - [ ] Maintenance → Sync dev sources → verify freshness + counts
-- [ ] Maintenance → Re-vet all games (after source sync)
+- [ ] Maintenance → Re-vet all games (after source sync or message-format deploy)
 - [ ] Maintenance → errors grouped by severity/source; clear info
 - [ ] RU filter + Run dev check in edit modal
+- [ ] RU explanation text — short NE GRAI line; single curator link (no duplicate app/dev lines)
+- [ ] `node scripts/test-dev-sources.mjs` passes locally before deploy
 - [ ] Active tab vs TBA sub-tab counts
 - [ ] Lifecycle tabs + filter reset on tab change
 - [ ] Global filters (e.g. Banned from Active tab)

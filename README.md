@@ -30,4 +30,5 @@ A lightweight, premium React SPA built with Vite and Firebase to track, rate, an
 
 ## Development Guidelines
 - **Agents:** start with [`docs/AGENT_INTRO.md`](docs/AGENT_INTRO.md), then [`docs/FEATURE_CHECKLIST.md`](docs/FEATURE_CHECKLIST.md), [`docs/manifest_of_understanding.md`](docs/manifest_of_understanding.md), [`docs/ai_rules.md`](docs/ai_rules.md).
+- **Admin CLI:** [`docs/DEV_CLI.md`](docs/DEV_CLI.md) — import, sync sources, re-vet, migration scripts.
 - No personal names or static emails should be hardcoded in the source code.

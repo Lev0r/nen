@@ -14,4 +14,4 @@ Minimal docs for task-focused agent onboarding. Each file links to code paths, r
 | [Maintenance & errors](./maintenance-and-errors.md) | Sync UI, error log, acknowledge dot | F4 | `MaintenanceModal.jsx`, `appErrors.js` |
 | [Bulk import](./bulk-import.md) | CLI import of ~147 games, revet script | — | `scripts/import-games.mjs` |
 
-**Cross-cutting:** [`../OPS.md`](../OPS.md) · [`../DECISIONS.md`](../DECISIONS.md) · [`../FEATURE_CHECKLIST.md`](../FEATURE_CHECKLIST.md) · [`../CODE_IMPROVEMENTS.md`](../CODE_IMPROVEMENTS.md)
+**Cross-cutting:** [`../OPS.md`](../OPS.md) · [`../DEV_CLI.md`](../DEV_CLI.md) · [`../DECISIONS.md`](../DECISIONS.md) · [`../FEATURE_CHECKLIST.md`](../FEATURE_CHECKLIST.md) · [`../CODE_IMPROVEMENTS.md`](../CODE_IMPROVEMENTS.md)

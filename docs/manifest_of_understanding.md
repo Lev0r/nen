@@ -83,7 +83,7 @@ Split documents under `/artifacts/{appId}/public/data/config/`:
 * **Field:** `developers.{cacheKey}`
 * **cacheKey:** Normalized studio name (lowercase, trimmed)
 * **Entry:** `{ name, isRussianRelated, explanation, checkedAt }`
-* **Usage:** `addGameFromSteam`, bulk import, and manual **Run dev check** look up developers against bundled lists; results are merged into this map.
+* **Usage:** `addGameFromSteam`, bulk import, and manual **Run dev check** look up developers/publishers against **Firestore** `config/dev-sources-*` lists; results are merged into this map.
 
 ### Games Collection Path
 * **Path:** `/artifacts/{appId}/public/data/games`
@@ -328,29 +328,45 @@ Hovering the Total Hype ring shows how the number was built: each user's nicknam
 
 ### F4: Russian Developer Screening (Curated Sources)
 
-RU flags are **deterministic** — no Gemini. Sources:
+RU flags are **deterministic** — no Gemini. Runtime reads **Firestore** `config/dev-sources-*` (local JSON in `functions/data/` is dev export only).
 
-1. **NE GRAI** extension database (bundled JSON, ~3800 publisher names)
+#### Sources
+
+1. **NE GRAI** extension database (~3800 names) — **exact normalized** developer/publisher name match only (no substring)
 2. **Steam curator «Обережно, русняві ігри» (PlayUA)** — not recommended / informational app IDs
-3. **Steam curator «Avoid russian games»** — not recommended / informational app IDs; **recommended** = curator clearance after dev check (does not override NE GRAI)
+3. **Steam curator «Avoid russian games»** — same flagged rec types; **recommended** = curator clearance (does not override NE GRAI)
+4. **Sich — Ukrainian Spirit curators (×5)** — same flagged rec types
 
 GameDev DOU is documented as context-only (no automated lookup). OpenCorporates was removed.
 
+#### Alert message format
+
+Segments join with ` | `. Name-based hits: `{studio}: {reason}`. App-level curator hit: curator markdown link only.
+
+| Source | Example |
+| :--- | :--- |
+| NE GRAI | `Firevolt: developer found in "Не Грай" database` |
+| Curator | `[Steam-куратор «Sich — Ukrainian Spirit» (3/5)](url) (not recommended or informational)` |
+
+Aggregation dedupes normalized studio names across `developers[]` + `publishers[]`, and skips redundant per-developer curator hits when the game app ID is already flagged.
+
 #### Workflow
-1. On add/import/manual check: for each developer, lookup NE GRAI + curators (by dev name and known game app IDs).
-2. **`aggregateGameVetting(game)`** also checks the **game's Steam app ID** against curator lists directly.
+1. On add/import/manual check: for each unique developer **and publisher** name, lookup NE GRAI + curators (by dev name and known game app IDs).
+2. **`aggregateGameVetting(game)`** also checks the **game's Steam app ID** against curator flagged lists directly.
 3. Cache results in `config/dev-bg-check.developers` (normalized name key).
-4. Set `ruDeveloperAlert` / `ruDeveloperExplanation` on the game document (markdown links for curator citations in UI).
+4. Set `ruDeveloperAlert` / `ruDeveloperExplanation` on the game document.
 
 **Manual re-check:** Game edit → **Run dev check** (`vetGameDevelopers` callable) bypasses cache (`forceRefresh`), works for any `libraryState` including `banned`.
 
-**Bulk backfill:** `node scripts/revet-ru-games.mjs`
+**Bulk backfill:** `node scripts/revet-ru-games.mjs` (see [`DEV_CLI.md`](./DEV_CLI.md))
+
+**After vetting logic deploy:** re-vet all games so stored explanations match current format.
 
 #### UI Representation
 * **Warning Card Overlay**: If flagged, `ruDeveloperAlert = true` and explanation cites the matching source.
-* **Visual Treatment**: Red neon border; RU badge; linked citations in overview text (NE GRAI plain text only).
+* **Visual Treatment**: Red neon border; RU badge; linked citations in overview text.
 * **Filter:** Filters bar **RU alert** toggle shows flagged games library-wide.
-* **Maintenance:** Sidebar **Maintenance** modal for meta load, GFN sync, and aggregated sync errors.
+* **Maintenance:** Sync dev sources, freshness/counts, re-vet all games; centralized errors in `config/maintenance-errors`.
 
 ---
 
