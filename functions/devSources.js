@@ -1,8 +1,8 @@
 /**
  * Developer vetting sources (restricted list for deterministic lookups).
  *
- * Runtime reads Firestore devBgCheck.sources only (via ensureLiveDevSources).
- * Local JSON export is optional for dev — see scripts/sync-dev-sources.mjs.
+ * Runtime reads Firestore config/dev-sources-* only (via ensureLiveDevSources).
+ * Local JSON in functions/data/ is optional dev export — see scripts/sync-dev-sources.mjs.
  */
 const { loadDevSourcesBundle, SCHEMA_VERSION } = require('./devSourceStore');
 const {
@@ -50,7 +50,7 @@ function applyNeGraiData(data) {
   const names = Array.isArray(data) ? data : data?.names || [];
   neGraiSet = {
     names,
-    normalized: new Set(names.map(normalizeDevName).filter(Boolean)),
+    normalized: new Set(names.map(normalizeNeGraiName).filter(Boolean)),
     updatedAt: data?.updatedAt || null,
     version: data?.version || null,
   };
@@ -148,14 +148,24 @@ function resetDevSourcesCache() {
   warnedMissingCuratorIndex = false;
 }
 
-function normalizeDevName(name) {
+function baseNormalizeDevName(name) {
   return String(name || '')
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .replace(/[.,'"()]/g, '')
+    .trim();
+}
+
+function normalizeDevName(name) {
+  return baseNormalizeDevName(name)
     .replace(/\s+(inc|llc|ltd|corp|corporation|studio|studios|games|entertainment)$/i, '')
     .trim();
+}
+
+/** NE GRAI exact match: trim/case/punctuation only — no suffix strip (avoids pine/robot collisions). */
+function normalizeNeGraiName(name) {
+  return baseNormalizeDevName(name);
 }
 
 function namesMatch(a, b) {
@@ -302,28 +312,18 @@ function getCuratorIndex() {
 
 function lookupNeGrai(developerName) {
   const set = getNeGraiSet();
-  const normalized = normalizeDevName(developerName);
-  if (set.normalized.has(normalized)) {
-    const matched =
-      set.names.find((name) => normalizeDevName(name) === normalized) || developerName;
-    return {
-      isRussianRelated: true,
-      source: SOURCE_IDS.NE_GRAI,
-      explanation: `${sourceMarkdownLink(SOURCE_IDS.NE_GRAI)}: «${matched}»`,
-    };
-  }
+  const normalized = normalizeNeGraiName(developerName);
+  if (!normalized || !set.normalized.has(normalized)) return null;
 
-  for (const name of set.names) {
-    if (namesMatch(name, developerName)) {
-      return {
-        isRussianRelated: true,
-        source: SOURCE_IDS.NE_GRAI,
-        explanation: `${sourceMarkdownLink(SOURCE_IDS.NE_GRAI)}: «${name}»`,
-      };
-    }
-  }
-
-  return null;
+  // Exact normalized match only — no substring fuzzy match (namesMatch caused false positives
+  // like Iron Gate AB ↔ IRON GAMES) and no suffix stripping (Pine Studio ↔ Pine Games).
+  const matched =
+    set.names.find((name) => normalizeNeGraiName(name) === normalized) || developerName;
+  return {
+    isRussianRelated: true,
+    source: SOURCE_IDS.NE_GRAI,
+    explanation: `${sourceMarkdownLink(SOURCE_IDS.NE_GRAI)}: «${matched}»`,
+  };
 }
 
 function lookupCurators(developerName, options = {}) {

@@ -11,7 +11,7 @@
 
 | Source | ID | Flags when |
 | :--- | :--- | :--- |
-| NE GRAI extension list | `ne_grai` | Developer/publisher name match (~3800 names) |
+| NE GRAI extension list | `ne_grai` | **Exact** normalized developer/publisher name match (~3800 names; no substring or suffix stripping) |
 | Curator PlayUA | `42985013` | App on **not_recommended** or **informational** list |
 | Curator Avoid RU | `45452241` | App on **not_recommended** or **informational** |
 | Curator Sich 1–5 | `37941500`, `44677918`, `45525669`, `45830587`, `45985173` | Same flagged rec types |
@@ -19,12 +19,12 @@
 
 GameDev DOU — documented context only, no lookup.
 
-Runtime reads **Firestore `devBgCheck.sources` only** (`ensureLiveDevSources` in `devSources.js`). Bundled JSON in `functions/data/` is dev export — not used in production.
+Runtime reads **Firestore `config/dev-sources-*`** (`ensureLiveDevSources` in `devSources.js`). Local JSON in `functions/data/` is optional dev export — not used in production.
 
 ## Pipeline
 
 ```
-syncDevSources → devBgCheck.sources (Firestore)
+syncDevSources → config/dev-sources-* (Firestore)
        ↓
 vetAllDevelopers → config/dev-bg-check.developers cache (per studio)
        ↓

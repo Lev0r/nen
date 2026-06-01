@@ -93,6 +93,39 @@ async function main() {
   console.log('Direct app lookup 1643320 (curator cleared):', stalker?.explanation || 'not flagged');
   const cleared = lookupCuratorsByAppId('4595550');
   console.log('Direct app lookup 4595550 (curator cleared):', cleared?.explanation || 'not flagged');
+
+  const neGraiNegative = [
+    'Rebellion',
+    'Iron Gate AB',
+    'Total Mayhem Games',
+    'Pine Studio',
+    'Robot Entertainment',
+    'Merge Games',
+  ];
+  const neGraiPositive = ['Gaijin Entertainment', 'Mundfish'];
+
+  let failed = 0;
+  console.log('\n=== NE GRAI regression (exact match only) ===');
+  for (const name of neGraiNegative) {
+    const hit = lookupNeGrai(name);
+    const ok = !hit;
+    if (!ok) failed += 1;
+    console.log(`${ok ? 'PASS' : 'FAIL'}: ${name} should NOT match NE GRAI`);
+    if (hit) console.log('  unexpected:', hit.explanation);
+  }
+  for (const name of neGraiPositive) {
+    const hit = lookupNeGrai(name);
+    const ok = Boolean(hit);
+    if (!ok) failed += 1;
+    console.log(`${ok ? 'PASS' : 'FAIL'}: ${name} should match NE GRAI`);
+    if (hit) console.log('  matched:', hit.explanation);
+  }
+
+  if (failed > 0) {
+    console.error(`\n${failed} NE GRAI regression case(s) failed`);
+    process.exit(1);
+  }
+  console.log('\nAll NE GRAI regression cases passed');
 }
 
 main();

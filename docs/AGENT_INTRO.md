@@ -26,6 +26,7 @@ Never hardcode personal names in UI — use `VITE_USER0_NICKNAME` / `VITE_USER1_
 | 4 | **[`ai_rules.md`](./ai_rules.md)** | Constraints, anti-patterns |
 | 5 | **Feature doc** from [`features/README.md`](./features/README.md) | Task-specific deep dive |
 | 6 | **[`OPS.md`](./OPS.md)** | Deploy, env vars, scripts |
+| 6b | **[`DEV_CLI.md`](./DEV_CLI.md)** | All local CLI scripts — flags, examples (update when adding scripts) |
 | 7 | **[`DECISIONS.md`](./DECISIONS.md)** | Why past choices were made |
 | 8 | **[`CODE_IMPROVEMENTS.md`](./CODE_IMPROVEMENTS.md)** | Tech debt and refactor backlog |
 
@@ -84,6 +85,7 @@ nen/
 4. **Ask before:** git commit, push, production deploy, bulk import without `--dry-run`.
 5. Update [`FEATURE_CHECKLIST.md`](./FEATURE_CHECKLIST.md) when shipping or deferring features.
 6. Update the relevant [`features/`](./features/) doc if behavior changes materially.
+7. **New dev CLI script?** Update [`DEV_CLI.md`](./DEV_CLI.md) (flags, examples, Firestore impact) in the same change.
 
 User preference: orchestrator may split large tasks into subagents.
 
@@ -117,6 +119,7 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 6. **Firestore dev sources (schema v2)** — split docs `config/dev-sources-*`; seed via `--to-firestore`. Legacy `devBgCheck.sources` on deprecated `config/default` is unused. Developer cache lives on `config/dev-bg-check`.
 7. **Maintenance errors (schema v3)** — stored in `config/maintenance-errors`, not on game docs. UI reads `config/maintenance-audit` for sync labels.
 8. **Curator vetting** — only `not_recommended` + `informational` flag; `recommended` = clearance (does not override NE GRAI).
+9. **NE GRAI vetting** — exact normalized name match only (no substring; no suffix stripping on studio/games/entertainment).
 
 ---
 

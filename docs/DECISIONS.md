@@ -66,6 +66,7 @@ Chronological archive of product and technical decisions. Update when shipping m
 | No DB wipe after Gemini removal | Game docs + cache still valid | 2026-05-31 |
 | Curator `recommended` = clearance | Avoid false positives from Avoid RU list | 2026-05-31 |
 | NE GRAI overrides curator clearance | Hard publisher list | 2026-05-31 |
+| **NE GRAI exact normalized match only** | Substring + suffix-stripped collisions flagged unrelated Western studios | 2026-06-01 |
 | Manual RU toggle is per-game only | Does not change dev cache | 2026-05-31 |
 | **Firestore-only runtime sources** | Single source of truth; bundled JSON is dev export only | 2026-06-01 |
 | **Sich curators (5 IDs) via curator API** | Same pipeline as PlayUA/Avoid RU; not group scrape | 2026-06-01 |
