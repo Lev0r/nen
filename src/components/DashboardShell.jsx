@@ -4,8 +4,8 @@ import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
 import GameFiltersBar from './GameFiltersBar';
 import MaintenanceModal from './MaintenanceModal';
-import { useGames, useAppConfig } from '../services/db';
-import { syncGfnCatalog, syncSteamLibrary } from '../services/cloudFunctions';
+import { useGames, useAppConfig, clearInfoErrorsFromGames } from '../services/db';
+import { syncGfnCatalog, syncSteamLibrary, syncDevSources, revetAllGames } from '../services/cloudFunctions';
 import { getNickname } from '../utils/userConfig';
 import {
   LIBRARY_STATES,
@@ -53,13 +53,12 @@ function matchesActiveSubTab(game, subTab) {
   return subTab === 'tba' ? isTbaGame(game) : !isTbaGame(game);
 }
 
-function appendRuntimeError(setter, label, message) {
+function appendRuntimeError(setter, source, message) {
   setter((prev) => [
     ...prev,
     {
-      id: `action-${Date.now()}-${label}`,
-      scope: 'action',
-      label,
+      severity: 'warning',
+      source: 'action',
       message,
       at: new Date().toISOString(),
     },
@@ -78,6 +77,9 @@ export default function DashboardShell() {
   const [gameFilters, setGameFilters] = useState(DEFAULT_GAME_FILTERS);
   const [syncingGfn, setSyncingGfn] = useState(false);
   const [syncingMeta, setSyncingMeta] = useState(false);
+  const [syncingDevSources, setSyncingDevSources] = useState(false);
+  const [reVettingGames, setReVettingGames] = useState(false);
+  const [clearingInfo, setClearingInfo] = useState(false);
   const [runtimeErrors, setRuntimeErrors] = useState([]);
   const [acknowledgedFingerprint, setAcknowledgedFingerprint] = useState(
     readAcknowledgedFingerprint
@@ -98,31 +100,67 @@ export default function DashboardShell() {
     return formatRelativeTimeShort(syncedAt);
   }, [config?.steamLibrarySync?.syncedAt]);
 
+  const devSourcesSyncedAtLabel = useMemo(() => {
+    const syncedAt = config?.devBgCheck?.sources?.syncedAt;
+    return formatRelativeTimeShort(syncedAt);
+  }, [config?.devBgCheck?.sources?.syncedAt]);
+
+  const devSourceSummary = useMemo(() => {
+    const sources = config?.devBgCheck?.sources;
+    if (!sources) return null;
+
+    const neGraiCount = sources.neGrai?.names?.length ?? 0;
+    const curators = sources.curatorAppIds?.curators || {};
+    const curatorRows = Object.entries(curators)
+      .map(([key, entry]) => ({
+        key,
+        label: entry?.label || key,
+        flaggedCount: entry?.flaggedAppIds?.length ?? 0,
+        clearedCount: entry?.clearedAppIds?.length ?? 0,
+        complete: Boolean(entry?.complete),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    return { neGraiCount, curatorRows };
+  }, [config?.devBgCheck?.sources]);
+
   const appErrors = useMemo(() => {
     const errors = collectAppErrors({ config, games, runtimeErrors });
     if (subscriptionError) {
       errors.unshift({
-        id: 'firestore-games-subscription',
-        scope: 'library',
-        label: 'Firestore',
+        severity: 'error',
+        source: 'firestore',
+        gameName: null,
+        gameId: null,
         message: subscriptionError,
+        count: 1,
         at: new Date().toISOString(),
+        detail: null,
+        errorKey: null,
       });
     }
     if (loadErrors > 0) {
       errors.unshift({
-        id: 'firestore-games-load',
-        scope: 'library',
-        label: 'Game data',
+        severity: 'warning',
+        source: 'game-data',
+        gameName: null,
+        gameId: null,
         message: `${loadErrors} game document(s) could not be loaded — check the browser console.`,
+        count: 1,
         at: new Date().toISOString(),
+        detail: null,
+        errorKey: null,
       });
     }
     return errors;
   }, [config, games, runtimeErrors, subscriptionError, loadErrors]);
 
-  const errorFingerprint = useMemo(() => fingerprintAppErrors(appErrors), [appErrors]);
+  const errorFingerprint = useMemo(
+    () => fingerprintAppErrors(appErrors, { severities: ['error', 'warning'] }),
+    [appErrors]
+  );
   const showErrorDot = hasUnacknowledgedErrors(appErrors, acknowledgedFingerprint);
+  const hasInfoErrors = appErrors.some((entry) => entry.severity === 'info');
 
   async function handleSyncGfn() {
     setSyncingGfn(true);
@@ -148,9 +186,45 @@ export default function DashboardShell() {
     }
   }
 
+  async function handleSyncDevSources() {
+    setSyncingDevSources(true);
+    try {
+      await syncDevSources();
+    } catch (err) {
+      const message = reportError('Sync dev sources', err);
+      appendRuntimeError(setRuntimeErrors, 'Sync dev sources', message);
+    } finally {
+      setSyncingDevSources(false);
+    }
+  }
+
+  async function handleRevetAllGames() {
+    setReVettingGames(true);
+    try {
+      await revetAllGames();
+    } catch (err) {
+      const message = reportError('Re-vet all games', err);
+      appendRuntimeError(setRuntimeErrors, 'Re-vet all games', message);
+    } finally {
+      setReVettingGames(false);
+    }
+  }
+
   function handleAcknowledgeErrors() {
     writeAcknowledgedFingerprint(errorFingerprint);
     setAcknowledgedFingerprint(errorFingerprint);
+  }
+
+  async function handleClearInfo() {
+    setClearingInfo(true);
+    try {
+      await clearInfoErrorsFromGames('default_app', games);
+    } catch (err) {
+      const message = reportError('Clear info errors', err);
+      appendRuntimeError(setRuntimeErrors, 'action', message);
+    } finally {
+      setClearingInfo(false);
+    }
   }
 
   const tabCounts = LIFECYCLE_TABS.reduce((counts, tab) => {
@@ -342,14 +416,25 @@ export default function DashboardShell() {
         isOpen={maintenanceOpen}
         onClose={() => setMaintenanceOpen(false)}
         errors={appErrors}
-        canAcknowledge={appErrors.length > 0}
+        canAcknowledge={appErrors.some(
+          (entry) => entry.severity === 'error' || entry.severity === 'warning'
+        )}
         onAcknowledge={handleAcknowledgeErrors}
+        canClearInfo={hasInfoErrors}
+        onClearInfo={handleClearInfo}
+        clearingInfo={clearingInfo}
         syncingMeta={syncingMeta}
         syncingGfn={syncingGfn}
+        syncingDevSources={syncingDevSources}
+        reVettingGames={reVettingGames}
         onLoadMeta={handleLoadMeta}
         onSyncGfn={handleSyncGfn}
+        onSyncDevSources={handleSyncDevSources}
+        onRevetAllGames={handleRevetAllGames}
         metaSyncedAtLabel={metaSyncedAtLabel}
         gfnSyncedAtLabel={gfnSyncedAtLabel}
+        devSourcesSyncedAtLabel={devSourcesSyncedAtLabel}
+        devSourceSummary={devSourceSummary}
       />
       </div>
     </>
