@@ -2,6 +2,8 @@
 
 Chronological archive of product and technical decisions. Update when shipping material changes.
 
+**Last updated:** 2026-06-01
+
 ---
 
 ## Architecture
@@ -25,6 +27,8 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Browser title `Nen?` only | User preference | 2026 |
 | Dynamic BG from screenshots, top 5 hype | Thumbnails too blurry | 2026 |
 | News feed UI dropped | `hasUpdateSinceState` badge instead | 2026 |
+| **Clash Display + General Sans fonts** | Card redesign; cinematic titles + clean UI body | 2026-06-01 |
+| **Card visibility pass** | Dim dynamic BG + unhovered thumbnails for readability | 2026-06-01 |
 
 ## Filters & library
 
@@ -34,6 +38,8 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Tab click resets filters | Avoid confusing combinations | 2026 |
 | Tag list from entire library | All tags visible when filtering | 2026 |
 | "Ready to Play" preset deferred | Use ownership + lifecycle chips | 2026 |
+| **Remove co-op tags from filter UI** | Co-op-only library; tag chips add noise | 2026-06-01 |
+| **TBA sub-tab under Active** | Default Active excludes TBA; reduces main-view noise | 2026-06-01 |
 
 ## Sync & data
 
@@ -47,6 +53,7 @@ Chronological archive of product and technical decisions. Update when shipping m
 | GFN re-sync on version refresh dropped | Catalog is global | 2026 |
 | Steam `cc=ua` | UAH prices, user locale | 2026 |
 | Functions secrets in `functions/.env` | Project convention, not Secret Manager | 2026 |
+| **Two-phase add (`previewSteamGame` + co-op confirm)** | Preview scrape first; non-blocking co-op warning before persist | 2026-06-01 |
 
 ## RU vetting
 
@@ -59,6 +66,18 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Curator `recommended` = clearance | Avoid false positives from Avoid RU list | 2026-05-31 |
 | NE GRAI overrides curator clearance | Hard publisher list | 2026-05-31 |
 | Manual RU toggle is per-game only | Does not change dev cache | 2026-05-31 |
+| **Firestore-only runtime sources** | Single source of truth; bundled JSON is dev export only | 2026-06-01 |
+| **Sich curators (5 IDs) via curator API** | Same pipeline as PlayUA/Avoid RU; not group scrape | 2026-06-01 |
+| **Incremental curator sync** | Resumable weekly job; avoids re-fetching complete lists | 2026-06-01 |
+
+## Maintenance & errors
+
+| Decision | Reason | Date |
+| :--- | :--- | :--- |
+| **Error severity taxonomy (error / warning / info)** | Scan-friendly Maintenance panel | 2026-06-01 |
+| **Group errors by severity then source** | Collapse duplicates; show counts | 2026-06-01 |
+| **Clear info + weekly purge** | Info-level noise auto-purged; user can clear manually | 2026-06-01 |
+| Dev BG controls in Maintenance UI | syncDevSources + freshness + bulk re-vet without CLI | 2026-06-01 |
 
 ## Workflow
 
@@ -67,6 +86,7 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Bulk import script-only, no UI | One-time ~147 game migration | 2026 |
 | Commit/push only when user asks | User preference | 2026 |
 | Orchestrator + subagents for large tasks | User preference | 2026 |
+| `--to-firestore` seed script | Push sources to Firestore without full functions deploy | 2026-06-01 |
 
 ## Explicitly dropped
 
@@ -74,10 +94,8 @@ Chronological archive of product and technical decisions. Update when shipping m
 - In-app dynamic BG toggle
 - Re-run GFN on every version refresh
 
-## Under discussion (2026-05-31)
+## Under discussion
 
 | Proposal | Notes |
 | :--- | :--- |
-| Sich Ukrainian Spirit curators as RU source | 5 curator IDs; prefer curator API over group scrape — see [ru-developer-vetting.md](./features/ru-developer-vetting.md) |
-| Remove co-op tags from filters | App is co-op-only by intent |
-| Co-op warning on add | Non-blocking confirm if no co-op Steam categories |
+| Steam wishlist sync + library ownership sync | Needs Web API key — see [steam-sync-and-data.md](./features/steam-sync-and-data.md) |

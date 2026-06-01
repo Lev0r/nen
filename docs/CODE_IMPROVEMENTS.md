@@ -2,6 +2,8 @@
 
 Categorized from codebase review, git history, and agent research (2026-05-31). Not a commitment — prioritize with user before large refactors.
 
+**Last updated:** 2026-06-01
+
 ---
 
 ## Must-have
@@ -9,9 +11,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | ID | Area | Item | Rationale |
 | :--- | :--- | :--- | :--- |
 | M1 | Auth | Unify allowlist — env vars vs hardcoded `firestore.rules` emails | Drift / security footgun |
-| M2 | RU vetting | Add Sich curators (`37941500`, `44677918`, `45525669`, `45830587`, `45985173`) | User-requested source; finish RU flow |
-| M3 | Maintenance | Dev BG source controls in UI — `syncDevSources` wrapper, freshness/counts, bulk re-vet | Production source refresh without CLI |
-| M4 | Ops | Document/trigger post-deploy: deploy → syncDevSources → revet | False RU flags until sources + games refreshed |
+| M4 | Ops | Document/trigger post-deploy: deploy → syncDevSources → revet | False RU flags until sources + games refreshed; UI exists, runbook could be tighter |
 | M5 | Sync | Monitor full-library sync timeout at ~400–500 games | 540s sequential job may fail |
 | M6 | HLTB | Treat HLTB as fragile; surface failures clearly | Unofficial API, auth can break |
 | M7 | Import | Run production bulk import + smoke test | P0 user ops still pending |
@@ -22,19 +22,11 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 
 | ID | Area | Item | Rationale |
 | :--- | :--- | :--- | :--- |
-| S1 | Filters | Remove co-op-related tags from filter chip list | User request; co-op-only library |
-| S2 | Add game | Co-op category warning (IDs 9, 38, 39, 48) | User request; non-blocking confirm |
 | S3 | RU vetting | Build dev-name curator index in weekly sync (`buildDevIndex`) | Dev hits without app-ID path |
-| S4 | Maintenance | Bulk re-vet callable or button | Avoid CLI for 147 games |
-| S5 | Maintenance | Show `devBgCheck.sources` freshness + counts | Ops visibility |
-| S6 | Auth | Loading spinner during `AuthProvider` init | Blank flash on load |
 | S7 | Callables | `addGameFromSteam` client timeout aligned with 120s function | Inconsistent with sync wrappers |
 | S8 | Steam | Remove or wire `fetchGeForceNowReady` dead code | Confusing vs catalog-only badge |
-| S9 | UI | Card visibility — dim dynamic BG, darken unhovered thumbnails | User request; readability vs glass cards |
-| S10 | Lifecycle | TBA sub-tab under Active (exclude from default Active pool) | User request; TBA noise in main view |
-| S11 | Maintenance | Errors panel — group by source + severity, expand detail | User request; flat list hard to scan |
 | S12 | Steam | Wishlist sync (discover new games) + library sync (ownership) | User request; needs Steam Web API key |
-| S13 | QA | Test & improve 2026-05-31 release (syncs, RU, notifications) | Shipped features need validation pass |
+| S13 | QA | Test & improve release (syncs, RU, notifications) | Shipped features need validation pass |
 
 ---
 
@@ -43,7 +35,6 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | ID | Area | Item | Rationale |
 | :--- | :--- | :--- | :--- |
 | N1 | UI | Mobile pass — tooltips, grid, modals, sidebar drawer | P1 polish |
-| N2 | UI | AddGameModal Escape + backdrop dismiss | Parity with other modals |
 | N3 | UI | "Refresh from Steam" in GameEditModal | Single-game re-scrape |
 | N4 | UI | Live Total Hype preview in edit modal | UX clarity |
 | N5 | Hype | Use or drop `recentReviewPercent` in formula | Fetched but unused |
@@ -57,6 +48,24 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | N13 | RU | Use `lookupCuratorClearanceByAppId` in explanations | Clearer "cleared by curator" UX |
 | N14 | Vetting | Publisher names in game-level vet loop | Index already has publishers |
 | N15 | ITAD | Show ITAD price vs scraped Steam price | Data already fetched |
+
+---
+
+## Completed (2026-06-01 session)
+
+| ID | Item |
+| :--- | :--- |
+| M2 | Sich curators (5 IDs) |
+| M3 | Dev BG source controls in Maintenance UI |
+| S1 | Remove co-op tags from filter chips |
+| S2 | Co-op category warning on add (two-phase confirm) |
+| S4 | Bulk re-vet button (`revetAllGames`) |
+| S5 | Source freshness + counts in Maintenance |
+| S6 | Auth loading spinner |
+| S9 | Card visibility — dim BG, darken unhovered thumbnails |
+| S10 | TBA sub-tab under Active |
+| S11 | Errors panel — severity grouping + detail |
+| N2 | AddGameModal Escape + backdrop dismiss |
 
 ---
 

@@ -26,19 +26,30 @@ node scripts/import-games.mjs path/to/games.json [--dry-run] [--app-id default_a
 | Step | Status |
 | :--- | :--- |
 | Script + dry-run | Done |
-| Production import | **Pending** (user ops) |
-| Post-import `revet-ru-games.mjs` | Pending if flags stale |
+| Production import | **Pending** (M7 — user ops) |
+| Post-import `revet-ru-games.mjs` | Run after import if sources changed |
+
+## Dev source scripts
+
+```bash
+# Seed Firestore directly (preferred for prod)
+node scripts/sync-dev-sources.mjs --to-firestore
+node scripts/sync-dev-sources.mjs --to-firestore --build-dev-index
+
+# Export bundled JSON locally (dev only)
+node scripts/sync-dev-sources.mjs
+node scripts/sync-dev-sources.mjs --curators-only
+```
+
+Production runtime reads **Firestore only** — see [ru-developer-vetting.md](./ru-developer-vetting.md).
 
 ## Other scripts
 
 | Script | Purpose |
 | :--- | :--- |
 | `revet-ru-games.mjs` | Re-apply RU flags to all Firestore games |
-| `sync-dev-sources.mjs` | Local NE GRAI + curator JSON → `functions/data/` |
 | `test-dev-sources.mjs` | Smoke test lookups |
 | `fix-steam-links.mjs` | Resolve legacy "Title on Steam" placeholders |
-
-**Note:** Local `sync-dev-sources` updates bundled JSON only. Production needs deploy + `syncDevSources` callable or wait for weekly schedule.
 
 ## JSON formats
 

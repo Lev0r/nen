@@ -10,6 +10,10 @@
 | :--- | :--- | :--- |
 | Load meta info | `syncSteamLibrary` | 540s client |
 | Sync GeForce NOW | `syncGfnCatalog` | 540s client |
+| Sync dev sources | `syncDevSources` | 540s client |
+| Re-vet all games | `revetAllGames` | 540s client |
+
+Dev source section shows `devBgCheck.sources.syncedAt`, per-source counts (`devSourceSummary`).
 
 **Errors section** — aggregated via `collectAppErrors()` (`appErrors.js`):
 
@@ -17,10 +21,13 @@
 - Game-level: `vettingError`, `lastSyncError`, third-party errors
 - Action-level: runtime errors from sync buttons
 
-### Planned (user request)
+### Error presentation
 
-- **Group errors** by source (e.g. HLTB, ITAD, vetting, sync, subscription) and severity
-- **Richer detail** per entry — timestamps, game name/app ID, raw message, suggested action
+- **Severity taxonomy:** `error` / `warning` / `info`
+- **Grouped** by severity, then source — duplicate messages collapsed with counts
+- **Detail** per entry — timestamps, game name/app ID, message, optional detail
+- **Clear info** button — dismiss info-level entries
+- **Weekly purge** — stale info fields cleared on scheduled sync (`purgeStaleInfoFields`)
 
 **Acknowledge dot** — yellow on Maintenance button; fingerprint in `localStorage`.
 
@@ -30,14 +37,10 @@
 - `functions/deadline-exceeded` → timeout hint for long syncs
 - Vetting failures on add: game **saved**, `vettingError` on doc, modal stays open
 
-## Gaps (see [CODE_IMPROVEMENTS](../CODE_IMPROVEMENTS.md))
-
-- **Dev BG source maintenance UI** (user request) — sync button, source freshness (`devBgCheck.sources.syncedAt`), list counts, bulk re-vet; callable `syncDevSources` exists, no client wrapper yet
-- No bulk RU re-vet button (standalone; may fold into dev BG controls)
-
-## Related callables (partial / no UI)
+## Related callables
 
 | Callable | Purpose | UI status |
 | :--- | :--- | :--- |
-| `syncDevSources` | Refresh vetting source lists in Firestore | ❌ no UI |
-| `vetGameDevelopers` | Per-game re-vet | ✅ edit modal only |
+| `syncDevSources` | Refresh vetting source lists in Firestore | ✅ Maintenance |
+| `revetAllGames` | Bulk re-vet all games | ✅ Maintenance |
+| `vetGameDevelopers` | Per-game re-vet | ✅ edit modal |

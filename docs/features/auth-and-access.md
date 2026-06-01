@@ -7,6 +7,7 @@
 
 - Google OAuth via Firebase Auth (`src/contexts/AuthContext.jsx`, `src/firebase.js`)
 - Allowlist: `VITE_ALLOWED_EMAIL_0` / `VITE_ALLOWED_EMAIL_1` → `userIndex` 0 or 1; others signed out immediately
+- **Auth loading spinner** — `LoginGate` shows spinner during `AuthProvider` init (no blank flash)
 - `LoginGate` wraps app; `DashboardShell` after auth
 - Firestore rules (`firestore.rules`): read/write games + read config for two hardcoded emails; **config write denied** (server only)
 

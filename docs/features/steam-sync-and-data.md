@@ -17,6 +17,7 @@ Store region: **`cc=ua`** (UAH, English). All Steam HTTP in Cloud Functions (`fu
 
 | Export | Type | Purpose |
 | :--- | :--- | :--- |
+| `previewSteamGame` | Callable | Scrape-only preview for add flow (no write) |
 | `addGameFromSteam` | Callable | Scrape + write + HLTB/ITAD enrich + RU vet |
 | `syncSteamLibrary` | Callable | Manual full sync ("Load meta info") |
 | `syncLibrarySteam` | Scheduled | Every **6 hours** — gated per-game sync |
@@ -59,3 +60,4 @@ UI checks **global catalog** at render time — not per-game `geforceNowReady` f
 
 - [RU vetting](./ru-developer-vetting.md) — runs on add after scrape
 - [Lifecycle](./lifecycle-and-ownership.md) — banned skip, finished throttle
+- [UI shell](./ui-shell-and-modals.md) — two-phase add via `previewSteamGame`

@@ -19,7 +19,7 @@ Implemented: `src/utils/gameFilters.js`, `src/components/GameFiltersBar.jsx`, `D
 | :--- | :--- |
 | `searchText` | Name substring (case-insensitive) |
 | `libraryStates[]` | Lifecycle chips |
-| `steamTags[]` | Tag chips (OR) |
+| `steamTags[]` | Tag chips (OR) — **co-op tags excluded** |
 | `developmentStatus` | released / early_access / tba / all |
 | `ownership` | neither / one / both |
 | `onSaleOnly` | Toggle |
@@ -27,14 +27,18 @@ Implemented: `src/utils/gameFilters.js`, `src/components/GameFiltersBar.jsx`, `D
 | `ruOnly` | Toggle |
 | `updateAvailableOnly` | Toggle (`hasUpdateSinceState`) |
 
-Tag list built from **full library** (`collectSteamTags(games)`), not current tab.
+Tag list built from **full library** (`collectSteamTags(games)`), not current tab. Co-op-related tags filtered out in `gameFilters.js` (`isCoopTag`).
 
-## Planned changes (not implemented)
+## Add game co-op validation
 
-- **TBA sub-tab under Active** — default Active excludes `developmentStatus === 'tba'`; TBA lives in nested subcategory (see [Lifecycle](./lifecycle-and-ownership.md))
-- **Remove co-op-related tags from filter UI** — all library games are co-op-focused; co-op tag chips add noise
-- **Co-op validation on add** — warn if Steam categories lack co-op IDs (9, 38, 39, 48): *"This game does not have a co-op tag. Are you sure you want to add it?"*
-- **Ready to Play preset** — deferred (use ownership + lifecycle chips)
+Two-phase add flow — see [UI shell](./ui-shell-and-modals.md):
+
+1. `previewSteamGame` scrapes metadata
+2. If no co-op Steam categories (9, 38, 39, 48), show non-blocking confirm before `addGameFromSteam`
+
+## Deferred
+
+- **Ready to Play preset** — use ownership + lifecycle chips instead
 
 ## UX notes
 

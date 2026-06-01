@@ -2,6 +2,8 @@
 
 **Related:** [AGENT_INTRO.md](./AGENT_INTRO.md) · [FEATURE_CHECKLIST.md](./FEATURE_CHECKLIST.md) · [ru-developer-vetting.md](./features/ru-developer-vetting.md)
 
+**Last updated:** 2026-06-01
+
 ---
 
 ## Prerequisites
@@ -60,7 +62,7 @@ npm run build && firebase deploy --only hosting
 | :--- | :--- |
 | `syncLibrarySteam` | Every 6 hours |
 | `syncGfnCatalogScheduled` | Every 168 hours |
-| `syncDevSourcesScheduled` | Every 168 hours |
+| `syncDevSourcesScheduled` | Every 168 hours (incremental curator sync) |
 
 ---
 
@@ -68,11 +70,13 @@ npm run build && firebase deploy --only hosting
 
 | Export | Client wrapper | Purpose |
 | :--- | :--- | :--- |
+| `previewSteamGame` | ✅ | Scrape-only preview for add flow |
 | `addGameFromSteam` | ✅ | Add + vet game |
 | `vetGameDevelopers` | ✅ `runDevCheck` | Manual re-vet one game |
 | `syncSteamLibrary` | ✅ | Load meta info |
 | `syncGfnCatalog` | ✅ | GFN catalog |
-| `syncDevSources` | ❌ **no UI** | Refresh RU source lists |
+| `syncDevSources` | ✅ | Refresh RU source lists |
+| `revetAllGames` | ✅ | Bulk re-vet all games |
 
 Region: `europe-west1`. Sync callables: **540s** client timeout in `cloudFunctions.js`.
 
@@ -86,21 +90,32 @@ Requires `firebase login` + project, or `GOOGLE_APPLICATION_CREDENTIALS`.
 # Preview bulk import
 npm run import-games -- "docs/all games.json" --dry-run
 
-# Import library
+# Import library (M7 — pending user ops)
 npm run import-games -- "docs/all games.json" --app-id default_app
 
 # Refresh RU flags on all games
 node scripts/revet-ru-games.mjs --dry-run
 node scripts/revet-ru-games.mjs
 
-# Update bundled vetting JSON (local files only — deploy functions to ship)
+# Seed dev sources directly to Firestore (preferred for prod refresh)
+node scripts/sync-dev-sources.mjs --to-firestore
+node scripts/sync-dev-sources.mjs --to-firestore --build-dev-index   # slow; optional dev index
+
+# Export bundled JSON locally (dev/offline only — runtime reads Firestore)
 node scripts/sync-dev-sources.mjs
 node scripts/sync-dev-sources.mjs --curators-only
-node scripts/sync-dev-sources.mjs --build-dev-index   # slow; optional dev index
 
 # Smoke test lookups
 node scripts/test-dev-sources.mjs
 ```
+
+### Dev source seed workflow
+
+Production functions read **`devBgCheck.sources` in Firestore only** — bundled JSON is not used at runtime.
+
+1. **First deploy / new curator** — `node scripts/sync-dev-sources.mjs --to-firestore` (or Maintenance → Sync dev sources after deploy)
+2. **Re-vet games** — Maintenance → Re-vet all games, or `node scripts/revet-ru-games.mjs`
+3. **Ongoing** — weekly `syncDevSourcesScheduled` (incremental; resumes partial curator fetches)
 
 ---
 
@@ -109,8 +124,8 @@ node scripts/test-dev-sources.mjs
 After deploying curator-logic or source changes:
 
 1. **`firebase deploy --only functions`**
-2. **Refresh Firestore sources** — call `syncDevSources` (no UI yet; browser console or add Maintenance button)
-3. **`node scripts/revet-ru-games.mjs`** — update all game flags + dev cache
+2. **Refresh Firestore sources** — Maintenance → **Sync dev sources**, or `node scripts/sync-dev-sources.mjs --to-firestore`
+3. **Re-vet games** — Maintenance → **Re-vet all games**, or `node scripts/revet-ru-games.mjs`
 
 No DB wipe needed. Stale `vettingError` clears on successful Run dev check.
 
@@ -131,20 +146,16 @@ Partial wiring exists; workflow needs validation and documentation.
 - Today the SPA still uses **production Firestore/Auth** when emulating functions — only callables route locally
 - Callable auth (`ALLOWED_EMAIL_0/1`) and secrets (`ITAD_API_KEY`, etc.) must be in `functions/.env`
 - Consider adding `emulators` block to `firebase.json` if ports or UI are needed
-- Document smoke paths: `addGameFromSteam`, `syncSteamLibrary`, `syncDevSources`, `vetGameDevelopers`
+- Document smoke paths: `previewSteamGame`, `addGameFromSteam`, `syncSteamLibrary`, `syncDevSources`, `vetGameDevelopers`
 
 ---
 
-## 2026-05-31 release — test & polish (planned)
+## Pending ops
 
-Validate and improve recently shipped behavior before/at bulk import:
-
-- Maintenance modal — Load meta info, GFN sync, error acknowledge dot
-- RU filter + Run dev check + curator parsing
-- Sync timeouts (540s client) and user-facing error messages
-- Notifications / toasts / inline feedback consistency
-
-See smoke checklist in [FEATURE_CHECKLIST.md](./FEATURE_CHECKLIST.md).
+| Item | Status |
+| :--- | :--- |
+| **M7 — bulk import 147 games** | Script ready; user has not run production import |
+| Post-import smoke test | See [FEATURE_CHECKLIST.md](./FEATURE_CHECKLIST.md) |
 
 ---
 

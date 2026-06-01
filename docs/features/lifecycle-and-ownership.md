@@ -9,15 +9,22 @@
 
 | State | Sidebar tab |
 | :--- | :--- |
-| `active` | Active |
+| `active` | Active (with sub-tabs) |
 | `replayable` | Replayable |
 | `waiting_for_updates` | Waiting for updates |
 | `finished` | Finished |
 | `banned` | Banned |
 
-### Planned (user request)
+### Active sub-tabs
 
-- **TBA sub-tab** — games with `steamStatic.developmentStatus === 'tba'` live under Active as a separate subcategory; default Active tab excludes TBA (less noise in main view)
+Under **Active**, nested sub-tabs split the pool:
+
+| Sub-tab | Pool |
+| :--- | :--- |
+| **Active** (default) | `libraryState === 'active'` and `developmentStatus !== 'tba'` |
+| **TBA** | `libraryState === 'active'` and `developmentStatus === 'tba'` |
+
+Implemented in `DashboardShell.jsx` (`ACTIVE_SUB_TABS`, `matchesActiveSubTab`).
 
 - **`resolveLibraryState`** — `src/utils/libraryState.js` (legacy `abandoned` → `banned`)
 - **`LifecycleModal`** — card-triggered; optional note; finished rating when `finished`
