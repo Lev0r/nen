@@ -4,7 +4,15 @@ import { functions } from '../firebase';
 /** Match Cloud Functions `timeoutSeconds` for long-running sync callables. */
 const SYNC_CALL_TIMEOUT_MS = 540_000;
 
-const addGameFromSteamFn = httpsCallable(functions, 'addGameFromSteam');
+/** Match Cloud Functions `timeoutSeconds` for Steam preview/persist callables. */
+const STEAM_GAME_CALL_TIMEOUT_MS = 120_000;
+
+const previewSteamGameFn = httpsCallable(functions, 'previewSteamGame', {
+  timeout: STEAM_GAME_CALL_TIMEOUT_MS,
+});
+const addGameFromSteamFn = httpsCallable(functions, 'addGameFromSteam', {
+  timeout: STEAM_GAME_CALL_TIMEOUT_MS,
+});
 const syncGfnCatalogFn = httpsCallable(functions, 'syncGfnCatalog', {
   timeout: SYNC_CALL_TIMEOUT_MS,
 });
@@ -13,8 +21,22 @@ const syncSteamLibraryFn = httpsCallable(functions, 'syncSteamLibrary', {
 });
 const vetGameDevelopersFn = httpsCallable(functions, 'vetGameDevelopers');
 
-export async function addGameFromSteam(steamInput, appId = 'default_app') {
-  const result = await addGameFromSteamFn({ steamInput, appId });
+export async function previewSteamGame(steamInput, appId = 'default_app') {
+  const result = await previewSteamGameFn({ steamInput, appId });
+  return result.data;
+}
+
+export async function addGameFromSteam(
+  steamInput,
+  appId = 'default_app',
+  { preloadedGame, skipScrape } = {}
+) {
+  const result = await addGameFromSteamFn({
+    steamInput,
+    appId,
+    preloadedGame,
+    skipScrape,
+  });
   return result.data;
 }
 

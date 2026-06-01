@@ -94,6 +94,10 @@ function mapDevelopmentStatus(data) {
   return 'released';
 }
 
+function hasCoopCategory(categories) {
+  return (categories || []).some((c) => COOP_CATEGORY_IDS.has(c.id));
+}
+
 function mapCoopSpecs(categories) {
   const ids = new Set((categories || []).map((c) => c.id));
   return {
@@ -364,6 +368,7 @@ function mapStaticFromAppDetails(data) {
     screenshots: (data.screenshots || []).slice(0, 5).map((s) => s.path_full),
     steamOverview: data.short_description || '',
     steamTags: mapSteamTags(data.genres, data.categories),
+    hasCoopCategory: hasCoopCategory(data.categories),
     coopSpecs: mapCoopSpecs(data.categories),
     developmentStatus,
     releaseDate,
@@ -477,6 +482,8 @@ async function fetchSteamGame(steamInput) {
 
 module.exports = {
   parseAppId,
+  hasCoopCategory,
+  COOP_CATEGORY_IDS,
   fetchSteamGame,
   fetchCurrentVersion,
   fetchGeForceNowReady,

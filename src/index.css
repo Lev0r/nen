@@ -2102,6 +2102,13 @@ button {
   color: var(--accent-yellow);
 }
 
+.add-game-preview-name {
+  margin-bottom: 1.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #fff;
+}
+
 /* Lifecycle badges & modal */
 .lifecycle-badge-anchor--thumb {
   position: absolute;

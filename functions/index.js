@@ -1,7 +1,7 @@
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { fetchSteamGame } = require('./steam');
+const { fetchSteamGame, parseAppId } = require('./steam');
 const { vetAllDevelopers } = require('./devVetting');
 const { aggregateGameVetting } = require('./devBgCheck');
 const { enrichNewGameThirdParty } = require('./thirdParty');
@@ -10,6 +10,8 @@ const { syncGfnCatalog, syncGfnCatalogScheduled } = require('./gfnSync');
 const { syncDevSources, syncDevSourcesScheduled } = require('./devSourceSync');
 
 initializeApp();
+
+const SERVER_TIMESTAMP_SENTINEL = '__SERVER_TIMESTAMP__';
 
 function getAllowedEmails() {
   return [process.env.ALLOWED_EMAIL_0, process.env.ALLOWED_EMAIL_1].filter(Boolean);
@@ -25,7 +27,89 @@ function assertAllowedUser(auth) {
   }
 }
 
-exports.addGameFromSteam = onCall(
+function isServerTimestamp(value) {
+  return (
+    value &&
+    typeof value === 'object' &&
+    (value._methodName === 'serverTimestamp' ||
+      value.constructor?.name === 'ServerTimestampTransform')
+  );
+}
+
+function serializeGameForClient(game) {
+  return JSON.parse(
+    JSON.stringify(game, (_key, value) =>
+      isServerTimestamp(value) ? SERVER_TIMESTAMP_SENTINEL : value
+    )
+  );
+}
+
+function restoreGameFieldValues(value) {
+  if (value === SERVER_TIMESTAMP_SENTINEL) {
+    return FieldValue.serverTimestamp();
+  }
+  if (Array.isArray(value)) {
+    return value.map(restoreGameFieldValues);
+  }
+  if (value && typeof value === 'object') {
+    const restored = {};
+    for (const [key, entry] of Object.entries(value)) {
+      restored[key] = restoreGameFieldValues(entry);
+    }
+    return restored;
+  }
+  return value;
+}
+
+async function assertGameNotDuplicate(db, appId, gameId) {
+  const gameRef = db.doc(`artifacts/${appId}/public/data/games/${gameId}`);
+  const existing = await gameRef.get();
+  if (existing.exists) {
+    throw new HttpsError('already-exists', 'This game is already in your library.');
+  }
+  return gameRef;
+}
+
+async function persistSteamGame(db, game, appId) {
+  const gameRef = await assertGameNotDuplicate(db, appId, game.id);
+
+  await gameRef.set(game);
+
+  const developers = game.steamStatic?.developers || [];
+  const devAppIdMap = {};
+  for (const name of developers) {
+    const trimmed = String(name || '').trim();
+    if (trimmed) devAppIdMap[trimmed] = [game.id];
+  }
+
+  try {
+    const { stats, memoryCache } = await vetAllDevelopers(developers, {
+      db,
+      appId,
+      devAppIdMap,
+    });
+    const vetting = aggregateGameVetting(game, memoryCache);
+    await gameRef.update({
+      ...vetting,
+      vettingError: null,
+      vettingErrorAt: FieldValue.delete(),
+    });
+    return { gameId: game.id, ...vetting, vettingStats: stats };
+  } catch (err) {
+    console.error('Developer vetting failed:', err);
+    const vettingError = err.message || 'Developer vetting failed';
+    await gameRef.update({
+      vettingError,
+      vettingErrorAt: FieldValue.serverTimestamp(),
+    });
+    return {
+      gameId: game.id,
+      vettingError,
+    };
+  }
+}
+
+exports.previewSteamGame = onCall(
   {
     region: 'europe-west1',
     timeoutSeconds: 120,
@@ -42,57 +126,94 @@ exports.addGameFromSteam = onCall(
       throw new HttpsError('invalid-argument', 'steamInput is required.');
     }
 
+    const parsedId = parseAppId(steamInput);
+    if (!parsedId || !/^\d+$/.test(parsedId)) {
+      throw new HttpsError('invalid-argument', 'Invalid Steam URL or App ID.');
+    }
+
+    const db = getFirestore();
+    await assertGameNotDuplicate(db, appId, parsedId);
+
     let game;
     try {
       game = await fetchSteamGame(steamInput);
-      game = await enrichNewGameThirdParty(game);
     } catch (err) {
       console.error('Steam scrape failed:', err);
       throw new HttpsError('failed-precondition', err.message || 'Failed to fetch Steam data.');
     }
 
+    return {
+      appId: game.id,
+      name: game.steamStatic?.name || '',
+      hasCoopCategory: game.steamStatic?.hasCoopCategory === true,
+      coopSpecs: game.steamStatic?.coopSpecs ?? null,
+      game: serializeGameForClient(game),
+    };
+  }
+);
+
+exports.addGameFromSteam = onCall(
+  {
+    region: 'europe-west1',
+    timeoutSeconds: 120,
+    memory: '512MiB',
+    cors: true,
+  },
+  async (request) => {
+    assertAllowedUser(request.auth);
+
+    const steamInput = request.data?.steamInput;
+    const appId = request.data?.appId || 'default_app';
+    const skipScrape = request.data?.skipScrape === true;
+    const preloadedGame = request.data?.preloadedGame;
+
     const db = getFirestore();
-    const gameRef = db.doc(`artifacts/${appId}/public/data/games/${game.id}`);
+    let game;
 
-    const existing = await gameRef.get();
-    if (existing.exists) {
-      throw new HttpsError('already-exists', 'This game is already in your library.');
+    if (skipScrape) {
+      if (!preloadedGame || typeof preloadedGame !== 'object') {
+        throw new HttpsError('invalid-argument', 'preloadedGame is required when skipScrape is true.');
+      }
+
+      game = restoreGameFieldValues(preloadedGame);
+      if (!game?.id || !/^\d+$/.test(String(game.id))) {
+        throw new HttpsError('invalid-argument', 'preloadedGame must include a valid Steam app id.');
+      }
+
+      if (steamInput) {
+        const parsedId = parseAppId(steamInput);
+        if (parsedId && parsedId !== String(game.id)) {
+          throw new HttpsError(
+            'invalid-argument',
+            'preloadedGame id does not match the provided steamInput.'
+          );
+        }
+      }
+
+      try {
+        game = await enrichNewGameThirdParty(game);
+      } catch (err) {
+        console.error('Third-party enrich failed:', err);
+        throw new HttpsError(
+          'failed-precondition',
+          err.message || 'Failed to enrich game metadata.'
+        );
+      }
+    } else {
+      if (!steamInput) {
+        throw new HttpsError('invalid-argument', 'steamInput is required.');
+      }
+
+      try {
+        game = await fetchSteamGame(steamInput);
+        game = await enrichNewGameThirdParty(game);
+      } catch (err) {
+        console.error('Steam scrape failed:', err);
+        throw new HttpsError('failed-precondition', err.message || 'Failed to fetch Steam data.');
+      }
     }
 
-    await gameRef.set(game);
-
-    const developers = game.steamStatic?.developers || [];
-    const devAppIdMap = {};
-    for (const name of developers) {
-      const trimmed = String(name || '').trim();
-      if (trimmed) devAppIdMap[trimmed] = [game.id];
-    }
-
-    try {
-      const { stats, memoryCache } = await vetAllDevelopers(developers, {
-        db,
-        appId,
-        devAppIdMap,
-      });
-      const vetting = aggregateGameVetting(game, memoryCache);
-      await gameRef.update({
-        ...vetting,
-        vettingError: null,
-        vettingErrorAt: FieldValue.delete(),
-      });
-      return { gameId: game.id, ...vetting, vettingStats: stats };
-    } catch (err) {
-      console.error('Developer vetting failed:', err);
-      const vettingError = err.message || 'Developer vetting failed';
-      await gameRef.update({
-        vettingError,
-        vettingErrorAt: FieldValue.serverTimestamp(),
-      });
-      return {
-        gameId: game.id,
-        vettingError,
-      };
-    }
+    return persistSteamGame(db, game, appId);
   }
 );
 
