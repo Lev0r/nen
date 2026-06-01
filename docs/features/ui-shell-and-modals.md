@@ -20,9 +20,11 @@ LoginGate → DashboardShell
 
 ## Dynamic background
 
-`DynamicBackground.jsx` — top 5 non-banned games by Total Hype; Steam **screenshots**; 60s slide / 4s crossfade. Disable: `VITE_ENABLE_DYNAMIC_BG=false` at build time.
+`DynamicBackground.jsx` — today: top 5 non-banned games by Total Hype; Steam **screenshots**; 60s slide / 4s crossfade. Disable: `VITE_ENABLE_DYNAMIC_BG=false` at build time.
 
-Reduced visual noise: lower BG opacity/contrast; **unhovered card thumbnails dimmed**, full brightness on hover/focus.
+**Planned (round 2):** replace screenshots with slow animated gradient — see [FEATURE_CHECKLIST](../FEATURE_CHECKLIST.md) § UI polish round 2.
+
+Reduced visual noise: lower BG opacity/contrast; card thumbnails dimmed on hover grid. **Round 2:** always-slightly-dim baseline; brighten on card hover only.
 
 ## Modals
 
@@ -41,8 +43,13 @@ Glassmorphism: `.modal-backdrop` + `.glass-panel` in `index.css`.
 - Card redesign — cleaner layout, reduced visual noise
 - Hype ring (bottom-right), ownership indicator (bottom-left)
 - Lifecycle badge, update pulse, GFN pill, RU border
-- Price hidden when both own
+- Price in header today — **round 2:** move to meta line; title-only header
+- Finished rating in tags today — **round 2:** meta line, numeric 1–5, click → edit modal rating section
 - Tooltips: players, reviews, version, release/EA duration
+
+### Planned — UI polish round 2
+
+See [FEATURE_CHECKLIST](../FEATURE_CHECKLIST.md) § UI polish round 2 for full spec (gradient BG, title tooltip, thumbnail icon unify, footer notes/edit).
 
 ## Add game flow
 

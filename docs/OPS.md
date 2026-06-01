@@ -93,10 +93,10 @@ Requires `firebase login` + project, or `GOOGLE_APPLICATION_CREDENTIALS`.
 # Preview bulk import
 npm run import-games -- "docs/all games.json" --dry-run
 
-# Import library (M7 — pending user ops)
-npm run import-games -- "docs/all games.json" --app-id default_app
+# Import library (done — library live in production)
+# npm run import-games -- "docs/all games.json" --app-id default_app
 
-# Refresh RU flags on all games
+# Refresh RU flags on all games (after vetting logic deploy — no source re-sync needed)
 node scripts/revet-ru-games.mjs --dry-run
 node scripts/revet-ru-games.mjs
 
@@ -149,11 +149,13 @@ firebase deploy --only functions
 
 ## RU vetting refresh (production)
 
-After deploying curator-logic or source changes:
+After deploying curator-logic or **source list** changes:
 
 1. **`firebase deploy --only functions`**
-2. **Refresh Firestore sources** — Maintenance → **Sync dev sources**, or `node scripts/sync-dev-sources.mjs --to-firestore`
+2. **Refresh Firestore sources** — Maintenance → **Sync dev sources**, or `node scripts/sync-dev-sources.mjs --to-firestore` *(skip if lists unchanged)*
 3. **Re-vet games** — Maintenance → **Re-vet all games**, or `node scripts/revet-ru-games.mjs`
+
+After deploying **vetting logic only** (exact match, message format, dedup): steps 2 is unnecessary — **re-vet only** (step 3).
 
 No DB wipe needed. Stale vetting errors clear from `config/maintenance-errors` on successful Run dev check.
 
@@ -182,8 +184,8 @@ Partial wiring exists; workflow needs validation and documentation.
 
 | Item | Status |
 | :--- | :--- |
-| **M7 — bulk import 147 games** | Script ready; user has not run production import |
-| Post-import smoke test | See [FEATURE_CHECKLIST.md](./FEATURE_CHECKLIST.md) |
+| **UI polish round 2** | Planned — see [FEATURE_CHECKLIST.md](./FEATURE_CHECKLIST.md) § UI polish round 2 |
+| Post–vetting-deploy re-vet | Run if new lookup/message logic not yet applied to game docs |
 
 ---
 

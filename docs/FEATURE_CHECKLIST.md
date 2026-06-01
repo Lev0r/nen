@@ -1,6 +1,6 @@
 # Feature Checklist
 
-**Last updated:** 2026-06-01  
+**Last updated:** 2026-06-01 (evening)
 Track implemented, pending, deferred, and dropped features. Update when shipping.
 
 **Legend:** ✅ Done · 🔄 In progress / partial · ⏳ Pending ops · 📋 Planned · 🚫 Dropped · ⏸ Deferred
@@ -34,7 +34,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Co-op specs (online/split/cross) | ✅ | From Steam category IDs |
 | Screenshots modal | ✅ | |
 | Per-user notes + lifecycle notes | ✅ | |
-| Bulk import script | ✅ | Real prod import ⏳ |
+| Bulk import script | ✅ | Production library seeded (~147 games) |
 | Library JSON export | ⏸ | P1 deferred |
 
 ---
@@ -63,8 +63,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Per-user tier picker (DRG theme) | ✅ | |
 | MetacriticFactor + ITAD fallback | ✅ | |
 | Sort library by Total Hype | ✅ | Client-side compute |
-| Dynamic BG from top 5 hype | ✅ | Screenshots, env gate |
-| **Card visibility vs dynamic BG** | ✅ | Reduced BG noise; dimmed unhovered thumbnails |
+| Dynamic BG from top 5 hype | ✅ | Screenshots today; **round 2:** gradient animation |
+| **Card visibility vs dynamic BG** | ✅ | Reduced BG noise; dimmed unhovered thumbnails — **round 2:** always-dim baseline |
 | Clash Display + General Sans fonts | ✅ | Card redesign, reduced visual noise |
 
 ---
@@ -140,7 +140,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Maintenance modal + error log | ✅ | |
 | Error acknowledge dot | ✅ | |
 | **Errors panel — group by source/severity** | ✅ | Counters, clear info, weekly purge |
-| Mobile UX pass | 📋 | P1 |
+| **UI polish round 2** | 📋 | See [UI polish round 2](#ui-polish-round-2-planned) below |
+| Mobile UX pass | 📋 | P1 (fold into round 2 or separate) |
 | News feed UI | 🚫 | Dropped |
 
 ---
@@ -153,10 +154,10 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **Dev CLI handbook** | ✅ | [DEV_CLI.md](./DEV_CLI.md) — all admin scripts |
 | Config schema v3 migration | ✅ | `npm run migrate-config-v3` |
 | Env var documentation | ✅ | |
-| Production smoke test checklist | ⏳ | User-driven |
+| Production smoke test | ✅ | Completed 2026-06-01 |
 | **Local Cloud Functions testing** | 📋 | **User request** — emulator workflow documented + validated |
-| Real import of 147 games | ⏳ | `docs/all games.json` ready — **M7 pending** |
-| Post-deploy RU source refresh | ✅ | Maintenance UI or `--to-firestore` + re-vet |
+| Real import of 147 games | ✅ | Production library live |
+| Post-deploy RU re-vet (logic-only changes) | ✅ | Re-vet only — no source re-sync unless lists changed |
 | CI/CD pipeline | ⏸ | Deferred |
 
 ---
@@ -183,6 +184,65 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - Sync/revet progress logging; `revet-ru-games --verbose` decision trace; dry-run source-load fix
 - `test-dev-sources.mjs` regression suite (8 NE GRAI cases + format/dedup checks)
 
+## UI polish round 2 (planned)
+
+Structured backlog for the next card/shell pass. Primary files: `DynamicBackground.jsx`, `GameCard.jsx`, `index.css`, `GameEditModal.jsx`.
+
+### 1. Background — gradient instead of screenshots
+
+| Item | Detail |
+| :--- | :--- |
+| Replace screenshot carousel | Disable top-5 hype screenshot BG; use a slow, pleasant animated gradient instead |
+| Motion | Subtle, eye-friendly; no harsh flicker |
+| Env | Keep build-time toggle pattern (`VITE_ENABLE_DYNAMIC_BG` or successor) |
+
+### 2. Card header — title only
+
+| Item | Detail |
+| :--- | :--- |
+| Single-line header | After price moves out, header is **game name only** (one line, ellipsis) |
+| Title row padding | Remove left/right padding on `.game-card-title-row` |
+| Truncated title tooltip | Hover shows full game name when text overflows |
+
+### 3. Meta line — price + finished rating
+
+| Item | Detail |
+| :--- | :--- |
+| Move price/sale | Relocate from `.game-card-price-row` into `.game-card-meta-line` with pipe separators (version · critics · players · HLTB pattern) |
+| Alignment | Left-aligned meta — do not center price |
+| Sale / historical low | Keep sale styling + historical-low badge in meta |
+| Both own | Keep rule: hide price when both users own |
+| Finished rating | Move from tags row into meta, **after price** |
+| Rating display | Show color-coded digit **1–5** only (not star badge in tags) |
+| Rating tooltip | Hover: per-user label (nickname / “personal rating” / “owner rating”) |
+| Rating click | Open `GameEditModal` scrolled to finished-rating section (mirror `editFocusNotes`) |
+
+### 4. Thumbnail — always slightly dimmed
+
+| Item | Detail |
+| :--- | :--- |
+| Baseline | All card thumbnails slightly darkened by default (less color noise, still readable) |
+| Hover | Hovered card brightens + scale (keep current lift) |
+| Change from today | Dim is **always on**; not only when another card is hovered (`:has(.game-card:hover)` grid rule) |
+
+### 5. Thumbnail overlay icons — unified chrome
+
+Applies to: screenshots, owned, lifecycle, total hype (and GFN if present).
+
+| Item | Detail |
+| :--- | :--- |
+| Glow / outline | Consistent glow on all; fix missing hype glow and screenshots glow |
+| Background | Unified semi-transparent pill BG (match screenshots style); hype ring must not use opaque fill |
+| Shape | Keep circular indicators; unify `box-shadow`, border, and backdrop |
+
+### 6. Footer — notes + edit
+
+| Item | Detail |
+| :--- | :--- |
+| Notes button shape | Rectangular middle segment — no rounded corners |
+| Separator | Visible divider between notes and edit buttons |
+| SteamDB | Unchanged first segment |
+
 ## Session log — 2026-05-31 (shipped)
 
 - Lists-only RU vetting (Gemini removed)
@@ -194,25 +254,24 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 
 ---
 
-## Smoke test checklist (before/after import)
+## Smoke test checklist (completed 2026-06-01)
 
-- [ ] Sign in as both allowed users — auth spinner, no blank flash
-- [ ] Add Game → preview → co-op confirm (try with/without co-op tags)
-- [ ] Add Game → Escape / backdrop dismiss
-- [ ] Maintenance → Load meta info
-- [ ] Maintenance → Sync dev sources → verify freshness + counts
-- [ ] Maintenance → Re-vet all games (after source sync or message-format deploy)
-- [ ] Maintenance → errors grouped by severity/source; clear info
-- [ ] RU filter + Run dev check in edit modal
-- [ ] RU explanation text — short NE GRAI line; single curator link (no duplicate app/dev lines)
-- [ ] `node scripts/test-dev-sources.mjs` passes locally before deploy
-- [ ] Active tab vs TBA sub-tab counts
-- [ ] Lifecycle tabs + filter reset on tab change
-- [ ] Global filters (e.g. Banned from Active tab)
-- [ ] Co-op tags absent from filter chip list
-- [ ] Sync GFN
-- [ ] Dynamic background + card readability (dimmed thumbnails)
-- [ ] Edit modal scrollable; hype picker readable
+- [x] Sign in as both allowed users — auth spinner, no blank flash
+- [x] Add Game → preview → co-op confirm (try with/without co-op tags)
+- [x] Add Game → Escape / backdrop dismiss
+- [x] Maintenance → Load meta info
+- [x] Maintenance → Sync dev sources → verify freshness + counts
+- [x] Maintenance → Re-vet all games (after vetting logic deploy)
+- [x] Maintenance → errors grouped by severity/source; clear info
+- [x] RU filter + Run dev check in edit modal
+- [x] Active tab vs TBA sub-tab counts
+- [x] Lifecycle tabs + filter reset on tab change
+- [x] Global filters (e.g. Banned from Active tab)
+- [x] Co-op tags absent from filter chip list
+- [x] Sync GFN
+- [x] Dynamic background + card readability (dimmed thumbnails)
+- [x] Edit modal scrollable; hype picker readable
+- [ ] RU explanation text — short NE GRAI line; single curator link (after re-vet deploy)
 - [ ] Wishlist / library ownership sync (when implemented)
 
 ---

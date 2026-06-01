@@ -2,7 +2,7 @@
 
 Categorized from codebase review, git history, and agent research (2026-05-31). Not a commitment — prioritize with user before large refactors.
 
-**Last updated:** 2026-06-01
+**Last updated:** 2026-06-01 (evening)
 
 ---
 
@@ -11,10 +11,9 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | ID | Area | Item | Rationale |
 | :--- | :--- | :--- | :--- |
 | M1 | Auth | Unify allowlist — env vars vs hardcoded `firestore.rules` emails | Drift / security footgun |
-| M4 | Ops | Run post-deploy: deploy → syncDevSources → revet | Documented in OPS + DEV_CLI; **user must run** after vetting logic changes |
+| M4 | Ops | Post-deploy re-vet after vetting **logic** changes | `syncDevSources` only when source lists change (new curators, NE GRAI refresh) |
 | M5 | Sync | Monitor full-library sync timeout at ~400–500 games | 540s sequential job may fail |
 | M6 | HLTB | Treat HLTB as fragile; surface failures clearly | Unofficial API, auth can break |
-| M7 | Import | Run production bulk import + smoke test | P0 user ops still pending |
 
 ---
 
@@ -26,7 +25,11 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | S7 | Callables | `addGameFromSteam` client timeout aligned with 120s function | Inconsistent with sync wrappers |
 | S8 | Steam | Remove or wire `fetchGeForceNowReady` dead code | Confusing vs catalog-only badge |
 | S12 | Steam | Wishlist sync (discover new games) + library sync (ownership) | User request; needs Steam Web API key |
-| S13 | QA | Test & improve release (syncs, RU, notifications) | Shipped features need validation pass |
+| S13 | QA | Periodic release QA (syncs, RU, notifications) | Initial smoke test done 2026-06-01 |
+| **U1** | UI | **Round 2 — animated gradient BG** | Replace screenshot carousel; see FEATURE_CHECKLIST § UI polish round 2 |
+| **U2** | UI | **Round 2 — card header/meta layout** | Title-only header; price + rating in meta line |
+| **U3** | UI | **Round 2 — thumbnail dim + overlay unify** | Always-dim baseline; consistent icon glow/BG |
+| **U4** | UI | **Round 2 — footer notes/edit chrome** | Rectangular notes btn; separator before edit |
 
 ---
 
@@ -34,7 +37,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 
 | ID | Area | Item | Rationale |
 | :--- | :--- | :--- | :--- |
-| N1 | UI | Mobile pass — tooltips, grid, modals, sidebar drawer | P1 polish |
+| N1 | UI | Mobile pass — tooltips, grid, modals, sidebar drawer | P1 polish; may follow round 2 |
 | N3 | UI | "Refresh from Steam" in GameEditModal | Single-game re-scrape |
 | N4 | UI | Live Total Hype preview in edit modal | UX clarity |
 | N5 | Hype | Use or drop `recentReviewPercent` in formula | Fetched but unused |
@@ -71,6 +74,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | — | RU alert message format + aggregation dedup (dev+pub, app+curator) |
 | — | `docs/DEV_CLI.md` handbook + npm seed aliases |
 | N14 | Publisher names in game-level vet loop (`collectVettingNames`) |
+| M7 | Production bulk import + smoke test (147 games) |
 
 ---
 
