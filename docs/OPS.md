@@ -77,6 +77,7 @@ npm run build && firebase deploy --only hosting
 | `syncGfnCatalog` | ✅ | GFN catalog |
 | `syncDevSources` | ✅ | Refresh RU source lists |
 | `revetAllGames` | ✅ | Bulk re-vet all games |
+| `clearMaintenanceInfoErrors` | ✅ | Clear info-level maintenance errors |
 
 Region: `europe-west1`. Sync callables: **540s** client timeout in `cloudFunctions.js`.
 
@@ -186,7 +187,17 @@ Partial wiring exists; workflow needs validation and documentation.
 
 ## Firestore console paths
 
-`artifacts` → `default_app` → `public` → `data` → `games` / `config` → `default`
+`artifacts` → `default_app` → `public` → `data` →
+
+- `games/{steamAppId}` — library documents
+- `config/dev-bg-check` — developer vetting cache
+- `config/gfn-catalog` — GeForce NOW Steam app IDs
+- `config/steam-library-sync` — last meta sync stats
+- `config/third-party-health` — HLTB/ITAD health
+- `config/maintenance-errors` — centralized error entries
+- `config/maintenance-audit` — Maintenance UI snapshot
+- `config/dev-sources-*` — RU vetting source lists
+- `config/default` — **deprecated** (migrate with `npm run migrate-config-v3`)
 
 ---
 

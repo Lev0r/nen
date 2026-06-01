@@ -108,6 +108,7 @@ async function persistSteamGame(db, game, appId) {
     const vetting = aggregateGameVetting(game, memoryCache);
     await gameRef.update(vetting);
     await clearMaintenanceErrorsForGame(db, appId, String(game.id), 'vetting');
+    await rebuildMaintenanceAudit(db, appId);
     return { gameId: game.id, ...vetting, vettingStats: stats };
   } catch (err) {
     console.error('Developer vetting failed:', err);
@@ -121,6 +122,7 @@ async function persistSteamGame(db, game, appId) {
       errorKey: null,
       detail: null,
     });
+    await rebuildMaintenanceAudit(db, appId);
     return {
       gameId: game.id,
       vettingError,
@@ -284,6 +286,7 @@ exports.vetGameDevelopers = onCall(
       const vetting = aggregateGameVetting(game, memoryCache);
       await gameRef.update(vetting);
       await clearMaintenanceErrorsForGame(db, appId, gameId, 'vetting');
+      await rebuildMaintenanceAudit(db, appId);
       return { gameId, ...vetting, vettingStats: stats };
     } catch (err) {
       console.error('vetGameDevelopers failed:', err);
@@ -297,6 +300,7 @@ exports.vetGameDevelopers = onCall(
         errorKey: null,
         detail: null,
       });
+      await rebuildMaintenanceAudit(db, appId);
       throw new HttpsError('internal', vettingError);
     }
   }
