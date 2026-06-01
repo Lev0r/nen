@@ -570,7 +570,7 @@ function OwnedTooltip({ owned = {}, userIndex }) {
   );
 }
 
-export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
+export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false }) {
   const { userIndex } = useAuth();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [screenshotsOpen, setScreenshotsOpen] = useState(false);
@@ -703,22 +703,24 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
         className={`glass-panel animate-fade-in game-card ${ruAlert ? 'game-card--ru-alert' : ''}`}
       >
         <div className="game-card-thumb">
-          <FloatingTooltip
-            anchorClassName="lifecycle-badge-anchor lifecycle-badge-anchor--thumb"
-            content={buildLifecycleTooltip(libraryState, game)}
-          >
-            <button
-              type="button"
-              className={`lifecycle-badge lifecycle-badge--on-thumb lifecycle-badge--${libraryState}`}
-              style={{
-                color: lifecycleColor,
-                borderColor: lifecycleColor,
-              }}
-              onClick={() => setLifecycleOpen(true)}
+          {showLifecycleBadge && (
+            <FloatingTooltip
+              anchorClassName="lifecycle-badge-anchor lifecycle-badge-anchor--thumb"
+              content={buildLifecycleTooltip(libraryState, game)}
             >
-              {lifecycleLabel}
-            </button>
-          </FloatingTooltip>
+              <button
+                type="button"
+                className={`lifecycle-badge lifecycle-badge--on-thumb lifecycle-badge--${libraryState}`}
+                style={{
+                  color: lifecycleColor,
+                  borderColor: lifecycleColor,
+                }}
+                onClick={() => setLifecycleOpen(true)}
+              >
+                {lifecycleLabel}
+              </button>
+            </FloatingTooltip>
+          )}
 
           <a
             href={steamUrl}

@@ -20,9 +20,9 @@ LoginGate → DashboardShell
 
 ## Dynamic background
 
-`DynamicBackground.jsx` — slow animated mint/dark CSS gradient (48s drift). Disable: `VITE_ENABLE_DYNAMIC_BG=false` at build time. Respects `prefers-reduced-motion`.
+`DynamicBackground.jsx` — slow animated gradient (lavender + mint on a lighter slate base). Disable: `VITE_ENABLE_DYNAMIC_BG=false` at build time. Respects `prefers-reduced-motion`.
 
-Card thumbnails: always slightly dimmed; brighten + scale on card hover.
+Card thumbnails: full color at rest; slight scale on card hover. Lifecycle badge on thumbnail: **hidden** on lifecycle tabs; shown when filters scope the full library.
 
 ## Modals
 

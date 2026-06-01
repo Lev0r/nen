@@ -359,7 +359,12 @@ export default function DashboardShell() {
             <p style={{ color: 'var(--text-muted)' }}>Loading games from Firestore...</p>
           ) : filteredGames.length > 0 ? (
             filteredGames.map((game) => (
-              <GameCard key={game.id} game={game} gfnSteamAppIds={gfnSteamAppIds} />
+              <GameCard
+                key={game.id}
+                game={game}
+                gfnSteamAppIds={gfnSteamAppIds}
+                showLifecycleBadge={filtersScopeGlobal}
+              />
             ))
           ) : (
             <div className="dashboard-empty">

@@ -62,11 +62,11 @@ body {
   position: absolute;
   inset: -25%;
   background:
-    radial-gradient(ellipse 60% 50% at 15% 35%, rgba(20, 232, 160, 0.28), transparent 68%),
-    radial-gradient(ellipse 55% 45% at 85% 65%, rgba(45, 212, 191, 0.22), transparent 68%),
-    radial-gradient(ellipse 50% 40% at 55% 15%, rgba(52, 211, 153, 0.14), transparent 62%),
-    radial-gradient(ellipse 45% 35% at 30% 85%, rgba(20, 232, 160, 0.12), transparent 60%),
-    linear-gradient(145deg, #0c1420 0%, #101c28 35%, #141e2e 65%, #0a0e16 100%);
+    radial-gradient(ellipse 58% 48% at 18% 28%, rgba(167, 139, 250, 0.38), transparent 68%),
+    radial-gradient(ellipse 52% 44% at 82% 72%, rgba(20, 232, 160, 0.24), transparent 68%),
+    radial-gradient(ellipse 48% 42% at 55% 52%, rgba(129, 140, 248, 0.2), transparent 64%),
+    radial-gradient(ellipse 40% 36% at 30% 82%, rgba(196, 181, 253, 0.16), transparent 62%),
+    linear-gradient(145deg, #3d4a62 0%, #455268 35%, #4a5870 55%, #3a465c 100%);
   background-size: 140% 140%, 140% 140%, 130% 130%, 120% 120%, 100% 100%;
   animation: dynamic-bg-drift 48s ease-in-out infinite alternate;
   will-change: transform;
@@ -87,9 +87,9 @@ body {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(10, 14, 22, 0.18) 0%, rgba(10, 14, 22, 0.38) 100%),
-    radial-gradient(circle at 15% 50%, rgba(20, 232, 160, 0.05), transparent 40%),
-    radial-gradient(circle at 85% 30%, rgba(52, 211, 153, 0.04), transparent 40%);
+    linear-gradient(180deg, rgba(45, 55, 72, 0.08) 0%, rgba(35, 45, 60, 0.22) 100%),
+    radial-gradient(circle at 20% 40%, rgba(167, 139, 250, 0.06), transparent 45%),
+    radial-gradient(circle at 80% 60%, rgba(20, 232, 160, 0.05), transparent 45%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -937,19 +937,12 @@ button {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.55;
-  filter: saturate(0.82) brightness(0.78);
-  transition:
-    transform 0.3s ease,
-    opacity 0.35s ease,
-    filter 0.35s ease;
+  transition: transform 0.3s ease;
   will-change: transform;
 }
 
 .game-card:hover .game-card-img {
   transform: scale(1.05);
-  opacity: 1;
-  filter: none;
 }
 
 .game-card:hover .game-card-thumb {
