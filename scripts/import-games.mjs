@@ -46,6 +46,7 @@ const { initializeApp, getApps, applicationDefault, cert } = require('firebase-a
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { fetchSteamGame, parseAppId } = require('./steam');
 const { vetAllDevelopers } = require('./devVetting');
+const { collectVettingNames } = require('./devSources');
 const {
   ensureMemoryCache,
   aggregateGameVetting,
@@ -418,11 +419,9 @@ function buildDevAppIdMap(preparedGames) {
   for (const { prepared } of preparedGames) {
     if (prepared.status !== 'ready') continue;
     const steamAppId = prepared.game.id;
-    for (const name of prepared.game.steamStatic?.developers || []) {
-      const trimmed = String(name || '').trim();
-      if (!trimmed) continue;
-      if (!map[trimmed]) map[trimmed] = [];
-      if (!map[trimmed].includes(steamAppId)) map[trimmed].push(steamAppId);
+    for (const name of collectVettingNames(prepared.game)) {
+      if (!map[name]) map[name] = [];
+      if (!map[name].includes(steamAppId)) map[name].push(steamAppId);
     }
   }
   return map;

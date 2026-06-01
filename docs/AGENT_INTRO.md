@@ -120,6 +120,7 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 7. **Maintenance errors (schema v3)** — stored in `config/maintenance-errors`, not on game docs. UI reads `config/maintenance-audit` for sync labels.
 8. **Curator vetting** — only `not_recommended` + `informational` flag; `recommended` = clearance (does not override NE GRAI).
 9. **NE GRAI vetting** — exact normalized name match only (no substring; no suffix stripping on studio/games/entertainment).
+10. **RU alert text** — NE GRAI: `developer found in "Не Грай" database`; curator: markdown link + `(not recommended or informational)`; no duplicate curator line when app ID already flagged.
 
 ---
 

@@ -5,7 +5,19 @@
 
 ## Philosophy
 
-**Deterministic, curated sources only** — no Gemini, no OpenCorporates. Citations in `ruDeveloperExplanation` (markdown links for curators; NE GRAI plain text).
+**Deterministic, curated sources only** — no Gemini, no OpenCorporates. Citations in `ruDeveloperExplanation` (markdown links for curators; NE GRAI plain English text).
+
+### Message format
+
+Each segment is `{studio}: {reason}` for name-based hits, or curator link alone for app-level curator flags. Segments join with ` | `.
+
+| Source | Example |
+| :--- | :--- |
+| NE GRAI | `Firevolt: developer found in "Не Грай" database` |
+| Curator (app ID) | `[Steam-куратор «Sich — Ukrainian Spirit» (3/5)](url) (not recommended or informational)` |
+| Curator (dev index) | Same curator link format — no app ID, no duplicate when app already flagged |
+
+Aggregation dedupes by normalized studio name (developer + publisher) and skips per-developer curator app lookup when the game app ID is already on a curator flagged list.
 
 ## Sources (current)
 
@@ -32,8 +44,8 @@ aggregateGameVetting(game) → ruDeveloperAlert + ruDeveloperExplanation
 ```
 
 1. Game app ID vs curator **flagged** sets
-2. Each `steamStatic.developers[]` — cache or `lookupDeterministicSources`
-3. Dedupe explanations → join with ` | `
+2. Each unique `steamStatic.developers[]` + `publishers[]` name — cache or `lookupDeterministicSources`
+3. Dedupe by normalized studio name and explanation text → join with ` | `
 
 **Incremental sync** — weekly job resumes partial curator fetches; marks curators complete when done.
 

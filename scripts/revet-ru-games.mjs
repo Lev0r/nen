@@ -20,6 +20,7 @@ const require = createRequire(join(ROOT, 'functions/package.json'));
 const { initializeApp, getApps, applicationDefault, cert } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { vetAllDevelopers } = require('./devVetting');
+const { collectVettingNames } = require('./devSources');
 const {
   ensureMemoryCache,
   explainGameVetting,
@@ -157,12 +158,10 @@ async function main() {
   const uniqueDevs = new Set();
   const devAppIdMap = {};
   for (const game of games) {
-    for (const name of game.steamStatic?.developers || []) {
-      const trimmed = String(name || '').trim();
-      if (!trimmed) continue;
-      uniqueDevs.add(trimmed);
-      if (!devAppIdMap[trimmed]) devAppIdMap[trimmed] = [];
-      if (!devAppIdMap[trimmed].includes(game.id)) devAppIdMap[trimmed].push(game.id);
+    for (const name of collectVettingNames(game)) {
+      uniqueDevs.add(name);
+      if (!devAppIdMap[name]) devAppIdMap[name] = [];
+      if (!devAppIdMap[name].includes(game.id)) devAppIdMap[name].push(game.id);
     }
   }
 

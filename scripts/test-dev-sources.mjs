@@ -126,6 +126,55 @@ async function main() {
     process.exit(1);
   }
   console.log('\nAll NE GRAI regression cases passed');
+
+  console.log('\n=== Message format checks ===');
+  const neHit = lookupNeGrai('Gaijin Entertainment');
+  if (!neHit?.explanation?.includes('developer found in "Не Грай" database')) {
+    console.error('FAIL: NE GRAI explanation format');
+    process.exit(1);
+  }
+  console.log('PASS: NE GRAI explanation format');
+
+  const curatorHit = lookupCuratorsByAppId('668580');
+  if (
+    !curatorHit?.explanation?.includes('(not recommended or informational)') ||
+    curatorHit.explanation.includes('app/668580')
+  ) {
+    console.error('FAIL: curator app explanation format');
+    process.exit(1);
+  }
+  console.log('PASS: curator app explanation format');
+
+  const { aggregateGameVetting } = require('./devBgCheck');
+  const curatorGame = {
+    id: '3176060',
+    steamStatic: { developers: ['Rone Vine'] },
+  };
+  const curatorAgg = aggregateGameVetting(curatorGame, new Map());
+  const curatorParts = curatorAgg.ruDeveloperExplanation.split(' | ');
+  if (curatorParts.length !== 1) {
+    console.error('FAIL: curator aggregation should not duplicate app + dev hits');
+    console.error('  got:', curatorAgg.ruDeveloperExplanation);
+    process.exit(1);
+  }
+  console.log('PASS: curator aggregation dedupes app + developer hits');
+
+  const firevoltGame = {
+    id: '1',
+    steamStatic: { developers: ['Firevolt'], publishers: ['Firevolt'] },
+  };
+  const firevoltAgg = aggregateGameVetting(firevoltGame, new Map());
+  const firevoltParts = firevoltAgg.ruDeveloperExplanation.split(' | ');
+  if (firevoltParts.length !== 1) {
+    console.error('FAIL: NE GRAI aggregation should dedupe developer + publisher');
+    console.error('  got:', firevoltAgg.ruDeveloperExplanation);
+    process.exit(1);
+  }
+  if (!firevoltAgg.ruDeveloperExplanation.includes('developer found in "Не Грай" database')) {
+    console.error('FAIL: Firevolt NE GRAI message format');
+    process.exit(1);
+  }
+  console.log('PASS: NE GRAI developer/publisher dedup + message format');
 }
 
 main();

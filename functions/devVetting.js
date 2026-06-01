@@ -112,7 +112,14 @@ async function vetAllDevelopers(developers, options = {}) {
     };
   }
 
-  const unique = [...new Set(developers.filter(Boolean).map((d) => String(d).trim()))];
+  const unique = [];
+  const seenKeys = new Set();
+  for (const name of developers.filter(Boolean).map((d) => String(d).trim())) {
+    const key = devCacheKey(name);
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    unique.push(name);
+  }
   const memoryCache = options.memoryCache || new Map();
   const { db, appId, dryRun = false, forceRefresh = false } = options;
 

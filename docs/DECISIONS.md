@@ -71,6 +71,7 @@ Chronological archive of product and technical decisions. Update when shipping m
 | **Firestore-only runtime sources** | Single source of truth; bundled JSON is dev export only | 2026-06-01 |
 | **Sich curators (5 IDs) via curator API** | Same pipeline as PlayUA/Avoid RU; not group scrape | 2026-06-01 |
 | **Incremental curator sync** | Resumable weekly job; avoids re-fetching complete lists | 2026-06-01 |
+| **Simplified RU alert messages** | Shorter NE GRAI text; curator links without app ID; dedupe app + dev curator hits | 2026-06-01 |
 
 ## Maintenance & errors
 

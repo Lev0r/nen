@@ -4,6 +4,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { fetchSteamGame, parseAppId } = require('./steam');
 const { vetAllDevelopers } = require('./devVetting');
 const { aggregateGameVetting, ensureMemoryCache } = require('./devBgCheck');
+const { collectVettingNames } = require('./devSources');
 const { enrichNewGameThirdParty } = require('./thirdParty');
 const { syncLibrarySteam, syncSteamLibrary } = require('./steamSync');
 const { syncGfnCatalog, syncGfnCatalogScheduled } = require('./gfnSync');
@@ -92,15 +93,14 @@ async function persistSteamGame(db, game, appId) {
 
   await gameRef.set(game);
 
-  const developers = game.steamStatic?.developers || [];
+  const vettingNames = collectVettingNames(game);
   const devAppIdMap = {};
-  for (const name of developers) {
-    const trimmed = String(name || '').trim();
-    if (trimmed) devAppIdMap[trimmed] = [game.id];
+  for (const name of vettingNames) {
+    devAppIdMap[name] = [game.id];
   }
 
   try {
-    const { stats, memoryCache } = await vetAllDevelopers(developers, {
+    const { stats, memoryCache } = await vetAllDevelopers(vettingNames, {
       db,
       appId,
       devAppIdMap,
@@ -268,16 +268,15 @@ exports.vetGameDevelopers = onCall(
     }
 
     const game = { id: snap.id, ...snap.data() };
-    const developers = game.steamStatic?.developers || [];
+    const vettingNames = collectVettingNames(game);
     const devAppIdMap = {};
 
-    for (const name of developers) {
-      const trimmed = String(name || '').trim();
-      if (trimmed) devAppIdMap[trimmed] = [game.id];
+    for (const name of vettingNames) {
+      devAppIdMap[name] = [game.id];
     }
 
     try {
-      const { stats, memoryCache } = await vetAllDevelopers(developers, {
+      const { stats, memoryCache } = await vetAllDevelopers(vettingNames, {
         db,
         appId,
         devAppIdMap,
@@ -334,12 +333,10 @@ exports.revetAllGames = onCall(
     const uniqueDevs = new Set();
     const devAppIdMap = {};
     for (const game of games) {
-      for (const name of game.steamStatic?.developers || []) {
-        const trimmed = String(name || '').trim();
-        if (!trimmed) continue;
-        uniqueDevs.add(trimmed);
-        if (!devAppIdMap[trimmed]) devAppIdMap[trimmed] = [];
-        if (!devAppIdMap[trimmed].includes(game.id)) devAppIdMap[trimmed].push(game.id);
+      for (const name of collectVettingNames(game)) {
+        uniqueDevs.add(name);
+        if (!devAppIdMap[name]) devAppIdMap[name] = [];
+        if (!devAppIdMap[name].includes(game.id)) devAppIdMap[name].push(game.id);
       }
     }
 

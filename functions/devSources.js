@@ -253,7 +253,7 @@ function lookupCuratorsByAppId(appId) {
       isRussianRelated: true,
       source: curator.sourceId,
       appId: id,
-      explanation: `${sourceMarkdownLink(curator.sourceId)}: game ${steamAppMarkdownLink(id)} flagged by curator (not recommended / informational)`,
+      explanation: `${sourceMarkdownLink(curator.sourceId)} (not recommended or informational)`,
     };
   }
 
@@ -287,12 +287,7 @@ function lookupCuratorClearanceByAppId(appId) {
 function lookupCuratorsByDeveloperApps(developerName, appIds = []) {
   for (const appId of appIds) {
     const hit = lookupCuratorsByAppId(appId);
-    if (hit) {
-      return {
-        ...hit,
-        explanation: `${hit.explanation} (developer «${developerName}»)`,
-      };
-    }
+    if (hit) return hit;
   }
   return null;
 }
@@ -317,19 +312,19 @@ function lookupNeGrai(developerName) {
 
   // Exact normalized match only — no substring fuzzy match (namesMatch caused false positives
   // like Iron Gate AB ↔ IRON GAMES) and no suffix stripping (Pine Studio ↔ Pine Games).
-  const matched =
-    set.names.find((name) => normalizeNeGraiName(name) === normalized) || developerName;
   return {
     isRussianRelated: true,
     source: SOURCE_IDS.NE_GRAI,
-    explanation: `${sourceMarkdownLink(SOURCE_IDS.NE_GRAI)}: «${matched}»`,
+    explanation: 'developer found in "Не Грай" database',
   };
 }
 
 function lookupCurators(developerName, options = {}) {
   const appIds = options.appIds || [];
-  const byApps = lookupCuratorsByDeveloperApps(developerName, appIds);
-  if (byApps) return byApps;
+  if (!options.skipAppIdLookup) {
+    const byApps = lookupCuratorsByDeveloperApps(developerName, appIds);
+    if (byApps) return byApps;
+  }
 
   const index = getCuratorIndex();
   const normalized = normalizeDevName(developerName);
@@ -340,7 +335,7 @@ function lookupCurators(developerName, options = {}) {
     return {
       isRussianRelated: true,
       source: primaryCuratorSourceId(direct.curators) || SOURCE_IDS.CURATOR_PLAYUA,
-      explanation: `${curatorLinks}: «${direct.name || developerName}» (${direct.appCount || 1} curated game(s))`,
+      explanation: `${curatorLinks} (not recommended or informational)`,
     };
   }
 
@@ -350,7 +345,7 @@ function lookupCurators(developerName, options = {}) {
       return {
         isRussianRelated: true,
         source: primaryCuratorSourceId(entry.curators) || SOURCE_IDS.CURATOR_PLAYUA,
-        explanation: `${curatorLinks}: «${entry.name}» (${entry.appCount || 1} curated game(s))`,
+        explanation: `${curatorLinks} (not recommended or informational)`,
       };
     }
   }
@@ -369,6 +364,34 @@ function lookupDeterministicSources(developerName, options = {}) {
   if (curator) return curator;
 
   return null;
+}
+
+function vettingNameKey(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[/\\.[\]*`]/g, '_')
+    .replace(/\s+/g, ' ');
+}
+
+function collectVettingNames(game) {
+  const seen = new Set();
+  const names = [];
+
+  for (const name of [
+    ...(game?.steamStatic?.developers || []),
+    ...(game?.steamStatic?.publishers || []),
+  ]) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) continue;
+
+    const key = vettingNameKey(trimmed);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    names.push(trimmed);
+  }
+
+  return names;
 }
 
 function allBundledSourcesNegative(developerName, options = {}) {
@@ -420,6 +443,7 @@ module.exports = {
   lookupCuratorClearanceByAppId,
   lookupCuratorsByDeveloperApps,
   lookupDeterministicSources,
+  collectVettingNames,
   allBundledSourcesNegative,
   getSourceMetadata,
   ensureLiveDevSources,

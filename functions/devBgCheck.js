@@ -85,11 +85,23 @@ async function persistDeveloperResults(db, appId, results, memoryCache) {
 
 function aggregateVettingFromCache(developerNames, memoryCache) {
   const flags = [];
+  const seenLines = new Set();
+  const seenDevKeys = new Set();
 
   for (const name of developerNames) {
-    const cached = lookupCachedDeveloper(name, memoryCache);
+    const trimmed = String(name || '').trim();
+    if (!trimmed) continue;
+
+    const key = devCacheKey(trimmed);
+    if (seenDevKeys.has(key)) continue;
+    seenDevKeys.add(key);
+
+    const cached = lookupCachedDeveloper(trimmed, memoryCache);
     if (cached?.isRussianRelated) {
-      flags.push(`${cached.name}: ${cached.explanation}`);
+      const line = `${cached.name}: ${cached.explanation}`;
+      if (seenLines.has(line)) continue;
+      seenLines.add(line);
+      flags.push(line);
     }
   }
 
@@ -107,27 +119,36 @@ function aggregateVettingFromCache(developerNames, memoryCache) {
  * Apply RU vetting to a game: curator app-id list, NE GRAI, dev cache, per-dev lookup.
  */
 function aggregateGameVetting(game, memoryCache) {
-  const { lookupDeterministicSources, lookupCuratorsByAppId } = require('./devSources');
+  const { lookupDeterministicSources, lookupCuratorsByAppId, collectVettingNames } =
+    require('./devSources');
   const flags = [];
-  const seen = new Set();
+  const seenLines = new Set();
+  const seenDevKeys = new Set();
 
   const addFlag = (text) => {
     const line = String(text || '').trim();
-    if (!line || seen.has(line)) return;
-    seen.add(line);
+    if (!line || seenLines.has(line)) return;
+    seenLines.add(line);
     flags.push(line);
   };
 
   const appId = game?.id != null ? String(game.id) : '';
+  let appCuratorHit = null;
   if (appId) {
-    const appHit = lookupCuratorsByAppId(appId);
-    if (appHit) addFlag(appHit.explanation);
+    appCuratorHit = lookupCuratorsByAppId(appId);
+    if (appCuratorHit) addFlag(appCuratorHit.explanation);
   }
 
   const appIds = appId ? [appId] : [];
-  for (const name of game?.steamStatic?.developers || []) {
-    const trimmed = String(name || '').trim();
-    if (!trimmed) continue;
+  const lookupOptions = {
+    appIds,
+    skipAppIdLookup: Boolean(appCuratorHit),
+  };
+
+  for (const trimmed of collectVettingNames(game)) {
+    const key = devCacheKey(trimmed);
+    if (seenDevKeys.has(key)) continue;
+    seenDevKeys.add(key);
 
     const cached = lookupCachedDeveloper(trimmed, memoryCache);
     if (cached?.isRussianRelated) {
@@ -135,7 +156,7 @@ function aggregateGameVetting(game, memoryCache) {
       continue;
     }
 
-    const hit = lookupDeterministicSources(trimmed, { appIds });
+    const hit = lookupDeterministicSources(trimmed, lookupOptions);
     if (hit) addFlag(`${trimmed}: ${hit.explanation}`);
   }
 
@@ -161,13 +182,19 @@ const SOURCE_LAYER_LABELS = {
  * Explain per-layer vetting decision for CLI dry-run / debugging.
  */
 function explainGameVetting(game, memoryCache) {
-  const { lookupDeterministicSources, lookupCuratorsByAppId, lookupNeGrai, lookupCurators } =
-    require('./devSources');
+  const {
+    lookupDeterministicSources,
+    lookupCuratorsByAppId,
+    lookupNeGrai,
+    lookupCurators,
+    collectVettingNames,
+  } = require('./devSources');
   const trace = [];
 
   const appId = game?.id != null ? String(game.id) : '';
+  let appHit = null;
   if (appId) {
-    const appHit = lookupCuratorsByAppId(appId);
+    appHit = lookupCuratorsByAppId(appId);
     trace.push({
       layer: 'curator-app-id',
       hit: Boolean(appHit),
@@ -176,9 +203,12 @@ function explainGameVetting(game, memoryCache) {
   }
 
   const appIds = appId ? [appId] : [];
-  for (const name of game?.steamStatic?.developers || []) {
-    const trimmed = String(name || '').trim();
-    if (!trimmed) continue;
+  const lookupOptions = {
+    appIds,
+    skipAppIdLookup: Boolean(appHit),
+  };
+
+  for (const trimmed of collectVettingNames(game)) {
 
     const cached = lookupCachedDeveloper(trimmed, memoryCache);
     if (cached) {
@@ -204,7 +234,7 @@ function explainGameVetting(game, memoryCache) {
       continue;
     }
 
-    const curator = lookupCurators(trimmed, { appIds });
+    const curator = lookupCurators(trimmed, lookupOptions);
     if (curator) {
       trace.push({
         layer: 'curators',
@@ -215,7 +245,7 @@ function explainGameVetting(game, memoryCache) {
       continue;
     }
 
-    const hit = lookupDeterministicSources(trimmed, { appIds });
+    const hit = lookupDeterministicSources(trimmed, lookupOptions);
     if (hit) {
       trace.push({
         layer: 'source-list',
