@@ -72,8 +72,13 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
       return false;
     }
 
-    if (onSaleOnly && !getIsOnSale(game)) {
-      return false;
+    if (onSaleOnly) {
+      if (!getIsOnSale(game)) {
+        return false;
+      }
+      if (game.owned?.user0 && game.owned?.user1) {
+        return false;
+      }
     }
 
     if (gfnOnly && !gfnSteamAppIds.has(String(game.id))) {

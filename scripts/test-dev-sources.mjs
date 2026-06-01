@@ -175,6 +175,31 @@ async function main() {
     process.exit(1);
   }
   console.log('PASS: NE GRAI developer/publisher dedup + message format');
+
+  const {
+    mergeVettingWithUserAcknowledgment,
+  } = require('./devBgCheck');
+  const sourceHit = {
+    ruDeveloperAlert: true,
+    ruDeveloperExplanation: 'Firevolt: developer found in "Не Грай" database',
+  };
+  const acknowledgedGame = {
+    ruDeveloperAlert: false,
+    ruDeveloperExplanation: 'Reviewed manually — OK for our library',
+  };
+  const preserved = mergeVettingWithUserAcknowledgment(acknowledgedGame, sourceHit);
+  if (preserved.ruDeveloperAlert !== false || preserved.ruDeveloperExplanation !== acknowledgedGame.ruDeveloperExplanation) {
+    console.error('FAIL: acknowledged RU games should keep alert off and stored explanation');
+    process.exit(1);
+  }
+  const wiped = mergeVettingWithUserAcknowledgment(acknowledgedGame, sourceHit, {
+    wipeUserAcknowledged: true,
+  });
+  if (wiped.ruDeveloperAlert !== true || wiped.ruDeveloperExplanation !== sourceHit.ruDeveloperExplanation) {
+    console.error('FAIL: wipe-user-acknowledged should re-apply source flags');
+    process.exit(1);
+  }
+  console.log('PASS: user RU acknowledgment preserved unless wiped');
 }
 
 main();

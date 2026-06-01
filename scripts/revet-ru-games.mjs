@@ -3,7 +3,7 @@
  * Re-apply RU developer vetting to all games already in Firestore.
  *
  * Usage:
- *   node scripts/revet-ru-games.mjs [--dry-run] [--app-id default_app] [--verbose]
+ *   node scripts/revet-ru-games.mjs [--dry-run] [--app-id default_app] [--verbose] [--wipe-user-acknowledged]
  *
  * Use after dev sources are seeded to Firestore (config/dev-sources-*).
  */
@@ -26,6 +26,7 @@ const {
   explainGameVetting,
   formatVettingTraceLine,
   collectUncachedDevelopers,
+  mergeVettingWithUserAcknowledgment,
 } = require('./devBgCheck');
 const { loadDevSourcesBundle } = require('./devSourceStore');
 const {
@@ -38,16 +39,18 @@ function parseArgs(argv) {
   let appId = 'default_app';
   let dryRun = false;
   let verbose = false;
+  let wipeUserAcknowledged = false;
 
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--dry-run') dryRun = true;
     else if (arg === '--verbose') verbose = true;
+    else if (arg === '--wipe-user-acknowledged') wipeUserAcknowledged = true;
     else if (arg === '--app-id') appId = argv[++i];
     else if (arg.startsWith('--app-id=')) appId = arg.slice('--app-id='.length);
   }
 
-  return { appId, dryRun, verbose };
+  return { appId, dryRun, verbose, wipeUserAcknowledged };
 }
 
 function loadDotEnvFile(filePath) {
@@ -120,7 +123,7 @@ function printSourceSummary(meta) {
 }
 
 async function main() {
-  const { appId, dryRun, verbose } = parseArgs(process.argv);
+  const { appId, dryRun, verbose, wipeUserAcknowledged } = parseArgs(process.argv);
   loadDotEnvFile(join(ROOT, 'functions/.env'));
 
   const db = initFirebase();
@@ -151,6 +154,9 @@ async function main() {
 
   console.log(`Re-vet RU flags for ${games.length} game(s) in ${gamesCollection(appId)}`);
   if (dryRun) console.log('DRY-RUN — no Firestore writes');
+  if (wipeUserAcknowledged) {
+    console.log('Wipe user acknowledgments — re-applying source flags on all games');
+  }
 
   const devCache = new Map();
   await ensureMemoryCache(devCache, db, appId);
@@ -186,10 +192,14 @@ async function main() {
 
   for (const game of games) {
     const explained = explainGameVetting(game, devCache);
-    const vetting = {
-      ruDeveloperAlert: explained.ruDeveloperAlert,
-      ruDeveloperExplanation: explained.ruDeveloperExplanation,
-    };
+    const vetting = mergeVettingWithUserAcknowledgment(
+      game,
+      {
+        ruDeveloperAlert: explained.ruDeveloperAlert,
+        ruDeveloperExplanation: explained.ruDeveloperExplanation,
+      },
+      { wipeUserAcknowledged }
+    );
     const wasAlert = game.ruDeveloperAlert === true;
     const changed =
       vetting.ruDeveloperAlert !== wasAlert ||

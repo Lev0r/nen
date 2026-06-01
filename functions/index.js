@@ -3,7 +3,7 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { fetchSteamGame, parseAppId } = require('./steam');
 const { vetAllDevelopers } = require('./devVetting');
-const { aggregateGameVetting, ensureMemoryCache } = require('./devBgCheck');
+const { aggregateGameVetting, ensureMemoryCache, mergeVettingWithUserAcknowledgment } = require('./devBgCheck');
 const { collectVettingNames } = require('./devSources');
 const { enrichNewGameThirdParty } = require('./thirdParty');
 const { syncLibrarySteam, syncSteamLibrary } = require('./steamSync');
@@ -282,7 +282,10 @@ exports.vetGameDevelopers = onCall(
         devAppIdMap,
         forceRefresh: true,
       });
-      const vetting = aggregateGameVetting(game, memoryCache);
+      const vetting = mergeVettingWithUserAcknowledgment(
+        game,
+        aggregateGameVetting(game, memoryCache)
+      );
       await gameRef.update(vetting);
       await clearMaintenanceErrorsForGame(db, appId, gameId, 'vetting');
       await rebuildMaintenanceAudit(db, appId);
@@ -354,7 +357,10 @@ exports.revetAllGames = onCall(
     let flagged = 0;
 
     for (const game of games) {
-      const vetting = aggregateGameVetting(game, devCache);
+      const vetting = mergeVettingWithUserAcknowledgment(
+        game,
+        aggregateGameVetting(game, devCache)
+      );
       const changed =
         vetting.ruDeveloperAlert !== (game.ruDeveloperAlert === true) ||
         vetting.ruDeveloperExplanation !== String(game.ruDeveloperExplanation || '');

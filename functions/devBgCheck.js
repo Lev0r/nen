@@ -294,6 +294,31 @@ function collectUncachedDevelopers(developerNames, memoryCache) {
   return uncached;
 }
 
+function isUserAcknowledgedRu(game) {
+  if (game?.ruDeveloperAlert === true || game?.ruDeveloperAlert === 'true') {
+    return false;
+  }
+  return Boolean(String(game?.ruDeveloperExplanation || '').trim());
+}
+
+/**
+ * Preserve manual RU acknowledgments: alert cleared but explanation kept.
+ * Only `--wipe-user-acknowledged` on CLI re-vet may re-apply source flags.
+ */
+function mergeVettingWithUserAcknowledgment(game, vetting, { wipeUserAcknowledged = false } = {}) {
+  if (!wipeUserAcknowledged && isUserAcknowledgedRu(game)) {
+    return {
+      ruDeveloperAlert: false,
+      ruDeveloperExplanation: String(game.ruDeveloperExplanation || '').trim(),
+    };
+  }
+
+  return {
+    ruDeveloperAlert: Boolean(vetting?.ruDeveloperAlert),
+    ruDeveloperExplanation: String(vetting?.ruDeveloperExplanation || '').trim(),
+  };
+}
+
 module.exports = {
   DEV_BG_CHECK_DOC_ID,
   DEFAULT_APP_ID,
@@ -308,4 +333,6 @@ module.exports = {
   formatVettingTraceLine,
   collectUncachedDevelopers,
   normalizeDevEntry,
+  isUserAcknowledgedRu,
+  mergeVettingWithUserAcknowledgment,
 };

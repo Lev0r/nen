@@ -191,6 +191,7 @@ node scripts/revet-ru-games.mjs [options]
 | :--- | :--- | :---: | :--- | :--- |
 | `--dry-run` | flag | No | off | Log changes and decision trace; no Firestore writes |
 | `--verbose` | flag | No | off | Print decision trace for every game, not only changes |
+| `--wipe-user-acknowledged` | flag | No | off | Re-apply source flags on games with alert off but explanation kept (manual acknowledgments) |
 | `--app-id` | option | No | `default_app` | Firestore artifact id |
 
 Requires `config/dev-sources-*` seeded (`npm run sync-dev-sources:firestore:full`). Changed games print a per-layer trace: curator app list → developer cache → NE GRAI → curator dev index.

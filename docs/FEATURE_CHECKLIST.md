@@ -196,6 +196,11 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - RU badge moved to thumbnail bottom-center
 - Unified badge height/radius (6px) across status, reviews, GFN, lifecycle, update
 
+## Session log — 2026-06-02 (filters + RU acknowledgment)
+
+- On sale filter excludes games owned by both users
+- Manual RU acknowledgment preserved on re-vet (`alert` off + explanation kept); CLI `--wipe-user-acknowledged` to restore flags
+
 ## Session log — 2026-06-02 (card layout + gradient tuning)
 
 - Gradient wave palette: coral / moss / teal; faster wave animation; stronger glass opacity

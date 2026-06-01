@@ -46,6 +46,7 @@ aggregateGameVetting(game) → ruDeveloperAlert + ruDeveloperExplanation
 1. Game app ID vs curator **flagged** sets
 2. Each unique `steamStatic.developers[]` + `publishers[]` name — cache or `lookupDeterministicSources`
 3. Dedupe by normalized studio name and explanation text → join with ` | `
+4. **User acknowledgment** — if `ruDeveloperAlert` is false but `ruDeveloperExplanation` is non-empty, treat as a manual acknowledgment. Automatic re-vet (Maintenance, Run dev check, CLI re-vet without flag) **preserves** alert off and keeps the stored explanation. Only `scripts/revet-ru-games.mjs --wipe-user-acknowledged` re-applies source flags on those games.
 
 **Incremental sync** — weekly job resumes partial curator fetches; marks curators complete when done.
 
@@ -57,7 +58,7 @@ aggregateGameVetting(game) → ruDeveloperAlert + ruDeveloperExplanation
 | `vetGameDevelopers` (UI "Run dev check") | **Yes** |
 | `revetAllGames` (Maintenance) | **Yes** |
 | `scripts/import-games.mjs` | No (batch pre-vet) |
-| `scripts/revet-ru-games.mjs` | **Yes** |
+| `scripts/revet-ru-games.mjs` | **Yes** (add `--wipe-user-acknowledged` to restore flags on manually acknowledged games) |
 
 Manual RU toggle in edit modal updates **game doc only** — does not clear global dev cache.
 
@@ -80,7 +81,9 @@ Manual RU toggle in edit modal updates **game doc only** — does not clear glob
 ## Ops after source change
 
 1. Deploy functions (or `--to-firestore` / Maintenance → Sync dev sources)
-2. Re-vet — Maintenance → Re-vet all games, or `node scripts/revet-ru-games.mjs`
+2. Re-vet — Maintenance → Re-vet all games, or `node scripts/revet-ru-games.mjs`  
+   To re-flag games a user manually acknowledged (alert off, explanation kept):  
+   `node scripts/revet-ru-games.mjs --wipe-user-acknowledged`
 
 See [OPS](../OPS.md) — no DB wipe required for source updates.
 

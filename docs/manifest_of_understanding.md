@@ -251,7 +251,7 @@ Within the active pool, users can filter by:
 * **Steam tags** (`steamStatic.steamTags` from scrape — tag list shows tags from **full library**)
 * **Development status** (`steamStatic.developmentStatus`: `released` / `early_access` / `tba`)
 * **Ownership** (neither / one / both own)
-* **On sale**, **GeForce NOW** (catalog match), **Update available** (`hasUpdateSinceState`)
+* **On sale** (excludes games owned by both users), **GeForce NOW** (catalog match), **Update available** (`hasUpdateSinceState`)
 
 Filter panel expands via search focus or active filters; use React state (not CSS `:focus-within`) so toggles do not collapse the panel.
 
@@ -356,7 +356,9 @@ Aggregation dedupes normalized studio names across `developers[]` + `publishers[
 3. Cache results in `config/dev-bg-check.developers` (normalized name key).
 4. Set `ruDeveloperAlert` / `ruDeveloperExplanation` on the game document.
 
-**Manual re-check:** Game edit → **Run dev check** (`vetGameDevelopers` callable) bypasses cache (`forceRefresh`), works for any `libraryState` including `banned`.
+**User acknowledgment:** Clearing `ruDeveloperAlert` while keeping `ruDeveloperExplanation` records a manual review. Automatic re-vet preserves that state. Only `scripts/revet-ru-games.mjs --wipe-user-acknowledged` re-applies source flags on those games.
+
+**Manual re-check:** Game edit → **Run dev check** (`vetGameDevelopers` callable) bypasses cache (`forceRefresh`), works for any `libraryState` including `banned`. Respects user acknowledgment unless wiped via CLI flag above.
 
 **Bulk backfill:** `node scripts/revet-ru-games.mjs` (see [`DEV_CLI.md`](./DEV_CLI.md))
 

@@ -22,7 +22,7 @@ Implemented: `src/utils/gameFilters.js`, `src/components/GameFiltersBar.jsx`, `D
 | `steamTags[]` | Tag chips (OR) — **co-op tags excluded** |
 | `developmentStatus` | released / early_access / tba / all |
 | `ownership` | neither / one / both |
-| `onSaleOnly` | Toggle |
+| `onSaleOnly` | Toggle (excludes games owned by both users) |
 | `gfnOnly` | Toggle (global GFN catalog) |
 | `ruOnly` | Toggle |
 | `updateAvailableOnly` | Toggle (`hasUpdateSinceState`) |
