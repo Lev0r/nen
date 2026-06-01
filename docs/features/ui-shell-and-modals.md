@@ -39,7 +39,7 @@ Glassmorphism: `.modal-backdrop` + `.glass-panel` in `index.css`.
 ## GameCard highlights
 
 - Title-only header with truncation tooltip
-- Meta line: full-width flex row — version · critics · players · HLTB · price · rating (even columns; price/rating last)
+- Meta line: centered cluster — items intrinsic width, pipe-separated (price/rating last)
 - Cards, sidebar, and panels share `--glass-bg` (transparent warm graphite)
 - Finished rating: color-coded 1–5 in meta; click opens edit modal at rating (`focusRating`)
 - Hype ring (bottom-right), ownership (bottom-left), lifecycle (top), screenshots (top-right)
