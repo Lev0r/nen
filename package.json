@@ -10,10 +10,15 @@
     "preview": "vite preview",
     "import-games": "node scripts/import-games.mjs",
     "sync-dev-sources": "node scripts/sync-dev-sources.mjs",
+    "sync-dev-sources:firestore": "node scripts/sync-dev-sources.mjs --to-firestore --app-id default_app",
+    "sync-dev-sources:firestore:full": "node scripts/sync-dev-sources.mjs --to-firestore --full --app-id default_app",
+    "sync-dev-sources:local": "node scripts/sync-dev-sources.mjs",
     "test-dev-sources": "node scripts/test-dev-sources.mjs",
     "wipe-maintenance-errors": "node scripts/wipe-maintenance-errors.mjs",
     "wipe-legacy-dev-sources": "node scripts/wipe-legacy-dev-sources.mjs",
-    "migrate-config-v3": "node scripts/migrate-config-v3.mjs"
+    "migrate-config-v3": "node scripts/migrate-config-v3.mjs",
+    "revet-ru-games": "node scripts/revet-ru-games.mjs",
+    "fix-steam-links": "node scripts/fix-steam-links.mjs"
   },
   "dependencies": {
     "firebase": "^12.14.0",

@@ -8,12 +8,12 @@
  *   node scripts/sync-dev-sources.mjs --build-dev-index [--curator-delay-ms 800]
  *
  * Seed Firestore directly (split config docs — schema v2):
- *   node scripts/sync-dev-sources.mjs --to-firestore [--app-id default_app]
+ *   node scripts/sync-dev-sources.mjs --to-firestore [--full] [--app-id default_app]
  *   node scripts/sync-dev-sources.mjs --to-firestore --build-dev-index
  *
  * Flags:
- *   --to-firestore       Write to devBgCheck.sources via Firebase Admin (not local JSON)
- *   --full               Force full re-download (reserved for incremental sync in 5b)
+ *   --to-firestore       Write config/dev-sources-* docs via Firebase Admin
+ *   --full               Force full curator re-download (ignore saved progress)
  *   --skip-curators      Skip Steam curator lists
  *   --curators-only      Skip NE GRAI; sync curators only
  *   --build-dev-index    Resolve developer names for flagged curator apps (slow)
@@ -55,22 +55,68 @@ function parseArgs(argv) {
     full: false,
     appId: 'default_app',
   };
+  const unknown = [];
+
   for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === '--skip-curators') args.skipCurators = true;
-    if (argv[i] === '--curators-only') args.curatorsOnly = true;
-    if (argv[i] === '--build-dev-index') args.buildDevIndex = true;
-    if (argv[i] === '--to-firestore') args.toFirestore = true;
-    if (argv[i] === '--full') args.full = true;
-    if (argv[i] === '--curator-delay-ms') {
+    const arg = argv[i];
+    if (arg === '--skip-curators') args.skipCurators = true;
+    else if (arg === '--curators-only') args.curatorsOnly = true;
+    else if (arg === '--build-dev-index') args.buildDevIndex = true;
+    else if (arg === '--to-firestore' || arg === '-t') args.toFirestore = true;
+    else if (arg === '--full' || arg === '-f') args.full = true;
+    else if (arg === '--curator-delay-ms') {
       args.curatorDelayMs = Number(argv[i + 1]) || 800;
       i += 1;
-    }
-    if (argv[i] === '--app-id') {
+    } else if (arg === '--app-id') {
       args.appId = argv[i + 1] || args.appId;
       i += 1;
+    } else if (arg.startsWith('--app-id=')) {
+      args.appId = arg.slice('--app-id='.length) || args.appId;
+    } else if (arg.startsWith('--')) {
+      unknown.push(arg);
+    } else {
+      unknown.push(arg);
     }
   }
+
+  applyEnvDefaults(args);
+
+  if (unknown.length > 0) {
+    for (const token of unknown) {
+      if (token === 'default_app' || /^[\w.-]+$/.test(token)) {
+        if (!args.toFirestore && unknown.length === 1) {
+          args.toFirestore = true;
+          args.appId = token;
+          console.warn(
+            `Warning: npm/PowerShell dropped flags — treating "${token}" as --to-firestore --app-id ${token}.\n` +
+              'Prefer: npm run sync-dev-sources:firestore:full  OR  node scripts/sync-dev-sources.mjs --to-firestore --full'
+          );
+          return args;
+        }
+        if (!args.toFirestore) {
+          args.appId = token;
+          continue;
+        }
+      }
+      console.warn(`Warning: ignoring unknown argument: ${token}`);
+    }
+  }
+
   return args;
+}
+
+function applyEnvDefaults(args) {
+  const truthy = (value) => value === '1' || value === 'true' || value === 'yes';
+  if (truthy(process.env.NEN_SYNC_TO_FIRESTORE)) args.toFirestore = true;
+  if (truthy(process.env.NEN_SYNC_FULL)) args.full = true;
+  if (process.env.NEN_APP_ID) args.appId = process.env.NEN_APP_ID;
+}
+
+function createProgressLogger() {
+  return (message) => {
+    const ts = new Date().toISOString().slice(11, 19);
+    console.log(`[${ts}] ${message}`);
+  };
 }
 
 function resolveFirebaseProjectId() {
@@ -157,35 +203,50 @@ function formatStats(stats) {
 }
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const rawArgv = process.argv.slice(2);
+  const args = parseArgs(rawArgv);
+  const onProgress = createProgressLogger();
+
+  if (process.env.DEBUG_SYNC_ARGS === '1') {
+    onProgress(`debug argv: ${JSON.stringify(rawArgv)}`);
+  }
+
+  onProgress(
+    args.toFirestore
+      ? `mode=Firestore appId=${args.appId} full=${args.full}`
+      : `mode=local JSON → ${DATA_DIR} full=${args.full}`
+  );
   const syncOptions = {
     skipNeGrai: args.curatorsOnly,
     skipCurators: args.skipCurators,
     buildDevIndex: args.buildDevIndex,
     curatorDelayMs: args.curatorDelayMs,
-    full: args.full,
+    forceFull: args.full,
+    onProgress,
   };
 
   if (args.toFirestore) {
     initFirebase();
-    console.log(
-      `Syncing to Firestore (appId=${args.appId})${args.full ? ' [full]' : ''}…`
+    onProgress(
+      `Starting Firestore sync (appId=${args.appId}${args.full ? ', full re-download' : ', incremental'})…`
     );
     const stats = await syncDevSourcesToFirestore(args.appId, syncOptions);
-    console.log(`Wrote dev-sources-* docs to Firestore (${args.appId}, schema v2)`);
+    onProgress(`Wrote dev-sources-* docs (schema v2)`);
     console.log(formatStats(stats));
     return;
   }
 
   if (args.curatorsOnly) {
-    console.log('Syncing curator app IDs only…');
+    onProgress('Starting local export — curators only…');
+  } else if (args.skipCurators) {
+    onProgress('Starting local export — NE GRAI only…');
   } else {
-    console.log('Syncing NE GRAI list + curator app IDs…');
+    onProgress(`Starting local export → ${DATA_DIR}${args.full ? ' (full)' : ''}…`);
   }
 
   const stats = await syncDevSourcesToFiles(syncOptions, DATA_DIR);
 
-  console.log(`Wrote JSON under ${stats.dataDir}`);
+  onProgress(`Finished local export`);
   console.log(formatStats(stats));
 
   if (!args.buildDevIndex && !args.skipCurators) {

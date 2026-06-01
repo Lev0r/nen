@@ -3,9 +3,9 @@
  * Re-apply RU developer vetting to all games already in Firestore.
  *
  * Usage:
- *   node scripts/revet-ru-games.mjs [--dry-run] [--app-id default_app]
+ *   node scripts/revet-ru-games.mjs [--dry-run] [--app-id default_app] [--verbose]
  *
- * Use after import if RU flags were missing (e.g. only active games were vetted).
+ * Use after dev sources are seeded to Firestore (config/dev-sources-*).
  */
 import { createRequire } from 'module';
 import { readFileSync, existsSync } from 'fs';
@@ -22,22 +22,31 @@ const { getFirestore } = require('firebase-admin/firestore');
 const { vetAllDevelopers } = require('./devVetting');
 const {
   ensureMemoryCache,
-  aggregateGameVetting,
+  explainGameVetting,
+  formatVettingTraceLine,
   collectUncachedDevelopers,
 } = require('./devBgCheck');
+const { loadDevSourcesBundle } = require('./devSourceStore');
+const {
+  ensureLiveDevSources,
+  getSourceMetadata,
+  resetDevSourcesCache,
+} = require('./devSources');
 
 function parseArgs(argv) {
   let appId = 'default_app';
   let dryRun = false;
+  let verbose = false;
 
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--dry-run') dryRun = true;
+    else if (arg === '--verbose') verbose = true;
     else if (arg === '--app-id') appId = argv[++i];
     else if (arg.startsWith('--app-id=')) appId = arg.slice('--app-id='.length);
   }
 
-  return { appId, dryRun };
+  return { appId, dryRun, verbose };
 }
 
 function loadDotEnvFile(filePath) {
@@ -65,6 +74,7 @@ function resolveFirebaseProjectId() {
   try {
     const rc = JSON.parse(readFileSync(join(ROOT, '.firebaserc'), 'utf8'));
     if (rc.projects?.default) return rc.projects.default;
+    if (rc.projects?.staging) return rc.projects.staging;
     const values = Object.values(rc.projects || {});
     if (values.length === 1) return values[0];
   } catch {
@@ -98,11 +108,43 @@ function gamesCollection(appId) {
   return `artifacts/${appId}/public/data/games`;
 }
 
+function printSourceSummary(meta) {
+  const curatorParts = Object.entries(meta.curators?.byCurator || {}).map(
+    ([key, entry]) => `${key} flagged ${entry.flaggedCount ?? 0}`
+  );
+  console.log(
+    `Dev sources loaded: NE GRAI ${meta.neGrai?.count ?? 0} names` +
+      (curatorParts.length ? ` | ${curatorParts.join(' | ')}` : '')
+  );
+}
+
 async function main() {
-  const { appId, dryRun } = parseArgs(process.argv);
+  const { appId, dryRun, verbose } = parseArgs(process.argv);
   loadDotEnvFile(join(ROOT, 'functions/.env'));
 
   const db = initFirebase();
+  const bundle = await loadDevSourcesBundle(db, appId);
+  if (!bundle) {
+    console.error(
+      'No dev-sources-* docs in Firestore.\n' +
+        'Seed first: npm run sync-dev-sources:firestore:full'
+    );
+    process.exit(1);
+  }
+
+  resetDevSourcesCache();
+  await ensureLiveDevSources(db, appId);
+  const sourceMeta = getSourceMetadata();
+  printSourceSummary(sourceMeta);
+
+  if ((sourceMeta.neGrai?.count ?? 0) === 0) {
+    console.error(
+      'NE GRAI list is empty after load — aborting.\n' +
+        'Re-run: npm run sync-dev-sources:firestore:full'
+    );
+    process.exit(1);
+  }
+
   const snap = await db.collection(gamesCollection(appId)).get();
   const games = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
@@ -131,7 +173,7 @@ async function main() {
 
   if (uniqueDevs.size > 0) {
     await vetAllDevelopers([...uniqueDevs], {
-      db: dryRun ? null : db,
+      db,
       appId,
       memoryCache: devCache,
       dryRun,
@@ -144,21 +186,39 @@ async function main() {
   let flagged = 0;
 
   for (const game of games) {
-    const vetting = aggregateGameVetting(game, devCache);
+    const explained = explainGameVetting(game, devCache);
+    const vetting = {
+      ruDeveloperAlert: explained.ruDeveloperAlert,
+      ruDeveloperExplanation: explained.ruDeveloperExplanation,
+    };
+    const wasAlert = game.ruDeveloperAlert === true;
     const changed =
-      vetting.ruDeveloperAlert !== (game.ruDeveloperAlert === true) ||
+      vetting.ruDeveloperAlert !== wasAlert ||
       vetting.ruDeveloperExplanation !== String(game.ruDeveloperExplanation || '');
 
     if (vetting.ruDeveloperAlert) flagged += 1;
 
-    if (!changed) continue;
+    if (!changed && !verbose) continue;
+
+    const label = game.steamStatic?.name || game.id;
+
+    if (!changed) {
+      console.log(`  ${game.id} ${label}: unchanged ruDeveloperAlert=${vetting.ruDeveloperAlert}`);
+      for (const entry of explained.trace) {
+        console.log(formatVettingTraceLine(entry));
+      }
+      continue;
+    }
 
     updated += 1;
-    const label = game.steamStatic?.name || game.id;
-    console.log(
-      `  ${game.id} ${label}: ruDeveloperAlert=${vetting.ruDeveloperAlert}` +
-        (vetting.ruDeveloperAlert ? ` — ${vetting.ruDeveloperExplanation.slice(0, 80)}…` : '')
-    );
+    const transition =
+      wasAlert === vetting.ruDeveloperAlert
+        ? 'explanation changed'
+        : `${wasAlert} → ${vetting.ruDeveloperAlert}`;
+    console.log(`  ${game.id} ${label}: ruDeveloperAlert ${transition}`);
+    for (const entry of explained.trace) {
+      console.log(formatVettingTraceLine(entry));
+    }
 
     if (!dryRun) {
       await db.doc(`${gamesCollection(appId)}/${game.id}`).update(vetting);

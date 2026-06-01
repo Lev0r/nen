@@ -29,6 +29,12 @@ const PAGE_SIZE = 50;
 const CURATOR_META_NOTE =
   'Only not_recommended + informational app IDs flag RU; recommended = curator clearance after dev check.';
 
+function emitProgress(options, message) {
+  if (typeof options?.onProgress === 'function') {
+    options.onProgress(message);
+  }
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -47,10 +53,12 @@ function assertAllowedUser(auth) {
   }
 }
 
-async function downloadNeGraiList() {
+async function downloadNeGraiList(options = {}) {
+  emitProgress(options, 'NE GRAI: downloading Firefox extension XPI…');
   const res = await fetch(NE_GRAI_XPI);
   if (!res.ok) throw new Error(`NE GRAI XPI download failed (${res.status})`);
 
+  emitProgress(options, 'NE GRAI: parsing publisher name list…');
   const buffer = Buffer.from(await res.arrayBuffer());
   const zip = new AdmZip(buffer);
   const entry = zip.getEntry('content.js');
@@ -63,6 +71,8 @@ async function downloadNeGraiList() {
   const names = eval(match[1]);
   const versionMatch = content.match(/"version"\s*:\s*"([^"]+)"/);
   const version = versionMatch?.[1] || null;
+
+  emitProgress(options, `NE GRAI: done (${names.length} names${version ? `, v${version}` : ''})`);
 
   return {
     names: [...new Set(names.map((n) => String(n).trim()).filter(Boolean))].sort(),
@@ -192,6 +202,10 @@ async function syncOneCuratorIncremental(key, storedEntry, options = {}) {
     storedEntry?.complete &&
     Number(storedEntry.totalCount) === totalCount
   ) {
+    emitProgress(
+      options,
+      `Curator ${key}: skipped (unchanged, ${totalCount} items, ${storedEntry.flaggedAppIds?.length || 0} flagged)`
+    );
     return { key, skipped: true, pagesFetched: 0, state: storedEntry };
   }
 
@@ -199,6 +213,7 @@ async function syncOneCuratorIncremental(key, storedEntry, options = {}) {
   let startAt = forceFull ? 0 : Number(state.fetchedCount) || 0;
 
   if (!forceFull && Number(storedEntry?.totalCount) > totalCount && totalCount >= 0) {
+    emitProgress(options, `Curator ${key}: list shrank (${storedEntry.totalCount} → ${totalCount}), restarting`);
     state = emptyCuratorState(curator);
     startAt = 0;
   }
@@ -208,6 +223,7 @@ async function syncOneCuratorIncremental(key, storedEntry, options = {}) {
   state.totalCount = totalCount;
 
   if (totalCount === 0) {
+    emitProgress(options, `Curator ${key}: empty list`);
     state.flaggedAppIds = [];
     state.clearedAppIds = [];
     state.fetchedCount = 0;
@@ -217,11 +233,15 @@ async function syncOneCuratorIncremental(key, storedEntry, options = {}) {
   }
 
   if (startAt >= totalCount && !state.complete) {
+    emitProgress(options, `Curator ${key}: marking complete (${totalCount} items)`);
     state.fetchedCount = totalCount;
     state.complete = true;
     state.lastSyncedAt = new Date().toISOString();
     return { key, skipped: false, pagesFetched: 0, state };
   }
+
+  const resumeLabel = startAt > 0 ? `, resuming at ${startAt}` : '';
+  emitProgress(options, `Curator ${key} (${curator.label}): fetching ${totalCount} items${resumeLabel}…`);
 
   let pagesFetched = 0;
   let start = startAt;
@@ -232,7 +252,17 @@ async function syncOneCuratorIncremental(key, storedEntry, options = {}) {
     pagesFetched += 1;
     start += PAGE_SIZE;
 
-    if (page.htmlEmpty && start < totalCount) break;
+    state.fetchedCount = Math.min(start, totalCount);
+    emitProgress(
+      options,
+      `Curator ${key}: page ${pagesFetched} — ${state.fetchedCount}/${totalCount} ` +
+        `(flagged ${state.flaggedAppIds.length}, cleared ${state.clearedAppIds.length})`
+    );
+
+    if (page.htmlEmpty && start < totalCount) {
+      emitProgress(options, `Curator ${key}: empty HTML before end — stopping early at ${state.fetchedCount}`);
+      break;
+    }
     if (start < totalCount && pagesFetched < maxPages) {
       await sleep(200);
     }
@@ -241,6 +271,12 @@ async function syncOneCuratorIncremental(key, storedEntry, options = {}) {
   state.fetchedCount = Math.min(start, totalCount);
   state.complete = state.fetchedCount >= totalCount;
   state.lastSyncedAt = new Date().toISOString();
+
+  emitProgress(
+    options,
+    `Curator ${key}: ${state.complete ? 'complete' : 'paused'} — ` +
+      `${state.fetchedCount}/${totalCount}, flagged ${state.flaggedAppIds.length}, cleared ${state.clearedAppIds.length}`
+  );
 
   return { key, skipped: false, pagesFetched, state };
 }
@@ -273,6 +309,8 @@ async function syncCuratorAppIdsIncremental(existingCurators = {}, options = {})
   const keys = getCuratorKeys();
   let stopAfterCurator = false;
 
+  emitProgress(options, `Curators: syncing ${keys.length} lists (page size ${PAGE_SIZE})…`);
+
   for (let index = 0; index < keys.length; index += 1) {
     const key = keys[index];
 
@@ -283,9 +321,12 @@ async function syncCuratorAppIdsIncremental(existingCurators = {}, options = {})
       break;
     }
 
+    emitProgress(options, `Curators: [${index + 1}/${keys.length}] ${key}…`);
+
     const result = await syncOneCuratorIncremental(key, existingCurators[key], {
       forceFull: options.forceFull,
       maxPages,
+      onProgress: options.onProgress,
     });
 
     if (result.skipped) {
@@ -368,11 +409,22 @@ function indexDeveloperNames(developers, key, appId, names) {
   }
 }
 
-async function buildCuratorDeveloperIndex(appIdsData, curatorDelayMs = 800) {
+async function buildCuratorDeveloperIndex(appIdsData, curatorDelayMs = 800, options = {}) {
   const developers = {};
   const curatorApps = {};
+  const curatorEntries = Object.entries(appIdsData.curators);
+  const totalApps = curatorEntries.reduce(
+    (sum, [, entry]) => sum + (entry.flaggedAppIds || entry.appIds || []).length,
+    0
+  );
+  let appsDone = 0;
 
-  for (const [key, entry] of Object.entries(appIdsData.curators)) {
+  emitProgress(
+    options,
+    `Dev index: resolving developers for ${totalApps} flagged app(s) (delay ${curatorDelayMs}ms)…`
+  );
+
+  for (const [key, entry] of curatorEntries) {
     const appIds = entry.flaggedAppIds || entry.appIds || [];
     curatorApps[key] = {
       id: entry.id,
@@ -381,17 +433,31 @@ async function buildCuratorDeveloperIndex(appIdsData, curatorDelayMs = 800) {
       clearedAppCount: entry.clearedAppIds?.length || 0,
     };
 
+    emitProgress(options, `Dev index: curator ${key} — ${appIds.length} app(s)…`);
+
     for (let i = 0; i < appIds.length; i += 1) {
       const appId = appIds[i];
+      appsDone += 1;
       try {
         const names = await fetchAppDevelopers(appId);
         if (names?.length) indexDeveloperNames(developers, key, appId, names);
+        if (appsDone === 1 || appsDone % 25 === 0 || appsDone === totalApps) {
+          emitProgress(
+            options,
+            `Dev index: ${appsDone}/${totalApps} apps — ${Object.keys(developers).length} developer name(s)`
+          );
+        }
       } catch (err) {
-        console.warn(`app ${appId}: ${err.message}`);
+        emitProgress(options, `Dev index: app ${appId} failed — ${err.message}`);
       }
       await sleep(curatorDelayMs);
     }
   }
+
+  emitProgress(
+    options,
+    `Dev index: done — ${Object.keys(developers).length} developer name(s) from ${totalApps} app(s)`
+  );
 
   return {
     developers,
@@ -411,7 +477,9 @@ async function fetchDevSourcePayload(options = {}, existingCurators = {}) {
   const payload = {};
 
   if (!options.skipNeGrai) {
-    payload.neGrai = await downloadNeGraiList();
+    payload.neGrai = await downloadNeGraiList(options);
+  } else {
+    emitProgress(options, 'NE GRAI: skipped');
   }
 
   if (!options.skipCurators) {
@@ -421,12 +489,22 @@ async function fetchDevSourcePayload(options = {}, existingCurators = {}) {
       meta: result.meta,
     };
     payload.curatorSyncProgress = result.progress;
+    const pending = result.progress.pending || [];
+    const skipped = result.progress.skipped || [];
+    emitProgress(
+      options,
+      `Curators: pass done — updated ${result.progress.updated?.length || 0}, ` +
+        `skipped ${skipped.length}, pending ${pending.length}`
+    );
     if (options.buildDevIndex) {
       payload.curatorDevelopers = await buildCuratorDeveloperIndex(
         payload.curatorAppIds,
-        options.curatorDelayMs
+        options.curatorDelayMs,
+        options
       );
     }
+  } else {
+    emitProgress(options, 'Curators: skipped');
   }
 
   return payload;
@@ -490,11 +568,18 @@ function buildSyncProgressStats(payload) {
 
 async function syncDevSourcesToFirestore(appId = DEFAULT_APP_ID, options = {}) {
   const db = getFirestore();
+  emitProgress(options, `Firestore: loading existing curator state (appId=${appId})…`);
   const existingCurators = await loadExistingCuratorStates(db, appId);
+  const existingCount = Object.keys(existingCurators).length;
+  emitProgress(options, `Firestore: found ${existingCount} saved curator doc(s)`);
 
   const payload = await fetchDevSourcePayload(options, existingCurators);
+
+  emitProgress(options, 'Firestore: writing dev-sources-* config docs…');
   await writeDevSourcesToFirestore(appId, payload);
+  emitProgress(options, 'Firestore: rebuilding maintenance audit…');
   await rebuildMaintenanceAudit(db, appId);
+  emitProgress(options, 'Firestore: sync complete');
   const stats = summarizeDevSourceStats(payload);
   return {
     ...stats,
@@ -513,15 +598,22 @@ async function syncDevSourcesToFiles(options = {}, dataDir = DATA_DIR) {
       const data = JSON.parse(readFileSync(curatorPath, 'utf8'));
       existingCurators = data.curators || {};
       existingMeta = data.meta;
+      emitProgress(
+        options,
+        `Local: loaded curator progress from ${curatorPath} (${Object.keys(existingCurators).length} curator(s))`
+      );
     } catch (err) {
       console.warn('Could not read existing curator JSON, starting fresh:', err.message);
     }
+  } else if (options.forceFull) {
+    emitProgress(options, 'Local: --full — ignoring saved curator progress');
   }
 
   const payload = await fetchDevSourcePayload(
     { ...options, existingMeta },
     existingCurators
   );
+  emitProgress(options, `Local: writing JSON to ${dataDir}…`);
   writeDevSourcesToFiles(payload, dataDir);
   return {
     ...summarizeDevSourceStats(payload),

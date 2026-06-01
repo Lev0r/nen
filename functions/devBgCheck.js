@@ -149,6 +149,101 @@ function aggregateGameVetting(game, memoryCache) {
   };
 }
 
+const SOURCE_LAYER_LABELS = {
+  'curator-app-id': 'Curator app list',
+  'dev-cache': 'Developer cache',
+  'ne-grai': 'NE GRAI',
+  curators: 'Curator dev index',
+  'source-list': 'Source lookup',
+};
+
+/**
+ * Explain per-layer vetting decision for CLI dry-run / debugging.
+ */
+function explainGameVetting(game, memoryCache) {
+  const { lookupDeterministicSources, lookupCuratorsByAppId, lookupNeGrai, lookupCurators } =
+    require('./devSources');
+  const trace = [];
+
+  const appId = game?.id != null ? String(game.id) : '';
+  if (appId) {
+    const appHit = lookupCuratorsByAppId(appId);
+    trace.push({
+      layer: 'curator-app-id',
+      hit: Boolean(appHit),
+      detail: appHit?.explanation || 'app not on any curator flagged list',
+    });
+  }
+
+  const appIds = appId ? [appId] : [];
+  for (const name of game?.steamStatic?.developers || []) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) continue;
+
+    const cached = lookupCachedDeveloper(trimmed, memoryCache);
+    if (cached) {
+      trace.push({
+        layer: 'dev-cache',
+        developer: trimmed,
+        hit: cached.isRussianRelated,
+        detail: cached.isRussianRelated
+          ? cached.explanation
+          : 'developer cache: cleared (not RU)',
+      });
+      if (cached.isRussianRelated) continue;
+    }
+
+    const neGrai = lookupNeGrai(trimmed);
+    if (neGrai) {
+      trace.push({
+        layer: 'ne-grai',
+        developer: trimmed,
+        hit: true,
+        detail: neGrai.explanation,
+      });
+      continue;
+    }
+
+    const curator = lookupCurators(trimmed, { appIds });
+    if (curator) {
+      trace.push({
+        layer: 'curators',
+        developer: trimmed,
+        hit: true,
+        detail: curator.explanation,
+      });
+      continue;
+    }
+
+    const hit = lookupDeterministicSources(trimmed, { appIds });
+    if (hit) {
+      trace.push({
+        layer: 'source-list',
+        developer: trimmed,
+        hit: true,
+        detail: hit.explanation,
+      });
+    } else if (!cached) {
+      trace.push({
+        layer: 'source-list',
+        developer: trimmed,
+        hit: false,
+        detail: 'not in NE GRAI or curator lists',
+      });
+    }
+  }
+
+  const vetting = aggregateGameVetting(game, memoryCache);
+  return { ...vetting, trace };
+}
+
+function formatVettingTraceLine(entry) {
+  const label = SOURCE_LAYER_LABELS[entry.layer] || entry.layer;
+  const who = entry.developer ? ` «${entry.developer}»` : '';
+  const status = entry.hit ? 'FLAG' : 'clear';
+  return `    ${label}${who}: ${status} — ${entry.detail}`;
+}
+
 function collectUncachedDevelopers(developerNames, memoryCache) {
   const seen = new Set();
   const uncached = [];
@@ -179,6 +274,8 @@ module.exports = {
   persistDeveloperResults,
   aggregateVettingFromCache,
   aggregateGameVetting,
+  explainGameVetting,
+  formatVettingTraceLine,
   collectUncachedDevelopers,
   normalizeDevEntry,
 };

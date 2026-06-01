@@ -61,8 +61,16 @@ async function vetUncachedDevelopers(uncachedNames, options) {
   stats.bundledClears += resolved.filter((r) => r.source === 'bundled_sources').length;
 
   if (dryRun) {
+    for (const entry of resolved) {
+      memoryCache.set(entry.key, {
+        name: entry.name,
+        isRussianRelated: entry.isRussianRelated,
+        explanation: entry.explanation,
+        checkedAt: new Date(),
+      });
+    }
     console.log(
-      `  DRY-RUN source lookup: ${stats.sourceHits} flagged, ${stats.bundledClears} cleared`
+      `  DRY-RUN source lookup: ${stats.sourceHits} flagged, ${stats.bundledClears} cleared (in-memory only, no Firestore writes)`
     );
     return stats;
   }

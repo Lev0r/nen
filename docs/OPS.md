@@ -85,6 +85,8 @@ Region: `europe-west1`. Sync callables: **540s** client timeout in `cloudFunctio
 
 ## Admin scripts (local → production Firestore)
 
+**Full CLI reference:** [`DEV_CLI.md`](./DEV_CLI.md) — parameters and examples per script.
+
 Requires `firebase login` + project, or `GOOGLE_APPLICATION_CREDENTIALS`.
 
 ```bash
