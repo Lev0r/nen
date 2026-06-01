@@ -74,6 +74,9 @@ function resolveFirebaseProjectId() {
   try {
     const rc = JSON.parse(readFileSync(join(ROOT, '.firebaserc'), 'utf8'));
     if (rc.projects?.default) return rc.projects.default;
+    if (rc.projects?.staging) return rc.projects.staging;
+    const values = Object.values(rc.projects || {});
+    if (values.length === 1) return values[0];
   } catch {
     // ignore
   }
@@ -81,6 +84,8 @@ function resolveFirebaseProjectId() {
     const out = execSync('firebase use', { cwd: ROOT, encoding: 'utf8' }).trim();
     const activeMatch = out.match(/Active Project:\s*(\S+)/i);
     if (activeMatch) return activeMatch[1];
+    const usingMatch = out.match(/Now using project\s+(\S+)/i);
+    if (usingMatch) return usingMatch[1];
   } catch {
     // ignore
   }

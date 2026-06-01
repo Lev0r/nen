@@ -106,7 +106,7 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 3. **Schema v2 only** — nested `steamStatic` / `steamDynamic` / `steamStats`; no v1 flat fields.
 4. **Banned games** — skip all Steam sync; **TBA** — no player stats.
 5. **GFN badge** — reads global `gfnCatalog.steamAppIds`, not per-game scrape field.
-6. **Firestore sources** — production functions read **`devBgCheck.sources` in Firestore only** (`ensureLiveDevSources`); bundled JSON in `functions/data/` is dev/export only. Seed via `--to-firestore` script or Maintenance → Sync dev sources before vetting works.
+6. **Firestore dev sources (schema v2)** — split docs `config/dev-sources-*`; seed via `--to-firestore`. Legacy `devBgCheck.sources` on `config/default` is unused. `devBgCheck.developers` stays on `config/default`.
 7. **Curator vetting** — only `not_recommended` + `informational` flag; `recommended` = clearance (does not override NE GRAI).
 
 ---
