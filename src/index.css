@@ -37,9 +37,10 @@
   --accent-a-50: rgba(76, 201, 160, 0.5);
   --accent-a-55: rgba(76, 201, 160, 0.55);
 
-  --glass-bg: rgba(32, 30, 28, 0.58);
-  --glass-bg-sidebar: rgba(24, 22, 20, 0.68);
-  --glass-bg-sidebar-footer: rgba(20, 18, 16, 0.55);
+  --glass-bg: rgba(24, 22, 20, 0.46);
+  --glass-bg-sidebar: var(--glass-bg);
+  --glass-bg-sidebar-footer: rgba(18, 16, 14, 0.42);
+  --glass-bg-card-footer: rgba(12, 10, 9, 0.58);
   --glass-border: rgba(255, 248, 240, 0.08);
   --glass-highlight: rgba(255, 248, 240, 0.12);
   --glass-inset: inset 0 1px 0 rgba(255, 248, 240, 0.04);
@@ -48,9 +49,9 @@
   --shadow-neon-red: 0 0 8px rgba(232, 93, 93, 0.32);
   --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.35);
 
-  --wave-sage: rgba(76, 201, 160, 0.32);
-  --wave-forest: rgba(52, 98, 82, 0.42);
-  --wave-warm: rgba(130, 102, 74, 0.26);
+  --wave-sage: rgba(76, 201, 160, 0.38);
+  --wave-forest: rgba(52, 98, 82, 0.48);
+  --wave-warm: rgba(130, 102, 74, 0.32);
   --wave-graphite: rgba(38, 35, 32, 0.85);
 
   --badge-height: 1.375rem;
@@ -94,7 +95,7 @@ body {
 
 .dynamic-bg-sheen {
   position: absolute;
-  inset: -40%;
+  inset: -55%;
   background: linear-gradient(
     135deg,
     transparent 0%,
@@ -110,37 +111,37 @@ body {
 
 .dynamic-bg-wave {
   position: absolute;
-  filter: blur(72px);
-  opacity: 0.9;
+  filter: blur(64px);
+  opacity: 0.95;
   will-change: transform;
   pointer-events: none;
 }
 
 .dynamic-bg-wave--a {
-  width: 75vmax;
-  height: 58vmax;
-  top: -18%;
-  right: -12%;
+  width: 120vmax;
+  height: 90vmax;
+  top: -35%;
+  right: -30%;
   border-radius: 42% 58% 55% 45% / 48% 42% 58% 52%;
   background: radial-gradient(ellipse at 35% 35%, var(--wave-sage) 0%, transparent 72%);
   animation: dynamic-wave-a 34s ease-in-out infinite alternate;
 }
 
 .dynamic-bg-wave--b {
-  width: 68vmax;
-  height: 52vmax;
-  bottom: -22%;
-  left: -8%;
+  width: 110vmax;
+  height: 85vmax;
+  bottom: -40%;
+  left: -25%;
   border-radius: 55% 45% 40% 60% / 52% 58% 42% 48%;
   background: radial-gradient(ellipse at 55% 55%, var(--wave-forest) 0%, transparent 70%);
   animation: dynamic-wave-b 46s ease-in-out infinite alternate;
 }
 
 .dynamic-bg-wave--c {
-  width: 52vmax;
-  height: 44vmax;
-  top: 38%;
-  right: 18%;
+  width: 95vmax;
+  height: 75vmax;
+  top: 20%;
+  right: -5%;
   border-radius: 48% 52% 58% 42% / 44% 56% 44% 56%;
   background: radial-gradient(ellipse at 50% 50%, var(--wave-warm) 0%, transparent 68%);
   animation: dynamic-wave-c 28s ease-in-out infinite alternate;
@@ -190,9 +191,9 @@ body {
   background:
     linear-gradient(
       135deg,
-      rgba(15, 13, 12, 0.15) 0%,
-      rgba(15, 13, 12, 0.35) 55%,
-      rgba(15, 13, 12, 0.5) 100%
+      rgba(15, 13, 12, 0.08) 0%,
+      rgba(15, 13, 12, 0.22) 55%,
+      rgba(15, 13, 12, 0.32) 100%
     );
 }
 
@@ -1000,11 +1001,13 @@ button {
   min-height: min-content;
   flex-shrink: 0;
   align-self: start;
-  background: rgba(18, 24, 38, 0.82);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(115%);
+  -webkit-backdrop-filter: blur(20px) saturate(115%);
   box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.25),
-    0 12px 28px -4px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 12px 28px -4px rgba(0, 0, 0, 0.35),
+    var(--glass-inset);
 }
 
 .game-card:hover {
@@ -1015,9 +1018,9 @@ button {
   border-color: var(--accent-a-28);
   box-shadow:
     var(--shadow-neon-mint),
-    0 4px 6px -1px rgba(0, 0, 0, 0.25),
-    0 12px 28px -4px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 12px 28px -4px rgba(0, 0, 0, 0.35),
+    var(--glass-inset);
 }
 
 .game-card-thumb {
@@ -1445,27 +1448,6 @@ button {
   background: rgba(76, 201, 160, 0.08);
 }
 
-.game-card-meta-trailing {
-  display: inline-flex;
-  align-items: center;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.game-card-meta-line > .game-card-meta-item + .game-card-meta-trailing,
-.game-card-meta-line > .game-card-meta-trailing:not(:only-child) {
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
-  padding-left: 0.65rem;
-}
-
-.game-card-meta-trailing .game-card-meta-item:first-child {
-  padding-left: 0;
-}
-
-.game-card-meta-trailing .game-card-meta-item:last-child {
-  padding-right: 0;
-}
-
 .game-card-notes-icon {
   width: 1rem;
   height: 1rem;
@@ -1523,31 +1505,39 @@ button {
 
 .game-card-meta-line {
   flex-shrink: 0;
+  width: 100%;
   min-height: 1.25rem;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
+  justify-content: space-between;
   gap: 0;
   margin-top: auto;
   padding-top: 0.15rem;
 }
 
 .game-card-meta-item {
+  flex: 1 1 0;
   display: inline-flex;
   align-items: center;
-  padding: 0 0.65rem;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 0.4rem;
+  text-align: center;
 }
 
 .game-card-meta-item:first-child {
   padding-left: 0;
+  justify-content: flex-start;
 }
 
 .game-card-meta-item:last-child {
   padding-right: 0;
+  justify-content: flex-end;
 }
 
 .game-card-meta-item + .game-card-meta-item {
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .game-card-meta-price {
@@ -1754,6 +1744,9 @@ button {
 .game-card-footer {
   margin-top: auto;
   border-top: 1px solid var(--glass-border);
+  background: var(--glass-bg-card-footer);
+  border-radius: 0 0 15px 15px;
+  overflow: hidden;
 }
 
 .game-card-footer-group {
@@ -1769,7 +1762,7 @@ button {
   min-height: 42px;
   padding: 0.55rem;
   border-radius: 0;
-  background: rgba(255, 255, 255, 0.03);
+  background: transparent;
   color: var(--text-muted);
   border: none;
   border-right: 1px solid var(--glass-border);
@@ -1802,7 +1795,7 @@ button {
 }
 
 .game-card-footer-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 248, 240, 0.06);
   color: var(--text-main);
 }
 

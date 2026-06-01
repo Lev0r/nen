@@ -958,31 +958,27 @@ export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecyc
                 </FloatingTooltip>
               </div>
             )}
-            {((!bothOwn && price) || showFinishedRating) && (
-              <div className="game-card-meta-trailing">
-                {!bothOwn && price && (
-                  <div className="game-card-meta-item game-card-meta-item--price">
-                    {renderPriceMeta()}
-                  </div>
-                )}
-                {showFinishedRating && (
-                  <div className="game-card-meta-item">
-                    <FloatingTooltip
-                      anchorClassName="floating-tooltip-anchor--meta-inline"
-                      content={
-                        <CardTooltipText>
-                          Shared finished rating ({game.finishedRating}/5) — {getNickname(0)} &amp;{' '}
-                          {getNickname(1)}
-                        </CardTooltipText>
-                      }
-                    >
-                      <FinishedRatingMetaDigit
-                        rating={game.finishedRating}
-                        onClick={() => openEditModal({ focusRating: true })}
-                      />
-                    </FloatingTooltip>
-                  </div>
-                )}
+            {!bothOwn && price && (
+              <div className="game-card-meta-item game-card-meta-item--price">
+                {renderPriceMeta()}
+              </div>
+            )}
+            {showFinishedRating && (
+              <div className="game-card-meta-item">
+                <FloatingTooltip
+                  anchorClassName="floating-tooltip-anchor--meta-inline"
+                  content={
+                    <CardTooltipText>
+                      Shared finished rating ({game.finishedRating}/5) — {getNickname(0)} &amp;{' '}
+                      {getNickname(1)}
+                    </CardTooltipText>
+                  }
+                >
+                  <FinishedRatingMetaDigit
+                    rating={game.finishedRating}
+                    onClick={() => openEditModal({ focusRating: true })}
+                  />
+                </FloatingTooltip>
               </div>
             )}
           </div>
