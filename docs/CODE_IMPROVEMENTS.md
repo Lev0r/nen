@@ -71,6 +71,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | — | `docs/DEV_CLI.md` handbook + npm seed aliases |
 | N14 | Publisher names in game-level vet loop (`collectVettingNames`) |
 | M7 | Production bulk import + smoke test (147 games) |
+| — | Production RU re-vet after message-format deploy (2026-06-02) |
 | U1 | Animated gradient BG (replaces screenshot carousel) |
 | U2 | Card header/meta layout — title only; price + rating in meta |
 | U3 | Thumbnail always-dim + unified overlay icon chrome |

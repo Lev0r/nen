@@ -14,13 +14,13 @@ LoginGate → DashboardShell
 ```
 
 - **Sidebar** — lifecycle tabs with counts, Add Game, Maintenance (no top header)
-- **Palette** — dark obsidian + mint `#14e8a0`; no blue in primary UI
+- **Palette** — warm graphite glass + softer sage `#4cc9a0`; no blue in primary UI
 - **Typography** — Clash Display (titles/headings), General Sans (body/UI) — see `index.css`
 - **Title** — browser tab `Nen?`
 
 ## Dynamic background
 
-`DynamicBackground.jsx` — slow animated gradient (lavender + mint on a lighter slate base). Disable: `VITE_ENABLE_DYNAMIC_BG=false` at build time. Respects `prefers-reduced-motion`.
+`DynamicBackground.jsx` — layered CSS wave mesh (blurred blobs + diagonal sheen, top-right → bottom-left flow). Warm graphite base with sage + forest + bronze tones. No external library. Disable: `VITE_ENABLE_DYNAMIC_BG=false`. Respects `prefers-reduced-motion`.
 
 Card thumbnails: full color at rest; slight scale on card hover. Lifecycle badge on thumbnail: **hidden** on lifecycle tabs; shown when filters scope the full library.
 
@@ -31,7 +31,7 @@ Card thumbnails: full color at rest; slight scale on card hover. Lifecycle badge
 | `AddGameModal` | Sidebar | Two-phase: preview → co-op confirm → add |
 | `MaintenanceModal` | Sidebar | Sync + error log + dev sources |
 | `GameEditModal` | Card edit | Full metadata, Run dev check |
-| `LifecycleModal` | Card lifecycle badge | State + note + finished stars |
+| `LifecycleModal` | Card lifecycle badge (when visible) or edit | State + note + finished stars |
 | `ScreenshotsModal` | Card footer | Fullscreen carousel |
 
 Glassmorphism: `.modal-backdrop` + `.glass-panel` in `index.css`.

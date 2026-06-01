@@ -13,7 +13,11 @@ export default function DynamicBackground({ games }) {
 
   return (
     <div className="dynamic-bg" aria-hidden="true">
-      <div className="dynamic-bg-gradient" />
+      <div className="dynamic-bg-base" />
+      <div className="dynamic-bg-sheen" />
+      <div className="dynamic-bg-wave dynamic-bg-wave--a" />
+      <div className="dynamic-bg-wave dynamic-bg-wave--b" />
+      <div className="dynamic-bg-wave dynamic-bg-wave--c" />
       <div className="dynamic-bg-overlay" />
     </div>
   );
