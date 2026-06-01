@@ -2,7 +2,7 @@
 
 **Related:** [AGENT_INTRO.md](./AGENT_INTRO.md) · [FEATURE_CHECKLIST.md](./FEATURE_CHECKLIST.md) · [ru-developer-vetting.md](./features/ru-developer-vetting.md)
 
-**Last updated:** 2026-06-01
+**Last updated:** 2026-06-02
 
 ---
 
@@ -184,8 +184,10 @@ Partial wiring exists; workflow needs validation and documentation.
 
 | Item | Status |
 | :--- | :--- |
-| **UI polish round 2** | Shipped — rebuild hosting to deploy (`npm run build && firebase deploy --only hosting`) |
-| Post–vetting-deploy re-vet | Run if new lookup/message logic not yet applied to game docs |
+| Hosting deploy after UI changes | Run `npm run build && firebase deploy --only hosting` when ready |
+| Functions deploy after vetting changes | Already deployed + re-vetted per 2026-06-02 sign-off |
+
+All production smoke tests and bulk RU re-vet are **complete** as of 2026-06-02.
 
 ---
 

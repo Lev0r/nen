@@ -27,7 +27,7 @@ node scripts/import-games.mjs path/to/games.json [--dry-run] [--app-id default_a
 | :--- | :--- |
 | Script + dry-run | Done |
 | Production import | **Done** (~147 games in Firestore) |
-| Post-import / post-deploy re-vet | Run when vetting logic or sources change |
+| Post-import / post-deploy re-vet | **Done** (2026-06-02) — run again only after vetting logic or source list changes |
 
 ## Dev source scripts
 

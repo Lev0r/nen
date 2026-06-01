@@ -29,6 +29,8 @@ Implemented: `src/utils/gameFilters.js`, `src/components/GameFiltersBar.jsx`, `D
 
 Tag list built from **full library** (`collectSteamTags(games)`), not current tab. Co-op-related tags filtered out in `gameFilters.js` (`isCoopTag`).
 
+When **any filter is active**, the grid searches the full library and each `GameCard` shows its **lifecycle badge** on the thumbnail (hidden on lifecycle-only tab views where state is implicit).
+
 ## Add game co-op validation
 
 Two-phase add flow — see [UI shell](./ui-shell-and-modals.md):

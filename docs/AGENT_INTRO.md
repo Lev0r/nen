@@ -1,6 +1,6 @@
 # Agent Intro — Nen?
 
-**Last updated:** 2026-06-01  
+**Last updated:** 2026-06-02  
 **Repo:** https://github.com/Lev0r/nen  
 **Firebase project:** `nen-tracker` (CLI alias: `staging` in `.firebaserc`)
 
@@ -121,6 +121,8 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 8. **Curator vetting** — only `not_recommended` + `informational` flag; `recommended` = clearance (does not override NE GRAI).
 9. **NE GRAI vetting** — exact normalized name match only (no substring; no suffix stripping on studio/games/entertainment).
 10. **RU alert text** — NE GRAI: `developer found in "Не Грай" database`; curator: markdown link + `(not recommended or informational)`; no duplicate curator line when app ID already flagged.
+11. **Lifecycle badge on card** — hidden when browsing a lifecycle sidebar tab; shown when `hasActiveFilters` scopes the grid to the full library.
+12. **Post-deploy RU re-vet** — required after vetting *logic* changes only (not source re-sync); completed 2026-06-02.
 
 ---
 

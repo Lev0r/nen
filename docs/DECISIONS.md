@@ -2,7 +2,7 @@
 
 Chronological archive of product and technical decisions. Update when shipping material changes.
 
-**Last updated:** 2026-06-01
+**Last updated:** 2026-06-02
 
 ---
 
@@ -27,6 +27,9 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Mint palette, no blue | User preference | 2026 |
 | Browser title `Nen?` only | User preference | 2026 |
 | Dynamic BG animated gradient | Replaced screenshot slideshow (too noisy/blurry) | 2026-06-01 |
+| Dynamic BG lavender + mint palette | Lighter slate base; complements mint accent | 2026-06-02 |
+| Contextual lifecycle badge on cards | Hide on lifecycle tabs; show when filtering full library | 2026-06-02 |
+| Card badge dimensions unified | 6px radius, shared height across status/reviews/GFN/lifecycle | 2026-06-02 |
 | News feed UI dropped | `hasUpdateSinceState` badge instead | 2026 |
 | **Clash Display + General Sans fonts** | Card redesign; cinematic titles + clean UI body | 2026-06-01 |
 | **Card visibility pass** | Dim dynamic BG + unhovered thumbnails for readability | 2026-06-01 |

@@ -27,7 +27,8 @@ Under **Active**, nested sub-tabs split the pool:
 Implemented in `DashboardShell.jsx` (`ACTIVE_SUB_TABS`, `matchesActiveSubTab`).
 
 - **`resolveLibraryState`** — `src/utils/libraryState.js` (legacy `abandoned` → `banned`)
-- **`LifecycleModal`** — card-triggered; optional note; finished rating when `finished`
+- **`LifecycleModal`** — card lifecycle badge (when visible) or edit modal; optional note; finished rating when `finished`
+- **Lifecycle badge on card** — shown only when filters scope the full library (`showLifecycleBadge={filtersScopeGlobal}` in `DashboardShell.jsx`); hidden on sidebar lifecycle tabs
 - **`stateMeta`** — `versionAtEntry`, `enteredAt`, `note` on state change via `buildStateMetaUpdates`
 - **`hasUpdateSinceState`** — set when Steam version ≠ `versionAtEntry` (`steamSync.js`); cleared on re-assigning lifecycle
 - **Finished rating** — 1–5 stars (`FinishedRatingPicker.jsx`); cleared when leaving `finished`

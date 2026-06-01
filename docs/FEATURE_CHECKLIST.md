@@ -1,6 +1,6 @@
 # Feature Checklist
 
-**Last updated:** 2026-06-01 (evening)
+**Last updated:** 2026-06-02
 Track implemented, pending, deferred, and dropped features. Update when shipping.
 
 **Legend:** ✅ Done · 🔄 In progress / partial · ⏳ Pending ops · 📋 Planned · 🚫 Dropped · ⏸ Deferred
@@ -63,9 +63,10 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Per-user tier picker (DRG theme) | ✅ | |
 | MetacriticFactor + ITAD fallback | ✅ | |
 | Sort library by Total Hype | ✅ | Client-side compute |
-| Dynamic BG animated gradient | ✅ | Slow mint/dark CSS gradient; `VITE_ENABLE_DYNAMIC_BG=false` to disable |
-| **Card thumbnail dimming** | ✅ | Always slightly dimmed; brighten on card hover |
-| Clash Display + General Sans fonts | ✅ | Card redesign, reduced visual noise |
+| Dynamic BG animated gradient | ✅ | Lavender + mint on lighter slate; `VITE_ENABLE_DYNAMIC_BG=false` to disable |
+| Card thumbnails | ✅ | Full color; hover scale only (no dim filter) |
+| **Contextual lifecycle badge on card** | ✅ | Hidden on lifecycle tabs; shown when filters search full library |
+| Clash Display + General Sans fonts | ✅ | Card redesign, unified badges (6px radius) |
 
 ---
 
@@ -140,7 +141,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Maintenance modal + error log | ✅ | |
 | Error acknowledge dot | ✅ | |
 | **Errors panel — group by source/severity** | ✅ | Counters, clear info, weekly purge |
-| **UI polish round 2** | ✅ | Gradient BG, meta price/rating, overlay unify — see session log |
+| **UI polish round 2 + follow-ups** | ✅ | See session logs below |
 | Mobile UX pass | 📋 | P1 (fold into round 2 or separate) |
 | News feed UI | 🚫 | Dropped |
 
@@ -154,11 +155,11 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **Dev CLI handbook** | ✅ | [DEV_CLI.md](./DEV_CLI.md) — all admin scripts |
 | Config schema v3 migration | ✅ | `npm run migrate-config-v3` |
 | Env var documentation | ✅ | |
-| Production smoke test | ✅ | Completed 2026-06-01 |
-| **Local Cloud Functions testing** | 📋 | **User request** — emulator workflow documented + validated |
+| Production smoke test | ✅ | Completed 2026-06-02 (incl. UI round 2 + RU re-vet) |
 | Real import of 147 games | ✅ | Production library live |
-| Post-deploy RU re-vet (logic-only changes) | ✅ | Re-vet only — no source re-sync unless lists changed |
+| Post-deploy RU re-vet | ✅ | Completed 2026-06-02 — new message format applied |
 | CI/CD pipeline | ⏸ | Deferred |
+| **Local Cloud Functions testing** | 📋 | **User request** — emulator workflow documented + validated |
 
 ---
 
@@ -187,11 +188,20 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 ## Session log — 2026-06-01 evening (UI polish round 2)
 
 - Animated gradient background replaces screenshot carousel
-- Card header: title only + truncation tooltip; price + finished rating in meta line
+- Card header: title only + truncation tooltip; price + finished rating in meta line (trailing right)
 - Finished rating: color-coded digit 1–5; click → edit modal (`focusRating`)
-- Thumbnails always slightly dimmed; brighten on hover
 - Unified overlay icon chrome (owned, hype, lifecycle, screenshots, GFN)
 - Footer: rectangular notes button + separator before edit
+- RU badge moved to thumbnail bottom-center
+- Unified badge height/radius (6px) across status, reviews, GFN, lifecycle, update
+
+## Session log — 2026-06-02 (UI polish follow-ups + ops sign-off)
+
+- Lighter lavender/mint gradient (visible against cards; reduced overlay)
+- Thumbnail dim filter removed — full color at rest
+- Contextual lifecycle badge: hidden on sidebar lifecycle tabs, shown when filters scope full library
+- Production smoke test signed off (UI + maintenance + RU)
+- Bulk RU re-vet completed — simplified NE GRAI/curator explanation text on game docs
 
 ## Session log — 2026-05-31 (shipped)
 
@@ -204,24 +214,25 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 
 ---
 
-## Smoke test checklist (completed 2026-06-01)
+## Smoke test checklist (completed 2026-06-02)
 
 - [x] Sign in as both allowed users — auth spinner, no blank flash
 - [x] Add Game → preview → co-op confirm (try with/without co-op tags)
 - [x] Add Game → Escape / backdrop dismiss
 - [x] Maintenance → Load meta info
 - [x] Maintenance → Sync dev sources → verify freshness + counts
-- [x] Maintenance → Re-vet all games (after vetting logic deploy)
+- [x] Maintenance → Re-vet all games (vetting logic deploy)
 - [x] Maintenance → errors grouped by severity/source; clear info
 - [x] RU filter + Run dev check in edit modal
+- [x] RU explanation text — short NE GRAI line; single curator link (post re-vet)
 - [x] Active tab vs TBA sub-tab counts
 - [x] Lifecycle tabs + filter reset on tab change
-- [x] Global filters (e.g. Banned from Active tab)
+- [x] Global filters (e.g. Banned from Active tab) — lifecycle badge appears on cards
 - [x] Co-op tags absent from filter chip list
 - [x] Sync GFN
-- [x] Dynamic background + card readability (dimmed thumbnails)
-- [x] Edit modal scrollable; hype picker readable
-- [ ] RU explanation text — short NE GRAI line; single curator link (after re-vet deploy)
+- [x] Dynamic gradient background visible; card thumbnails full color
+- [x] Edit modal scrollable; hype picker readable; `focusRating` scroll on rating click
+- [x] Footer notes button rectangular with separator; meta price/rating trailing right
 - [ ] Wishlist / library ownership sync (when implemented)
 
 ---

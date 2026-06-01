@@ -2,7 +2,7 @@
 
 Categorized from codebase review, git history, and agent research (2026-05-31). Not a commitment — prioritize with user before large refactors.
 
-**Last updated:** 2026-06-01 (evening)
+**Last updated:** 2026-06-02 (evening)
 
 ---
 
