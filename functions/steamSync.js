@@ -1,7 +1,12 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore');
-const { getConfigDocPath } = require('./gfnSync');
+const {
+  DEFAULT_APP_ID,
+  STEAM_LIBRARY_SYNC_DOC_ID,
+  THIRD_PARTY_HEALTH_DOC_ID,
+  configDocPath,
+} = require('./configPaths');
 const {
   fetchStaticSteamData,
   fetchDynamicSteamData,
@@ -11,12 +16,12 @@ const {
 const { applyHltbToStatic, applyItadToDynamic, isActionableSeverity } = require('./thirdParty');
 const { getItadApiKey } = require('./itad');
 const {
-  HLTB_INFO_FIELD_DELETES,
-  ITAD_INFO_FIELD_DELETES,
-  isStaleInfo,
-} = require('./errorStatus');
+  recordSyncOutcomeError,
+  purgeStaleInfoMaintenanceErrors,
+  rebuildMaintenanceAudit,
+  upsertMaintenanceError,
+} = require('./maintenanceStore');
 
-const DEFAULT_APP_ID = 'default_app';
 const STEAM_CALL_DELAY_MS = 300;
 const MS_24H = 24 * 60 * 60 * 1000;
 const MS_7D = 7 * 24 * 60 * 60 * 1000;
@@ -126,38 +131,41 @@ function mergeHasUpdateSinceState(game, currentVersion) {
   return game.hasUpdateSinceState === true;
 }
 
-async function writeSteamLibrarySyncMeta(appId, stats) {
-  const db = getFirestore();
-  await db.doc(getConfigDocPath(appId)).set(
+async function writeSteamLibrarySyncMeta(db, appId, stats) {
+  const now = FieldValue.serverTimestamp();
+
+  await db.doc(configDocPath(appId, STEAM_LIBRARY_SYNC_DOC_ID)).set(
     {
-      steamLibrarySync: {
-        syncedAt: FieldValue.serverTimestamp(),
-        updated: stats.updated,
-        staticSyncs: stats.staticSyncs,
-        dynamicSyncs: stats.dynamicSyncs,
-        playerSamples: stats.playerSamples,
-        hltbSyncs: stats.hltbSyncs,
-        hltbErrors: stats.hltbErrors,
-        itadSyncs: stats.itadSyncs,
-        itadErrors: stats.itadErrors,
-        itadConfigured: stats.itadConfigured,
-        statusTransitions: stats.statusTransitions,
-        skippedBanned: stats.skippedBanned,
-        skippedIdle: stats.skippedIdle,
-        errors: stats.errors,
+      syncedAt: now,
+      updated: stats.updated,
+      staticSyncs: stats.staticSyncs,
+      dynamicSyncs: stats.dynamicSyncs,
+      playerSamples: stats.playerSamples,
+      hltbSyncs: stats.hltbSyncs,
+      hltbErrors: stats.hltbErrors,
+      itadSyncs: stats.itadSyncs,
+      itadErrors: stats.itadErrors,
+      itadConfigured: stats.itadConfigured,
+      statusTransitions: stats.statusTransitions,
+      skippedBanned: stats.skippedBanned,
+      skippedIdle: stats.skippedIdle,
+      errors: stats.errors,
+    },
+    { merge: true }
+  );
+
+  await db.doc(configDocPath(appId, THIRD_PARTY_HEALTH_DOC_ID)).set(
+    {
+      hltb: {
+        lastSyncAt: now,
+        syncs: stats.hltbSyncs,
+        errors: stats.hltbErrors,
       },
-      thirdPartyHealth: {
-        hltb: {
-          lastSyncAt: FieldValue.serverTimestamp(),
-          syncs: stats.hltbSyncs,
-          errors: stats.hltbErrors,
-        },
-        itad: {
-          lastSyncAt: FieldValue.serverTimestamp(),
-          syncs: stats.itadSyncs,
-          errors: stats.itadErrors,
-          configured: stats.itadConfigured,
-        },
+      itad: {
+        lastSyncAt: now,
+        syncs: stats.itadSyncs,
+        errors: stats.itadErrors,
+        configured: stats.itadConfigured,
       },
     },
     { merge: true }
@@ -168,57 +176,13 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function buildHltbInfoPurgeUpdates(hltb, cutoffMs) {
-  if (hltb?.status !== 'info') return null;
-  const lastMs = timestampToMs(hltb.lastOccurrenceAt ?? hltb.syncedAt);
-  if (!isStaleInfo(lastMs, cutoffMs)) return null;
-
-  const updates = {};
-  for (const field of HLTB_INFO_FIELD_DELETES) {
-    updates[`steamStatic.hltb.${field}`] = FieldValue.delete();
-  }
-  return updates;
-}
-
-function buildItadInfoPurgeUpdates(steamDynamic, cutoffMs) {
-  if (steamDynamic?.itadStatus !== 'info') return null;
-  const lastMs = timestampToMs(
-    steamDynamic.itadLastOccurrenceAt ?? steamDynamic.itadSyncedAt
-  );
-  if (!isStaleInfo(lastMs, cutoffMs)) return null;
-
-  const updates = {};
-  for (const field of ITAD_INFO_FIELD_DELETES) {
-    updates[`steamDynamic.${field}`] = FieldValue.delete();
-  }
-  return updates;
-}
-
 async function purgeStaleInfoFields(appId = DEFAULT_APP_ID) {
   const db = getFirestore();
-  const snapshot = await db.collection(gamesCollectionPath(appId)).get();
   const cutoffMs = Date.now() - MS_7D;
-  let purged = 0;
-
-  for (const doc of snapshot.docs) {
-    const game = doc.data();
-    const updates = {
-      ...buildHltbInfoPurgeUpdates(game.steamStatic?.hltb, cutoffMs),
-      ...buildItadInfoPurgeUpdates(game.steamDynamic, cutoffMs),
-    };
-
-    if (Object.keys(updates).length === 0) continue;
-
-    try {
-      await doc.ref.update(updates);
-      purged++;
-    } catch (err) {
-      console.error(`purgeStaleInfoFields failed for ${doc.id}:`, err);
-    }
-  }
+  const purged = await purgeStaleInfoMaintenanceErrors(db, appId, cutoffMs);
 
   if (purged > 0) {
-    console.log(`purgeStaleInfoFields: cleared info status on ${purged} game(s)`);
+    console.log(`purgeStaleInfoFields: cleared ${purged} stale info maintenance error(s)`);
   }
 
   return purged;
@@ -253,6 +217,7 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
     }
 
     const steamAppId = doc.id;
+    const gameName = game.steamStatic?.name || null;
     const developmentStatus = game.steamStatic?.developmentStatus;
     const isTba = developmentStatus === 'tba';
     const runStatic = shouldRunStaticSync(
@@ -341,16 +306,19 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
       if (runHltb) {
         await sleep(STEAM_CALL_DELAY_MS);
         const hltbResult = await applyHltbToStatic(steamStatic, { force });
-        steamStatic = hltbResult.steamStatic;
-        updates.steamStatic = steamStatic;
+        if (hltbResult.changed) {
+          steamStatic = hltbResult.steamStatic;
+          updates.steamStatic = steamStatic;
+        }
         if (hltbResult.steamStatic?.hltb?.hltbId && !hltbResult.error) {
           hltbSyncs++;
         } else if (hltbResult.error && isActionableSeverity(hltbResult.severity)) {
           hltbErrors++;
         }
-        if (hltbResult.clearThirdPartyError) {
-          updates['thirdPartyErrors.hltb'] = FieldValue.delete();
-        }
+        await recordSyncOutcomeError(db, appId, hltbResult, {
+          gameId: steamAppId,
+          gameName: gameName || hltbResult.gameName,
+        });
       }
 
       if (runItad) {
@@ -358,21 +326,22 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
         const itadResult = await applyItadToDynamic(steamAppId, steamDynamic, {
           gameTitle: steamStatic?.name || null,
         });
-        steamDynamic = itadResult.steamDynamic;
-        updates.steamDynamic = steamDynamic;
+        if (itadResult.changed) {
+          steamDynamic = itadResult.steamDynamic;
+          updates.steamDynamic = steamDynamic;
+        }
         if (itadResult.changed && !itadResult.error) {
           itadSyncs++;
         } else if (itadResult.error && isActionableSeverity(itadResult.severity)) {
           itadErrors++;
         }
-        if (itadResult.clearThirdPartyError) {
-          updates['thirdPartyErrors.itad'] = FieldValue.delete();
-        }
+        await recordSyncOutcomeError(db, appId, itadResult, {
+          gameId: steamAppId,
+          gameName: gameName || itadResult.gameName,
+        });
       }
 
       if (Object.keys(updates).length > 0) {
-        updates.lastSyncError = FieldValue.delete();
-        updates.lastSyncErrorAt = FieldValue.delete();
         await doc.ref.update(updates);
         updated++;
       }
@@ -383,12 +352,17 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
       errors++;
       gamesWithApiCalls++;
       try {
-        await doc.ref.update({
-          lastSyncError: err.message || 'Steam library sync failed',
-          lastSyncErrorAt: FieldValue.serverTimestamp(),
+        await upsertMaintenanceError(db, appId, {
+          severity: 'warning',
+          source: 'steam-sync',
+          gameId: steamAppId,
+          gameName,
+          message: err.message || 'Steam library sync failed',
+          errorKey: null,
+          detail: null,
         });
       } catch (writeErr) {
-        console.error(`syncLibrarySteam: failed to write lastSyncError for ${steamAppId}:`, writeErr);
+        console.error(`syncLibrarySteam: failed to record maintenance error for ${steamAppId}:`, writeErr);
       }
     }
   }
@@ -418,18 +392,22 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
 
 async function syncLibrarySteamHandler() {
   await purgeStaleInfoFields(DEFAULT_APP_ID);
+  const db = getFirestore();
   const stats = await syncLibrarySteamCore(DEFAULT_APP_ID, { force: false });
-  await writeSteamLibrarySyncMeta(DEFAULT_APP_ID, stats);
+  await writeSteamLibrarySyncMeta(db, DEFAULT_APP_ID, stats);
+  await rebuildMaintenanceAudit(db, DEFAULT_APP_ID);
 }
 
 async function syncSteamLibraryCallable(request) {
   assertAllowedUser(request.auth);
 
   const appId = request.data?.appId || DEFAULT_APP_ID;
+  const db = getFirestore();
 
   try {
     const stats = await syncLibrarySteamCore(appId, { force: true });
-    await writeSteamLibrarySyncMeta(appId, stats);
+    await writeSteamLibrarySyncMeta(db, appId, stats);
+    await rebuildMaintenanceAudit(db, appId);
     return stats;
   } catch (err) {
     console.error('syncSteamLibrary failed:', err);

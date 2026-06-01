@@ -4,36 +4,38 @@ const { fetchItadPriceMeta, getItadApiKey } = require('./itad');
 const {
   classifyHltbOutcome,
   classifyItadOutcome,
-  buildHltbInfoFields,
-  buildHltbErrorFields,
-  buildHltbSuccessFields,
-  buildItadInfoFields,
-  buildItadErrorFields,
-  buildItadSuccessClears,
+  buildHltbSuccessOnlyFields,
+  buildItadSuccessOnlyFields,
 } = require('./errorStatus');
 
 function isActionableSeverity(severity) {
   return severity === 'warning' || severity === 'error';
 }
 
+function buildHltbOutcome(steamStatic, { error, severity, errorKey, detail, gameName }) {
+  return {
+    steamStatic,
+    changed: false,
+    error: error || null,
+    severity: severity || null,
+    errorKey: errorKey || null,
+    detail: detail || null,
+    source: 'hltb',
+    gameName: gameName || steamStatic?.name || null,
+  };
+}
+
 async function applyHltbToStatic(steamStatic, { force = false } = {}) {
   const gameName = steamStatic?.name;
   if (!gameName) {
     const classification = classifyHltbOutcome('Missing game name');
-    const hltb = buildHltbErrorFields(steamStatic?.hltb, {
-      message: 'Missing game name',
+    return buildHltbOutcome(steamStatic, {
+      error: 'Missing game name',
       severity: classification.severity,
       errorKey: classification.errorKey,
       detail: null,
-      FieldValue,
+      gameName,
     });
-    return {
-      steamStatic: { ...steamStatic, hltb },
-      changed: true,
-      error: 'Missing game name',
-      severity: classification.severity,
-      detail: null,
-    };
   }
 
   const { data, error, detail } = await fetchHltbForGame(gameName, steamStatic?.hltb?.hltbId);
@@ -41,12 +43,15 @@ async function applyHltbToStatic(steamStatic, { force = false } = {}) {
     return {
       steamStatic: {
         ...steamStatic,
-        hltb: buildHltbSuccessFields(steamStatic?.hltb, data, FieldValue),
+        hltb: buildHltbSuccessOnlyFields(steamStatic?.hltb, data, FieldValue),
       },
       changed: true,
       error: null,
       severity: null,
-      clearThirdPartyError: 'hltb',
+      errorKey: null,
+      detail: null,
+      source: 'hltb',
+      gameName,
     };
   }
 
@@ -54,64 +59,56 @@ async function applyHltbToStatic(steamStatic, { force = false } = {}) {
   const severity = classification?.severity || 'warning';
   const errorKey = classification?.errorKey;
 
-  const hltb =
-    severity === 'info'
-      ? buildHltbInfoFields(steamStatic?.hltb, {
-          message: error,
-          errorKey,
-          detail,
-          FieldValue,
-        })
-      : buildHltbErrorFields(steamStatic?.hltb, {
-          message: error || 'HLTB fetch failed',
-          severity,
-          errorKey,
-          detail,
-          FieldValue,
-        });
-
-  return {
-    steamStatic: { ...steamStatic, hltb },
-    changed: true,
-    error: error || null,
+  return buildHltbOutcome(steamStatic, {
+    error: error || 'HLTB fetch failed',
     severity,
+    errorKey,
     detail: detail || null,
-  };
+    gameName,
+  });
 }
 
 async function applyItadToDynamic(steamAppId, steamDynamic, { gameTitle = null } = {}) {
+  const gameName = gameTitle || null;
+
   if (!getItadApiKey()) {
     const classification = classifyItadOutcome('ITAD_API_KEY not configured');
     return {
-      steamDynamic: {
-        ...steamDynamic,
-        ...buildItadErrorFields(steamDynamic, {
-          message: 'ITAD_API_KEY not configured',
-          severity: classification.severity,
-          errorKey: classification.errorKey,
-          detail: null,
-          FieldValue,
-        }),
-      },
-      changed: true,
+      steamDynamic,
+      changed: false,
       error: 'ITAD_API_KEY not configured',
       severity: classification.severity,
+      errorKey: classification.errorKey,
       detail: null,
+      source: 'itad',
+      gameName,
     };
   }
 
   const { data, error, detail } = await fetchItadPriceMeta(steamAppId, { gameTitle });
   if (data) {
+    const nextDynamic = { ...steamDynamic, ...data, ...buildItadSuccessOnlyFields(FieldValue) };
+    for (const field of [
+      'itadStatus',
+      'itadInfoMessage',
+      'itadLastError',
+      'itadErrorKey',
+      'itadOccurrenceCount',
+      'itadLastOccurrenceAt',
+      'itadDetail',
+    ]) {
+      delete nextDynamic[field];
+    }
+
     return {
-      steamDynamic: {
-        ...steamDynamic,
-        ...data,
-        ...buildItadSuccessClears(FieldValue),
-      },
+      steamDynamic: nextDynamic,
       changed: true,
       error: null,
       severity: null,
-      clearThirdPartyError: 'itad',
+      errorKey: null,
+      detail: null,
+      source: 'itad',
+      gameName,
     };
   }
 
@@ -119,60 +116,48 @@ async function applyItadToDynamic(steamAppId, steamDynamic, { gameTitle = null }
   const severity = classification?.severity || 'warning';
   const errorKey = classification?.errorKey;
 
-  const statusFields =
-    severity === 'info'
-      ? buildItadInfoFields(steamDynamic, {
-          message: error,
-          errorKey,
-          detail,
-          FieldValue,
-        })
-      : buildItadErrorFields(steamDynamic, {
-          message: error || 'ITAD fetch failed',
-          severity,
-          errorKey,
-          detail,
-          FieldValue,
-        });
-
   return {
-    steamDynamic: { ...steamDynamic, ...statusFields },
-    changed: true,
-    error: error || null,
+    steamDynamic,
+    changed: false,
+    error: error || 'ITAD fetch failed',
     severity,
+    errorKey,
     detail: detail || null,
+    source: 'itad',
+    gameName,
   };
 }
 
 async function enrichNewGameThirdParty(game) {
   if (game.steamStatic?.developmentStatus === 'tba') {
-    return game;
+    return { game, outcomes: [] };
   }
 
   let steamStatic = game.steamStatic ? { ...game.steamStatic } : {};
   let steamDynamic = game.steamDynamic ? { ...game.steamDynamic } : {};
+  const outcomes = [];
 
   const hltbResult = await applyHltbToStatic(steamStatic, { force: true });
-  steamStatic = hltbResult.steamStatic;
+  if (hltbResult.changed) {
+    steamStatic = hltbResult.steamStatic;
+  }
+  outcomes.push(hltbResult);
 
   const itadResult = await applyItadToDynamic(game.id, steamDynamic, {
     gameTitle: steamStatic?.name || null,
   });
-  steamDynamic = itadResult.steamDynamic;
-
-  const thirdPartyErrors = {};
-  if (hltbResult.error && isActionableSeverity(hltbResult.severity)) {
-    thirdPartyErrors.hltb = hltbResult.error;
+  if (itadResult.changed) {
+    steamDynamic = itadResult.steamDynamic;
   }
-  if (itadResult.error && isActionableSeverity(itadResult.severity)) {
-    thirdPartyErrors.itad = itadResult.error;
-  }
+  outcomes.push(itadResult);
 
   return {
-    ...game,
-    steamStatic,
-    steamDynamic,
-    ...(Object.keys(thirdPartyErrors).length > 0 && { thirdPartyErrors }),
+    game: {
+      ...game,
+      steamStatic,
+      steamDynamic,
+    },
+    outcomes,
   };
 }
 

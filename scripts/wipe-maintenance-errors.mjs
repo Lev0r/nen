@@ -1,18 +1,15 @@
 #!/usr/bin/env node
 /**
- * Clear maintenance-related error fields from all game documents.
- * Does not modify gameplay metadata (HLTB hours, ITAD prices, vetting flags, etc.).
+ * Clear maintenance errors doc and legacy error fields on game documents.
  *
  * Usage:
  *   node scripts/wipe-maintenance-errors.mjs [--dry-run] [--app-id default_app]
  *
- * Clears per game:
- *   steamStatic.hltb — status/info/error occurrence fields only
- *   steamDynamic — ITAD status/info/error occurrence fields only
- *   vettingError, vettingErrorAt, lastSyncError, lastSyncErrorAt, thirdPartyErrors
+ * Clears:
+ *   config/maintenance-errors (all entries)
+ *   Per game: HLTB/ITAD status fields, vettingError, lastSyncError, thirdPartyErrors
  *
- * Clears on config/default:
- *   steamLibrarySync.hltbErrors, steamLibrarySync.itadErrors (reset to 0)
+ * Resets steam-library-sync hltbErrors/itadErrors counters to 0.
  */
 import { createRequire } from 'module';
 import { readFileSync, existsSync } from 'fs';
@@ -26,7 +23,13 @@ const require = createRequire(join(ROOT, 'functions/package.json'));
 
 const { initializeApp, getApps, applicationDefault, cert } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
-const { getConfigDocPath } = require('./devBgCheck');
+const {
+  DEFAULT_APP_ID,
+  STEAM_LIBRARY_SYNC_DOC_ID,
+  MAINTENANCE_ERRORS_DOC_ID,
+  configDocPath,
+} = require('./configPaths');
+const { rebuildMaintenanceAudit } = require('./maintenanceStore');
 
 const HLTB_ERROR_FIELDS = [
   'status',
@@ -57,7 +60,7 @@ const ROOT_ERROR_FIELDS = [
 ];
 
 function parseArgs(argv) {
-  let appId = 'default_app';
+  let appId = DEFAULT_APP_ID;
   let dryRun = false;
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -74,7 +77,6 @@ function resolveFirebaseProjectId() {
   try {
     const rc = JSON.parse(readFileSync(join(ROOT, '.firebaserc'), 'utf8'));
     if (rc.projects?.default) return rc.projects.default;
-    if (rc.projects?.staging) return rc.projects.staging;
     const values = Object.values(rc.projects || {});
     if (values.length === 1) return values[0];
   } catch {
@@ -84,8 +86,6 @@ function resolveFirebaseProjectId() {
     const out = execSync('firebase use', { cwd: ROOT, encoding: 'utf8' }).trim();
     const activeMatch = out.match(/Active Project:\s*(\S+)/i);
     if (activeMatch) return activeMatch[1];
-    const usingMatch = out.match(/Now using project\s+(\S+)/i);
-    if (usingMatch) return usingMatch[1];
   } catch {
     // ignore
   }
@@ -174,32 +174,51 @@ async function main() {
     await batch.commit();
   }
 
-  const configRef = db.doc(getConfigDocPath(appId));
-  const configSnap = await configRef.get();
-  const sync = configSnap.data()?.steamLibrarySync;
-  let configUpdated = false;
+  const syncRef = db.doc(configDocPath(appId, STEAM_LIBRARY_SYNC_DOC_ID));
+  const syncSnap = await syncRef.get();
+  const sync = syncSnap.data();
+  let syncUpdated = false;
 
   if (sync && (sync.hltbErrors > 0 || sync.itadErrors > 0)) {
-    configUpdated = true;
+    syncUpdated = true;
     if (!dryRun) {
-      await configRef.set(
+      await syncRef.set(
         {
-          steamLibrarySync: {
-            hltbErrors: 0,
-            itadErrors: 0,
-          },
+          hltbErrors: 0,
+          itadErrors: 0,
         },
         { merge: true }
       );
     }
   }
 
+  const errorsRef = db.doc(configDocPath(appId, MAINTENANCE_ERRORS_DOC_ID));
+  const errorsSnap = await errorsRef.get();
+  const hasErrorsDoc = errorsSnap.exists && Object.keys(errorsSnap.data()?.entries || {}).length > 0;
+
+  if (hasErrorsDoc && !dryRun) {
+    await errorsRef.set(
+      {
+        schemaVersion: 1,
+        updatedAt: FieldValue.serverTimestamp(),
+        entries: {},
+      },
+      { merge: false }
+    );
+  }
+
+  if (!dryRun) {
+    await rebuildMaintenanceAudit(db, appId);
+  }
+
   console.log(
     dryRun
-      ? `[dry-run] Would clear maintenance errors on ${gamesCleared} game(s)` +
-          (configUpdated ? '; reset library sync error counters on config/default' : '')
-      : `Cleared maintenance errors on ${gamesCleared} game(s)` +
-          (configUpdated ? '; reset library sync error counters on config/default' : '')
+      ? `[dry-run] Would clear legacy errors on ${gamesCleared} game(s)` +
+          (hasErrorsDoc ? '; wipe config/maintenance-errors' : '') +
+          (syncUpdated ? '; reset sync error counters on config/steam-library-sync' : '')
+      : `Cleared legacy errors on ${gamesCleared} game(s)` +
+          (hasErrorsDoc ? '; wiped config/maintenance-errors' : '') +
+          (syncUpdated ? '; reset sync error counters on config/steam-library-sync' : '')
   );
 }
 

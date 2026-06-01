@@ -8,6 +8,14 @@ const { enrichNewGameThirdParty } = require('./thirdParty');
 const { syncLibrarySteam, syncSteamLibrary } = require('./steamSync');
 const { syncGfnCatalog, syncGfnCatalogScheduled } = require('./gfnSync');
 const { syncDevSources, syncDevSourcesScheduled } = require('./devSourceSync');
+const {
+  upsertMaintenanceError,
+  clearMaintenanceErrorsForGame,
+  clearInfoMaintenanceErrors,
+  rebuildMaintenanceAudit,
+  recordSyncOutcomeError,
+} = require('./maintenanceStore');
+const { DEFAULT_APP_ID } = require('./configPaths');
 
 initializeApp();
 
@@ -70,6 +78,15 @@ async function assertGameNotDuplicate(db, appId, gameId) {
   return gameRef;
 }
 
+async function recordThirdPartyOutcomes(db, appId, game, outcomes) {
+  const gameId = game?.id != null ? String(game.id) : null;
+  const gameName = game?.steamStatic?.name || null;
+
+  for (const outcome of outcomes || []) {
+    await recordSyncOutcomeError(db, appId, outcome, { gameId, gameName });
+  }
+}
+
 async function persistSteamGame(db, game, appId) {
   const gameRef = await assertGameNotDuplicate(db, appId, game.id);
 
@@ -89,18 +106,20 @@ async function persistSteamGame(db, game, appId) {
       devAppIdMap,
     });
     const vetting = aggregateGameVetting(game, memoryCache);
-    await gameRef.update({
-      ...vetting,
-      vettingError: null,
-      vettingErrorAt: FieldValue.delete(),
-    });
+    await gameRef.update(vetting);
+    await clearMaintenanceErrorsForGame(db, appId, String(game.id), 'vetting');
     return { gameId: game.id, ...vetting, vettingStats: stats };
   } catch (err) {
     console.error('Developer vetting failed:', err);
     const vettingError = err.message || 'Developer vetting failed';
-    await gameRef.update({
-      vettingError,
-      vettingErrorAt: FieldValue.serverTimestamp(),
+    await upsertMaintenanceError(db, appId, {
+      severity: 'warning',
+      source: 'vetting',
+      gameId: String(game.id),
+      gameName: game.steamStatic?.name || null,
+      message: vettingError,
+      errorKey: null,
+      detail: null,
     });
     return {
       gameId: game.id,
@@ -191,7 +210,9 @@ exports.addGameFromSteam = onCall(
       }
 
       try {
-        game = await enrichNewGameThirdParty(game);
+        const enriched = await enrichNewGameThirdParty(game);
+        game = enriched.game;
+        await recordThirdPartyOutcomes(db, appId, game, enriched.outcomes);
       } catch (err) {
         console.error('Third-party enrich failed:', err);
         throw new HttpsError(
@@ -206,7 +227,9 @@ exports.addGameFromSteam = onCall(
 
       try {
         game = await fetchSteamGame(steamInput);
-        game = await enrichNewGameThirdParty(game);
+        const enriched = await enrichNewGameThirdParty(game);
+        game = enriched.game;
+        await recordThirdPartyOutcomes(db, appId, game, enriched.outcomes);
       } catch (err) {
         console.error('Steam scrape failed:', err);
         throw new HttpsError('failed-precondition', err.message || 'Failed to fetch Steam data.');
@@ -259,18 +282,20 @@ exports.vetGameDevelopers = onCall(
         forceRefresh: true,
       });
       const vetting = aggregateGameVetting(game, memoryCache);
-      await gameRef.update({
-        ...vetting,
-        vettingError: null,
-        vettingErrorAt: FieldValue.delete(),
-      });
+      await gameRef.update(vetting);
+      await clearMaintenanceErrorsForGame(db, appId, gameId, 'vetting');
       return { gameId, ...vetting, vettingStats: stats };
     } catch (err) {
       console.error('vetGameDevelopers failed:', err);
       const vettingError = err.message || 'Developer vetting failed';
-      await gameRef.update({
-        vettingError,
-        vettingErrorAt: FieldValue.serverTimestamp(),
+      await upsertMaintenanceError(db, appId, {
+        severity: 'warning',
+        source: 'vetting',
+        gameId,
+        gameName: game.steamStatic?.name || null,
+        message: vettingError,
+        errorKey: null,
+        detail: null,
       });
       throw new HttpsError('internal', vettingError);
     }
@@ -340,11 +365,39 @@ exports.revetAllGames = onCall(
       await db.doc(`artifacts/${appId}/public/data/games/${game.id}`).update(vetting);
     }
 
+    await rebuildMaintenanceAudit(db, appId, {
+      lastRevet: {
+        at: FieldValue.serverTimestamp(),
+        updated,
+        errors: 0,
+      },
+    });
+
     return {
       gameCount: games.length,
       flagged,
       updated,
       uniqueDevelopers: uniqueDevs.size,
     };
+  }
+);
+
+exports.clearMaintenanceInfoErrors = onCall(
+  {
+    region: 'europe-west1',
+    timeoutSeconds: 60,
+    memory: '256MiB',
+    cors: true,
+  },
+  async (request) => {
+    assertAllowedUser(request.auth);
+
+    const appId = request.data?.appId || DEFAULT_APP_ID;
+    const db = getFirestore();
+
+    const cleared = await clearInfoMaintenanceErrors(db, appId);
+    await rebuildMaintenanceAudit(db, appId);
+
+    return { cleared };
   }
 );

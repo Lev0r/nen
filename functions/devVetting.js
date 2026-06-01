@@ -1,6 +1,6 @@
 /**
  * Developer vetting via bundled sources (NE GRAI + Steam curators).
- * Results are cached in devBgCheck.developers.
+ * Results are cached in config/dev-bg-check.developers.
  */
 const {
   devCacheKey,

@@ -21,7 +21,7 @@ Store region: **`cc=ua`** (UAH, English). All Steam HTTP in Cloud Functions (`fu
 | `addGameFromSteam` | Callable | Scrape + write + HLTB/ITAD enrich + RU vet |
 | `syncSteamLibrary` | Callable | Manual full sync ("Load meta info") |
 | `syncLibrarySteam` | Scheduled | Every **6 hours** — gated per-game sync |
-| `syncGfnCatalog` | Callable | GFN GraphQL → `config/default.gfnCatalog` |
+| `syncGfnCatalog` | Callable | GFN GraphQL → `config/gfn-catalog` |
 | `syncGfnCatalogScheduled` | Scheduled | Weekly |
 
 Client: `src/services/cloudFunctions.js` — sync callables use **540s** timeout.
@@ -30,9 +30,11 @@ Client: `src/services/cloudFunctions.js` — sync callables use **540s** timeout
 
 | Service | Writes to | Requires |
 | :--- | :--- | :--- |
-| HLTB | `steamStatic.hltb` | Unofficial API (fragile) |
+| HLTB | `steamStatic.hltb` (playtime data only) | Unofficial API (fragile) |
 | ITAD | `steamDynamic` critics, historical low | `ITAD_API_KEY` |
-| GFN | `config/default.gfnCatalog.steamAppIds` | `GFN_VPC_ID` (default Warsaw) |
+| GFN | `config/gfn-catalog.steamAppIds` | `GFN_VPC_ID` (default Warsaw) |
+
+HLTB/ITAD failures are recorded in `config/maintenance-errors`, not on game documents.
 
 ## GFN badge
 

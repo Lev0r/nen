@@ -120,18 +120,29 @@ function buildHltbErrorFields(existingHltb, { message, severity, errorKey, detai
 }
 
 function buildHltbSuccessFields(existingHltb, data, FieldValue) {
-  return {
+  return buildHltbSuccessOnlyFields(existingHltb, data, FieldValue);
+}
+
+/** Success-only HLTB update — playtime data + syncedAt; omits legacy error fields. */
+function buildHltbSuccessOnlyFields(existingHltb, data, FieldValue) {
+  const hltb = {
     ...(existingHltb || {}),
     ...data,
-    status: 'ok',
-    lastError: null,
-    infoMessage: FieldValue.delete(),
-    errorKey: FieldValue.delete(),
-    occurrenceCount: FieldValue.delete(),
-    lastOccurrenceAt: FieldValue.delete(),
-    detail: FieldValue.delete(),
     syncedAt: FieldValue.serverTimestamp(),
   };
+  for (const field of HLTB_ERROR_FIELD_DELETES) {
+    delete hltb[field];
+  }
+  return hltb;
+}
+
+/** Strip legacy HLTB error/status fields from an existing hltb object (game doc cleanup). */
+function buildHltbErrorFieldDeletes(FieldValue) {
+  const updates = {};
+  for (const field of HLTB_ERROR_FIELD_DELETES) {
+    updates[`steamStatic.hltb.${field}`] = FieldValue.delete();
+  }
+  return updates;
 }
 
 function buildItadInfoFields(existingDynamic, { message, errorKey, detail, FieldValue }) {
@@ -183,35 +194,48 @@ function buildItadErrorFields(existingDynamic, { message, severity, errorKey, de
 }
 
 function buildItadSuccessClears(FieldValue) {
+  return buildItadSuccessOnlyFields(FieldValue);
+}
+
+/** Success-only ITAD fields — syncedAt only; omits legacy error/status fields. */
+function buildItadSuccessOnlyFields(FieldValue) {
   return {
-    itadStatus: 'ok',
-    itadLastError: null,
-    itadInfoMessage: FieldValue.delete(),
-    itadErrorKey: FieldValue.delete(),
-    itadOccurrenceCount: FieldValue.delete(),
-    itadLastOccurrenceAt: FieldValue.delete(),
-    itadDetail: FieldValue.delete(),
     itadSyncedAt: FieldValue.serverTimestamp(),
   };
 }
 
-const HLTB_INFO_FIELD_DELETES = [
+/** Strip legacy ITAD error/status fields from game doc. */
+function buildItadErrorFieldDeletes(FieldValue) {
+  const updates = {};
+  for (const field of ITAD_ERROR_FIELD_DELETES) {
+    updates[`steamDynamic.${field}`] = FieldValue.delete();
+  }
+  return updates;
+}
+
+const HLTB_ERROR_FIELD_DELETES = [
   'status',
   'infoMessage',
+  'lastError',
   'errorKey',
   'occurrenceCount',
   'lastOccurrenceAt',
   'detail',
 ];
 
-const ITAD_INFO_FIELD_DELETES = [
+const HLTB_INFO_FIELD_DELETES = HLTB_ERROR_FIELD_DELETES;
+
+const ITAD_ERROR_FIELD_DELETES = [
   'itadStatus',
   'itadInfoMessage',
+  'itadLastError',
   'itadErrorKey',
   'itadOccurrenceCount',
   'itadLastOccurrenceAt',
   'itadDetail',
 ];
+
+const ITAD_INFO_FIELD_DELETES = ITAD_ERROR_FIELD_DELETES;
 
 function isStaleInfo(lastAtMs, cutoffMs) {
   return lastAtMs != null && lastAtMs < cutoffMs;
@@ -224,10 +248,16 @@ module.exports = {
   buildHltbInfoFields,
   buildHltbErrorFields,
   buildHltbSuccessFields,
+  buildHltbSuccessOnlyFields,
+  buildHltbErrorFieldDeletes,
   buildItadInfoFields,
   buildItadErrorFields,
   buildItadSuccessClears,
+  buildItadSuccessOnlyFields,
+  buildItadErrorFieldDeletes,
   HLTB_INFO_FIELD_DELETES,
+  HLTB_ERROR_FIELD_DELETES,
   ITAD_INFO_FIELD_DELETES,
+  ITAD_ERROR_FIELD_DELETES,
   isStaleInfo,
 };

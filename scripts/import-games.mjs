@@ -26,7 +26,7 @@
  *      Project ID is read from the active Firebase CLI project or `.firebaserc`.
  *
  * Developer vetting uses bundled NE GRAI + Steam curator source lists.
- * Results are cached in config/default `devBgCheck.developers` (shared with
+ * Results are cached in config/dev-bg-check `developers` (shared with
  * addGameFromSteam). Bulk import pre-vets all unique developers once.
  *
  * Do not run against production without reviewing the JSON and using --dry-run first.

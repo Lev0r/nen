@@ -1,17 +1,15 @@
 /**
- * Developer background-check cache stored on config/default (same doc as gfnCatalog).
+ * Developer background-check cache (config schema v3).
  *
- * Path: artifacts/{appId}/public/data/config/default
- * Field: devBgCheck.developers.{cacheKey}
+ * Path: artifacts/{appId}/public/data/config/dev-bg-check
+ * Field: developers.{cacheKey}
  */
 const { FieldValue } = require('firebase-admin/firestore');
-
-const CONFIG_DOC_ID = 'default';
-const DEFAULT_APP_ID = 'default_app';
-
-function getConfigDocPath(appId = DEFAULT_APP_ID) {
-  return `artifacts/${appId}/public/data/config/${CONFIG_DOC_ID}`;
-}
+const {
+  DEFAULT_APP_ID,
+  DEV_BG_CHECK_DOC_ID,
+  configDocPath,
+} = require('./configPaths');
 
 /** Stable Firestore map key — lowercase, unsafe chars replaced. */
 function devCacheKey(name) {
@@ -32,8 +30,8 @@ function normalizeDevEntry(name, result) {
 }
 
 async function loadDevCacheFromFirestore(db, appId = DEFAULT_APP_ID) {
-  const snap = await db.doc(getConfigDocPath(appId)).get();
-  const developers = snap.data()?.devBgCheck?.developers;
+  const snap = await db.doc(configDocPath(appId, DEV_BG_CHECK_DOC_ID)).get();
+  const developers = snap.data()?.developers;
   if (!developers || typeof developers !== 'object') {
     return {};
   }
@@ -72,9 +70,8 @@ function lookupCachedDeveloper(name, memoryCache) {
 async function persistDeveloperResults(db, appId, results, memoryCache) {
   if (!db || !results?.length) return;
 
-  const configRef = db.doc(getConfigDocPath(appId));
-  const existing =
-    (await configRef.get()).data()?.devBgCheck?.developers || {};
+  const configRef = db.doc(configDocPath(appId, DEV_BG_CHECK_DOC_ID));
+  const existing = (await configRef.get()).data()?.developers || {};
   const merged = { ...existing };
 
   for (const { key, name, isRussianRelated, explanation } of results) {
@@ -83,14 +80,7 @@ async function persistDeveloperResults(db, appId, results, memoryCache) {
     merged[key] = entry;
   }
 
-  await configRef.set(
-    {
-      devBgCheck: {
-        developers: merged,
-      },
-    },
-    { merge: true }
-  );
+  await configRef.set({ developers: merged }, { merge: true });
 }
 
 function aggregateVettingFromCache(developerNames, memoryCache) {
@@ -180,9 +170,8 @@ function collectUncachedDevelopers(developerNames, memoryCache) {
 }
 
 module.exports = {
-  CONFIG_DOC_ID,
+  DEV_BG_CHECK_DOC_ID,
   DEFAULT_APP_ID,
-  getConfigDocPath,
   devCacheKey,
   loadDevCacheFromFirestore,
   ensureMemoryCache,

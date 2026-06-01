@@ -26,6 +26,7 @@ const syncDevSourcesFn = httpsCallable(functions, 'syncDevSources', {
 const revetAllGamesFn = httpsCallable(functions, 'revetAllGames', {
   timeout: SYNC_CALL_TIMEOUT_MS,
 });
+const clearMaintenanceInfoErrorsFn = httpsCallable(functions, 'clearMaintenanceInfoErrors');
 
 export async function previewSteamGame(steamInput, appId = 'default_app') {
   const result = await previewSteamGameFn({ steamInput, appId });
@@ -68,5 +69,10 @@ export async function syncDevSources(appId = 'default_app', options = {}) {
 
 export async function revetAllGames(appId = 'default_app') {
   const result = await revetAllGamesFn({ appId });
+  return result.data;
+}
+
+export async function clearMaintenanceInfoErrors(appId = 'default_app') {
+  const result = await clearMaintenanceInfoErrorsFn({ appId });
   return result.data;
 }

@@ -1,4 +1,4 @@
-import { getGameName, getGameOperationErrors, getSourceLabel } from './gameAccessors';
+import { getSourceLabel } from './gameAccessors';
 
 const ACK_STORAGE_KEY = 'nen.maintenance.ackFingerprint';
 
@@ -100,76 +100,45 @@ function mergeGroupedEntries(entries) {
   }));
 }
 
-/**
- * Collect library-wide, per-game, and in-session action errors for Maintenance.
- */
-export function collectAppErrors({ config, games = [], runtimeErrors = [] }) {
-  const raw = runtimeErrors.map((entry) =>
+function listMaintenanceErrorEntries(errorsDoc) {
+  const entries = errorsDoc?.entries;
+  if (!entries || typeof entries !== 'object') return [];
+
+  return Object.values(entries).map((entry) =>
     normalizeEntry({
-      severity: entry.severity || 'warning',
-      source: entry.source || 'action',
-      gameName: entry.gameName || null,
-      gameId: entry.gameId || null,
+      severity: entry.severity,
+      source: entry.source,
+      gameName: entry.gameName,
+      gameId: entry.gameId,
       message: entry.message,
-      count: entry.count || 1,
-      at: entry.at,
-      detail: entry.detail || null,
-      errorKey: entry.errorKey || null,
+      count: entry.count,
+      at: entry.lastSeenAt ?? entry.firstSeenAt,
+      detail: entry.detail,
+      errorKey: entry.errorKey,
     })
   );
+}
 
-  const sync = config?.steamLibrarySync;
-  const health = config?.thirdPartyHealth;
-
-  if (sync?.hltbErrors > 0) {
-    raw.push(
+/**
+ * Collect maintenance doc errors, in-session action errors, and subscription/load failures.
+ */
+export function collectAppErrors({ errorsDoc, runtimeErrors = [] }) {
+  const raw = [
+    ...listMaintenanceErrorEntries(errorsDoc),
+    ...runtimeErrors.map((entry) =>
       normalizeEntry({
-        severity: 'warning',
-        source: 'hltb',
-        message: `${sync.hltbErrors} game(s) failed on last meta load`,
-        at: sync?.syncedAt,
+        severity: entry.severity || 'warning',
+        source: entry.source || 'action',
+        gameName: entry.gameName || null,
+        gameId: entry.gameId || null,
+        message: entry.message,
+        count: entry.count || 1,
+        at: entry.at,
+        detail: entry.detail || null,
+        errorKey: entry.errorKey || null,
       })
-    );
-  }
-
-  if (health?.itad?.configured === false) {
-    raw.push(
-      normalizeEntry({
-        severity: 'warning',
-        source: 'itad',
-        message: 'ITAD API key not configured',
-        at: sync?.syncedAt,
-      })
-    );
-  } else if (sync?.itadErrors > 0) {
-    raw.push(
-      normalizeEntry({
-        severity: 'warning',
-        source: 'itad',
-        message: `${sync.itadErrors} game(s) failed on last meta load`,
-        at: sync?.syncedAt,
-      })
-    );
-  }
-
-  for (const game of games) {
-    const gameName = getGameName(game) || `App ${game.id}`;
-    for (const entry of getGameOperationErrors(game)) {
-      raw.push(
-        normalizeEntry({
-          severity: entry.severity,
-          source: entry.source,
-          gameName,
-          gameId: game.id,
-          message: entry.message,
-          count: entry.count,
-          at: entry.at,
-          detail: entry.detail,
-          errorKey: entry.errorKey,
-        })
-      );
-    }
-  }
+    ),
+  ];
 
   const merged = mergeGroupedEntries(raw.filter((entry) => entry.message));
   return merged.sort((a, b) => toTimestamp(b.at) - toTimestamp(a.at));

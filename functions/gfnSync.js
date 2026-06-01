@@ -7,18 +7,22 @@
  *   NP-FRK-03 — Frankfurt; commonly cited in community docs but currently returns a
  *   truncated catalog without GFN client auth. Override GFN_VPC_ID if your region differs.
  *
- * Config doc: artifacts/{appId}/public/data/config/default field gfnCatalog
+ * Config doc: artifacts/{appId}/public/data/config/gfn-catalog
  */
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const {
+  DEFAULT_APP_ID,
+  GFN_CATALOG_DOC_ID,
+  configDocPath,
+} = require('./configPaths');
+const { rebuildMaintenanceAudit } = require('./maintenanceStore');
 
 const GFN_GRAPHQL_URL = 'https://games.geforce.com/graphql';
 const DEFAULT_VPC_ID = 'NP-WAW-01';
 const DEFAULT_LANGUAGE = 'en_US';
 const PAGE_SIZE = 100;
-const DEFAULT_APP_ID = 'default_app';
-
 const APPS_QUERY = `
 query AppsPage($first: Int!, $after: String, $vpcId: String!, $language: String!) {
   apps(first: $first, after: $after, vpcId: $vpcId, language: $language) {
@@ -197,27 +201,21 @@ async function fetchGfnCatalogFromGraphQL(vpcId = getVpcId(), language = DEFAULT
   };
 }
 
-const CONFIG_DOC_ID = 'default';
-
-function getConfigDocPath(appId = DEFAULT_APP_ID) {
-  return `artifacts/${appId}/public/data/config/${CONFIG_DOC_ID}`;
-}
-
 async function writeGfnCatalog(appId, catalog) {
   const db = getFirestore();
-  const configRef = db.doc(getConfigDocPath(appId));
+  const configRef = db.doc(configDocPath(appId, GFN_CATALOG_DOC_ID));
 
   await configRef.set(
     {
-      gfnCatalog: {
-        steamAppIds: catalog.steamAppIds,
-        syncedAt: FieldValue.serverTimestamp(),
-        vpcId: catalog.vpcId,
-        gameCount: catalog.gameCount,
-      },
+      steamAppIds: catalog.steamAppIds,
+      syncedAt: FieldValue.serverTimestamp(),
+      vpcId: catalog.vpcId,
+      gameCount: catalog.gameCount,
     },
     { merge: true }
   );
+
+  await rebuildMaintenanceAudit(db, appId);
 }
 
 async function syncGfnCatalogToFirestore(appId = DEFAULT_APP_ID) {
@@ -278,7 +276,6 @@ const syncGfnCatalogScheduled = onSchedule(
 module.exports = {
   fetchGfnCatalogFromGraphQL,
   syncGfnCatalogToFirestore,
-  getConfigDocPath,
   syncGfnCatalog,
   syncGfnCatalogScheduled,
 };

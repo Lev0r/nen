@@ -1,6 +1,6 @@
 const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 const { cachedFetchJson } = require('./steamCache');
-const { getConfigDocPath } = require('./gfnSync');
+const { GFN_CATALOG_DOC_ID, configDocPath } = require('./configPaths');
 
 const STEAM_CC = 'ua';
 const STEAM_LANG = 'english';
@@ -38,10 +38,10 @@ function parseAppId(input) {
 async function loadGfnCatalogSteamAppIds(appId = 'default_app') {
   if (!gfnCatalogPromise) {
     gfnCatalogPromise = getFirestore()
-      .doc(getConfigDocPath(appId))
+      .doc(configDocPath(appId, GFN_CATALOG_DOC_ID))
       .get()
       .then((snapshot) => {
-        const steamAppIds = snapshot.data()?.gfnCatalog?.steamAppIds;
+        const steamAppIds = snapshot.data()?.steamAppIds;
         if (!Array.isArray(steamAppIds)) {
           return null;
         }

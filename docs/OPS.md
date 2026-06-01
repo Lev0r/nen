@@ -132,7 +132,15 @@ node scripts/revet-ru-games.mjs
 2. **Re-vet games** — Maintenance → Re-vet all games, or `node scripts/revet-ru-games.mjs`
 3. **Ongoing** — weekly `syncDevSourcesScheduled` or Maintenance → Sync dev sources (incremental)
 
-**Clear maintenance error fields only:** `node scripts/wipe-maintenance-errors.mjs`
+**Clear maintenance errors:** `node scripts/wipe-maintenance-errors.mjs`
+
+**Migrate config schema v3** (split `config/default` → dedicated docs):
+
+```bash
+node scripts/migrate-config-v3.mjs --dry-run
+node scripts/migrate-config-v3.mjs
+firebase deploy --only functions
+```
 
 ---
 
@@ -144,7 +152,7 @@ After deploying curator-logic or source changes:
 2. **Refresh Firestore sources** — Maintenance → **Sync dev sources**, or `node scripts/sync-dev-sources.mjs --to-firestore`
 3. **Re-vet games** — Maintenance → **Re-vet all games**, or `node scripts/revet-ru-games.mjs`
 
-No DB wipe needed. Stale `vettingError` clears on successful Run dev check.
+No DB wipe needed. Stale vetting errors clear from `config/maintenance-errors` on successful Run dev check.
 
 ---
 

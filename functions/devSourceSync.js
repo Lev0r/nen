@@ -11,11 +11,12 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { normalizeDevName } = require('./devSources');
 const { CURATORS, getCuratorKeys } = require('./curatorRegistry');
 const { fetchJsonWithRetry } = require('./steamCache');
-const { DEFAULT_APP_ID } = require('./devBgCheck');
+const { DEFAULT_APP_ID } = require('./configPaths');
 const {
   loadExistingCuratorStates,
   writeDevSourcesToFirestore,
 } = require('./devSourceStore');
+const { rebuildMaintenanceAudit } = require('./maintenanceStore');
 
 const NE_GRAI_XPI =
   'https://addons.mozilla.org/firefox/downloads/latest/ne-hrai-tracker-steam/latest.xpi';
@@ -493,6 +494,7 @@ async function syncDevSourcesToFirestore(appId = DEFAULT_APP_ID, options = {}) {
 
   const payload = await fetchDevSourcePayload(options, existingCurators);
   await writeDevSourcesToFirestore(appId, payload);
+  await rebuildMaintenanceAudit(db, appId);
   const stats = summarizeDevSourceStats(payload);
   return {
     ...stats,

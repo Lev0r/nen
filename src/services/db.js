@@ -4,54 +4,96 @@ import {
   onSnapshot,
   doc,
   updateDoc,
-  writeBatch,
-  deleteField,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { calculateTotalHype } from '../utils/hypeScore';
 import { buildStateMetaUpdates } from '../utils/libraryState';
-import { buildClearInfoUpdates, gameHasInfoStatus } from '../utils/gameAccessors';
 
-/** Singleton config doc under the config subcollection (path must have even segment count). */
-export const CONFIG_DOC_ID = 'default';
 export const DEV_SOURCES_META_DOC_ID = 'dev-sources-meta';
+export const GFN_CATALOG_DOC_ID = 'gfn-catalog';
+export const MAINTENANCE_AUDIT_DOC_ID = 'maintenance-audit';
+export const MAINTENANCE_ERRORS_DOC_ID = 'maintenance-errors';
 
-export function useAppConfig(appId = 'default_app') {
-  const [config, setConfig] = useState(null);
+function configDocRef(appId, docId) {
+  return doc(db, `artifacts/${appId}/public/data/config`, docId);
+}
+
+export function useGfnCatalog(appId = 'default_app') {
+  const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const configRef = doc(db, `artifacts/${appId}/public/data/config`, CONFIG_DOC_ID);
-
+    const ref = configDocRef(appId, GFN_CATALOG_DOC_ID);
     const unsubscribe = onSnapshot(
-      configRef,
+      ref,
       (snapshot) => {
-        setConfig(snapshot.exists() ? snapshot.data() : null);
+        setCatalog(snapshot.exists() ? snapshot.data() : null);
         setLoading(false);
       },
       (error) => {
-        console.error('Config subscription error:', error);
+        console.error('GFN catalog subscription error:', error);
         setLoading(false);
       }
     );
-
     return () => unsubscribe();
   }, [appId]);
 
-  return { config, loading };
+  return { catalog, loading };
 }
 
+export function useMaintenanceAudit(appId = 'default_app') {
+  const [audit, setAudit] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const ref = configDocRef(appId, MAINTENANCE_AUDIT_DOC_ID);
+    const unsubscribe = onSnapshot(
+      ref,
+      (snapshot) => {
+        setAudit(snapshot.exists() ? snapshot.data() : null);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Maintenance audit subscription error:', error);
+        setLoading(false);
+      }
+    );
+    return () => unsubscribe();
+  }, [appId]);
+
+  return { audit, loading };
+}
+
+export function useMaintenanceErrors(appId = 'default_app') {
+  const [errorsDoc, setErrorsDoc] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const ref = configDocRef(appId, MAINTENANCE_ERRORS_DOC_ID);
+    const unsubscribe = onSnapshot(
+      ref,
+      (snapshot) => {
+        setErrorsDoc(snapshot.exists() ? snapshot.data() : null);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Maintenance errors subscription error:', error);
+        setLoading(false);
+      }
+    );
+    return () => unsubscribe();
+  }, [appId]);
+
+  return { errorsDoc, loading };
+}
+
+/** @deprecated Prefer useMaintenanceAudit().audit.devSources */
 export function useDevSourcesMeta(appId = 'default_app') {
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const metaRef = doc(
-      db,
-      `artifacts/${appId}/public/data/config`,
-      DEV_SOURCES_META_DOC_ID
-    );
-
+    const metaRef = configDocRef(appId, DEV_SOURCES_META_DOC_ID);
     const unsubscribe = onSnapshot(
       metaRef,
       (snapshot) => {
@@ -63,7 +105,6 @@ export function useDevSourcesMeta(appId = 'default_app') {
         setLoading(false);
       }
     );
-
     return () => unsubscribe();
   }, [appId]);
 
@@ -73,35 +114,6 @@ export function useDevSourcesMeta(appId = 'default_app') {
 export function updateGame(appId, gameId, updates) {
   const gameRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
   return updateDoc(gameRef, updates);
-}
-
-export async function clearInfoErrorsFromGames(appId, games) {
-  const targets = games.filter(gameHasInfoStatus);
-  if (targets.length === 0) return 0;
-
-  const batchSize = 400;
-  let cleared = 0;
-
-  for (let offset = 0; offset < targets.length; offset += batchSize) {
-    const chunk = targets.slice(offset, offset + batchSize);
-    const batch = writeBatch(db);
-
-    for (const game of chunk) {
-      const rawUpdates = buildClearInfoUpdates(game);
-      const updates = {};
-      for (const [path, value] of Object.entries(rawUpdates)) {
-        updates[path] = deleteField();
-      }
-      if (Object.keys(updates).length === 0) continue;
-      const gameRef = doc(db, `artifacts/${appId}/public/data/games`, game.id);
-      batch.update(gameRef, updates);
-      cleared += 1;
-    }
-
-    await batch.commit();
-  }
-
-  return cleared;
 }
 
 export function setGameLifecycle(

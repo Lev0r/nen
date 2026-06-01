@@ -9,21 +9,13 @@
  */
 const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 const { getCuratorKeys, CURATORS } = require('./curatorRegistry');
-const { getConfigDocPath, DEFAULT_APP_ID } = require('./devBgCheck');
+const { DEFAULT_APP_ID, configCollectionPath, configDocPath } = require('./configPaths');
 
 const SCHEMA_VERSION = 2;
 const META_DOC_ID = 'dev-sources-meta';
 const NE_GRAI_DOC_ID = 'dev-sources-ne-grai';
 const DEV_INDEX_DOC_ID = 'dev-sources-dev-index';
 const CURATOR_DOC_PREFIX = 'dev-sources-curator-';
-
-function configCollectionPath(appId = DEFAULT_APP_ID) {
-  return `artifacts/${appId}/public/data/config`;
-}
-
-function configDocPath(appId, docId) {
-  return `${configCollectionPath(appId)}/${docId}`;
-}
 
 function curatorDocId(curatorKey) {
   return `${CURATOR_DOC_PREFIX}${curatorKey}`;
@@ -177,5 +169,4 @@ module.exports = {
   loadExistingCuratorStates,
   loadDevSourcesBundle,
   writeDevSourcesToFirestore,
-  getConfigDocPath,
 };

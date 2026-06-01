@@ -26,7 +26,7 @@ Runtime reads **Firestore `devBgCheck.sources` only** (`ensureLiveDevSources` in
 ```
 syncDevSources → devBgCheck.sources (Firestore)
        ↓
-vetAllDevelopers → devBgCheck.developers cache (per studio)
+vetAllDevelopers → config/dev-bg-check.developers cache (per studio)
        ↓
 aggregateGameVetting(game) → ruDeveloperAlert + ruDeveloperExplanation
 ```

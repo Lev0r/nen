@@ -9,7 +9,7 @@
  * Default: deletes only devBgCheck.sources on config/default (legacy monolithic blob).
  * With --include-v2-docs: also deletes dev-sources-* config documents.
  *
- * Does NOT touch devBgCheck.developers (vetting cache) or game documents.
+ * Does NOT touch config/dev-bg-check (vetting cache) or game documents.
  */
 import { createRequire } from 'module';
 import { readFileSync, existsSync } from 'fs';
@@ -23,7 +23,12 @@ const require = createRequire(join(ROOT, 'functions/package.json'));
 
 const { initializeApp, getApps, applicationDefault, cert } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
-const { getConfigDocPath } = require('./devBgCheck');
+
+const LEGACY_CONFIG_DOC_ID = 'default';
+
+function legacyConfigDocPath(appId) {
+  return `artifacts/${appId}/public/data/config/${LEGACY_CONFIG_DOC_ID}`;
+}
 const {
   META_DOC_ID,
   NE_GRAI_DOC_ID,
@@ -97,7 +102,7 @@ async function main() {
   initFirebase();
   const db = getFirestore();
 
-  await db.doc(getConfigDocPath(appId)).set(
+  await db.doc(legacyConfigDocPath(appId)).set(
     { devBgCheck: { sources: FieldValue.delete() } },
     { merge: true }
   );

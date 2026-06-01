@@ -64,12 +64,23 @@ The user interface must resolve display labels dynamically:
 
 The database structure is designed to keep static app configurations decoupled from the games directory. Paths are relative to the root collection path:
 
-### Configuration & Static Data Path
-* **Path:** `/artifacts/{appId}/public/data/config/default` (singleton document id `default`)
-* **Purpose:** Stores application global configs (e.g. `gfnCatalog`, `devBgCheck`), user nicknames, and global metadata.
+### Configuration & Static Data Path (schema v3)
 
-#### `devBgCheck` (developer vetting cache)
-* **Field:** `devBgCheck.developers.{cacheKey}` on the same `config/default` document
+Split documents under `/artifacts/{appId}/public/data/config/`:
+
+| Doc ID | Purpose |
+| :--- | :--- |
+| `dev-bg-check` | Developer vetting cache (`developers.{cacheKey}`) |
+| `gfn-catalog` | GeForce NOW Steam app IDs |
+| `steam-library-sync` | Library meta sync run stats |
+| `third-party-health` | HLTB/ITAD health counters |
+| `maintenance-errors` | Centralized maintenance error entries |
+| `maintenance-audit` | Denormalized Maintenance UI snapshot |
+| `dev-sources-*` | NE GRAI + curator lists (schema v2) |
+| `default` | **Deprecated** — legacy monolith; migrate with `migrate-config-v3.mjs` |
+
+#### Developer vetting cache (`dev-bg-check`)
+* **Field:** `developers.{cacheKey}`
 * **cacheKey:** Normalized studio name (lowercase, trimmed)
 * **Entry:** `{ name, isRussianRelated, explanation, checkedAt }`
 * **Usage:** `addGameFromSteam`, bulk import, and manual **Run dev check** look up developers against bundled lists; results are merged into this map.
@@ -187,7 +198,7 @@ The database structure is designed to keep static app configurations decoupled f
 * **`stateMeta`**: Snapshot on lifecycle entry. `versionAtEntry` copies `steamDynamic.currentVersion`; `enteredAt` timestamp; optional `note`.
 * **`hasUpdateSinceState`**: Set when `steamDynamic.currentVersion` ≠ `stateMeta.versionAtEntry`.
 * **`lastVersionCheck`**: Timestamp of last version check in scheduled sync.
-* **`geforceNowReady`**: Scrape-time snapshot; UI badge reads global `gfnCatalog`.
+* **`geforceNowReady`**: Scrape-time snapshot; UI badge reads `config/gfn-catalog.steamAppIds`.
 
 **Legacy v1 flat fields** (`name`, `price`, `steamReviewPercent`, `playerCount`, etc.): **not written in v2.** No read fallback — migrate or re-import.
 
@@ -328,7 +339,7 @@ GameDev DOU is documented as context-only (no automated lookup). OpenCorporates 
 #### Workflow
 1. On add/import/manual check: for each developer, lookup NE GRAI + curators (by dev name and known game app IDs).
 2. **`aggregateGameVetting(game)`** also checks the **game's Steam app ID** against curator lists directly.
-3. Cache results in `config/default.devBgCheck.developers` (normalized name key).
+3. Cache results in `config/dev-bg-check.developers` (normalized name key).
 4. Set `ruDeveloperAlert` / `ruDeveloperExplanation` on the game document (markdown links for curator citations in UI).
 
 **Manual re-check:** Game edit → **Run dev check** (`vetGameDevelopers` callable) bypasses cache (`forceRefresh`), works for any `libraryState` including `banned`.
@@ -395,7 +406,7 @@ Extract from store API (`data[appId].data`) and write to nested objects:
 * **`syncedAt`** $\rightarrow$ server timestamp on stats write
 
 **Root on import**
-* **`geforceNowReady`** $\rightarrow$ scrape-time snapshot; UI badge reads `config/default.gfnCatalog.steamAppIds`
+* **`geforceNowReady`** $\rightarrow$ scrape-time snapshot; UI badge reads `config/gfn-catalog.steamAppIds`
 * **`libraryState`** $\rightarrow$ default `"active"`; `stateMeta.versionAtEntry` ← `steamDynamic.currentVersion`
 
 #### 4. Sync policy (locked)

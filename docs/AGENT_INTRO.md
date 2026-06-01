@@ -44,7 +44,9 @@ nen/
 │   ├── steamSync.js         # 6h library sync
 │   ├── devSources.js        # RU list lookups
 │   ├── devVetting.js        # Developer vet orchestration
-│   ├── devBgCheck.js        # Cache + aggregateGameVetting
+│   ├── devBgCheck.js        # Dev vetting cache (config/dev-bg-check)
+│   ├── configPaths.js       # Config doc IDs + path helpers
+│   ├── maintenanceStore.js  # maintenance-errors + maintenance-audit
 │   ├── devSourceSync.js     # Weekly NE GRAI + curator sync
 │   ├── gfnSync.js           # GFN catalog
 │   ├── hltb.js / itad.js    # Third-party enrich
@@ -61,10 +63,16 @@ nen/
 | Path | Purpose |
 | :--- | :--- |
 | `artifacts/{appId}/public/data/games/{steamAppId}` | Game documents (`default_app`) |
-| `artifacts/{appId}/public/data/config/default` | GFN catalog, `devBgCheck.developers` cache, sync meta |
-| `artifacts/{appId}/public/data/config/dev-sources-*` | NE GRAI + curator lists (schema v2, one doc per source) |
+| `artifacts/{appId}/public/data/config/dev-bg-check` | Developer vetting cache (`developers.{cacheKey}`) |
+| `artifacts/{appId}/public/data/config/gfn-catalog` | GeForce NOW Steam app ID list |
+| `artifacts/{appId}/public/data/config/steam-library-sync` | Last library meta sync stats |
+| `artifacts/{appId}/public/data/config/third-party-health` | HLTB/ITAD health counters |
+| `artifacts/{appId}/public/data/config/maintenance-errors` | Centralized maintenance error entries |
+| `artifacts/{appId}/public/data/config/maintenance-audit` | Denormalized Maintenance UI snapshot |
+| `artifacts/{appId}/public/data/config/dev-sources-*` | NE GRAI + curator lists (schema v2) |
+| `artifacts/{appId}/public/data/config/default` | **Deprecated** — migrate with `npm run migrate-config-v3` |
 
-**Path segments must be even** — use `config/default`, not `config` alone.
+**Path segments must be even** — e.g. `config/gfn-catalog`, not `config` alone.
 
 ---
 
@@ -105,9 +113,10 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 2. **Filter scope** — no filters = current tab; any filter active = full library.
 3. **Schema v2 only** — nested `steamStatic` / `steamDynamic` / `steamStats`; no v1 flat fields.
 4. **Banned games** — skip all Steam sync; **TBA** — no player stats.
-5. **GFN badge** — reads global `gfnCatalog.steamAppIds`, not per-game scrape field.
-6. **Firestore dev sources (schema v2)** — split docs `config/dev-sources-*`; seed via `--to-firestore`. Legacy `devBgCheck.sources` on `config/default` is unused. `devBgCheck.developers` stays on `config/default`.
-7. **Curator vetting** — only `not_recommended` + `informational` flag; `recommended` = clearance (does not override NE GRAI).
+5. **GFN badge** — reads `config/gfn-catalog.steamAppIds`, not per-game scrape field.
+6. **Firestore dev sources (schema v2)** — split docs `config/dev-sources-*`; seed via `--to-firestore`. Legacy `devBgCheck.sources` on deprecated `config/default` is unused. Developer cache lives on `config/dev-bg-check`.
+7. **Maintenance errors (schema v3)** — stored in `config/maintenance-errors`, not on game docs. UI reads `config/maintenance-audit` for sync labels.
+8. **Curator vetting** — only `not_recommended` + `informational` flag; `recommended` = clearance (does not override NE GRAI).
 
 ---
 

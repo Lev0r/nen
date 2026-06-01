@@ -12,13 +12,14 @@
 | Sync GeForce NOW | `syncGfnCatalog` | 540s client |
 | Sync dev sources | `syncDevSources` | 540s client |
 | Re-vet all games | `revetAllGames` | 540s client |
+| Clear info errors | `clearMaintenanceInfoErrors` | 60s client |
 
-Dev source section shows `devBgCheck.sources.syncedAt`, per-source counts (`devSourceSummary`).
+Sync labels (meta load, GFN, dev sources) read from **`config/maintenance-audit`** via `useMaintenanceAudit`. GFN app IDs read from **`config/gfn-catalog`** via `useGfnCatalog`.
 
 **Errors section** — aggregated via `collectAppErrors()` (`appErrors.js`):
 
-- Library-level: HLTB/ITAD health from config, subscription errors
-- Game-level: `vettingError`, `lastSyncError`, third-party errors
+- **`config/maintenance-errors`** entries (HLTB, ITAD, vetting, steam-sync, etc.)
+- Subscription / game load failures (runtime)
 - Action-level: runtime errors from sync buttons
 
 ### Error presentation
@@ -26,16 +27,25 @@ Dev source section shows `devBgCheck.sources.syncedAt`, per-source counts (`devS
 - **Severity taxonomy:** `error` / `warning` / `info`
 - **Grouped** by severity, then source — duplicate messages collapsed with counts
 - **Detail** per entry — timestamps, game name/app ID, message, optional detail
-- **Clear info** button — dismiss info-level entries
-- **Weekly purge** — stale info fields cleared on scheduled sync (`purgeStaleInfoFields`)
+- **Clear info** button — calls `clearMaintenanceInfoErrors` (removes info entries from `maintenance-errors`)
+- **Weekly purge** — stale info entries (>7d) removed from `maintenance-errors` on scheduled sync (`purgeStaleInfoFields`)
 
 **Acknowledge dot** — yellow on Maintenance button; fingerprint in `localStorage`.
+
+## Config docs (schema v3)
+
+| Doc ID | Purpose |
+| :--- | :--- |
+| `maintenance-errors` | `{ entries: { [entryId]: ErrorEntry } }` |
+| `maintenance-audit` | UI snapshot: metaLoad, gfn, devSources, errorsSummary, lastRevet |
+| `steam-library-sync` | Last library sync counters |
+| `third-party-health` | HLTB/ITAD health summary |
 
 ## Error reporting pattern
 
 - `reportError(context, err, setError)` — logs + user message (`errorReport.js`)
 - `functions/deadline-exceeded` → timeout hint for long syncs
-- Vetting failures on add: game **saved**, `vettingError` on doc, modal stays open
+- Vetting failures on add: game **saved**, error recorded in `maintenance-errors`, modal stays open
 
 ## Related callables
 
@@ -44,3 +54,8 @@ Dev source section shows `devBgCheck.sources.syncedAt`, per-source counts (`devS
 | `syncDevSources` | Refresh vetting source lists in Firestore | ✅ Maintenance |
 | `revetAllGames` | Bulk re-vet all games | ✅ Maintenance |
 | `vetGameDevelopers` | Per-game re-vet | ✅ edit modal |
+| `clearMaintenanceInfoErrors` | Clear info-level maintenance errors | ✅ Maintenance |
+
+## Migration
+
+Production databases on legacy `config/default` must run `npm run migrate-config-v3` before deploying functions that read v3 paths only.

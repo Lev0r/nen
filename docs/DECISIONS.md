@@ -15,7 +15,8 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Client never calls Steam directly | CORS, caching, secrets | 2026 |
 | Schema v2 nested Steam objects | Clear sync cadences per field group | 2026 |
 | No v1 flat-field backward compat | Migrate/re-import instead | 2026 |
-| `config/default` doc id required | Firestore even segment count | 2026 |
+| `config/default` doc id (legacy) | Firestore even segment count; **deprecated** — use split v3 docs | 2026 |
+| Config schema v3 | Split monolithic `config/default`; centralize errors in `maintenance-errors` | 2026-06 |
 
 ## Users & UI
 

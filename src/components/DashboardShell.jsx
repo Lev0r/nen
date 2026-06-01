@@ -4,8 +4,8 @@ import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
 import GameFiltersBar from './GameFiltersBar';
 import MaintenanceModal from './MaintenanceModal';
-import { useGames, useAppConfig, useDevSourcesMeta, clearInfoErrorsFromGames } from '../services/db';
-import { syncGfnCatalog, syncSteamLibrary, syncDevSources, revetAllGames } from '../services/cloudFunctions';
+import { useGames, useGfnCatalog, useMaintenanceAudit, useMaintenanceErrors } from '../services/db';
+import { syncGfnCatalog, syncSteamLibrary, syncDevSources, revetAllGames, clearMaintenanceInfoErrors } from '../services/cloudFunctions';
 import { getNickname } from '../utils/userConfig';
 import {
   LIBRARY_STATES,
@@ -68,8 +68,9 @@ function appendRuntimeError(setter, source, message) {
 export default function DashboardShell() {
   const { userIndex, logout } = useAuth();
   const { games, loading, subscriptionError, loadErrors } = useGames('default_app');
-  const { config } = useAppConfig('default_app');
-  const { meta: devSourcesMeta } = useDevSourcesMeta('default_app');
+  const { catalog: gfnCatalog } = useGfnCatalog('default_app');
+  const { audit: maintenanceAudit } = useMaintenanceAudit('default_app');
+  const { errorsDoc: maintenanceErrorsDoc } = useMaintenanceErrors('default_app');
 
   const [activeTab, setActiveTab] = useState('active');
   const [activeSubTab, setActiveSubTab] = useState('active');
@@ -87,30 +88,31 @@ export default function DashboardShell() {
   );
 
   const gfnSteamAppIds = useMemo(() => {
-    const ids = config?.gfnCatalog?.steamAppIds;
+    const ids = gfnCatalog?.steamAppIds;
     return new Set(Array.isArray(ids) ? ids.map(String) : []);
-  }, [config?.gfnCatalog?.steamAppIds]);
+  }, [gfnCatalog?.steamAppIds]);
 
   const gfnSyncedAtLabel = useMemo(() => {
-    const syncedAt = config?.gfnCatalog?.syncedAt;
+    const syncedAt = maintenanceAudit?.gfn?.syncedAt ?? gfnCatalog?.syncedAt;
     return formatRelativeTimeShort(syncedAt);
-  }, [config?.gfnCatalog?.syncedAt]);
+  }, [maintenanceAudit?.gfn?.syncedAt, gfnCatalog?.syncedAt]);
 
   const metaSyncedAtLabel = useMemo(() => {
-    const syncedAt = config?.steamLibrarySync?.syncedAt;
+    const syncedAt = maintenanceAudit?.metaLoad?.syncedAt;
     return formatRelativeTimeShort(syncedAt);
-  }, [config?.steamLibrarySync?.syncedAt]);
+  }, [maintenanceAudit?.metaLoad?.syncedAt]);
 
   const devSourcesSyncedAtLabel = useMemo(() => {
-    const syncedAt = devSourcesMeta?.syncedAt;
+    const syncedAt = maintenanceAudit?.devSources?.syncedAt;
     return formatRelativeTimeShort(syncedAt);
-  }, [devSourcesMeta?.syncedAt]);
+  }, [maintenanceAudit?.devSources?.syncedAt]);
 
   const devSourceSummary = useMemo(() => {
-    if (!devSourcesMeta || devSourcesMeta.schemaVersion !== 2) return null;
+    const devSources = maintenanceAudit?.devSources;
+    if (!devSources) return null;
 
-    const neGraiCount = devSourcesMeta.neGraiCount ?? 0;
-    const curators = devSourcesMeta.curators || {};
+    const neGraiCount = devSources.neGraiCount ?? 0;
+    const curators = devSources.curators || {};
     const curatorRows = Object.entries(curators)
       .map(([key, entry]) => ({
         key,
@@ -121,11 +123,11 @@ export default function DashboardShell() {
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
 
-    return { neGraiCount, curatorRows, pendingCurators: devSourcesMeta.pendingCurators || [] };
-  }, [devSourcesMeta]);
+    return { neGraiCount, curatorRows, pendingCurators: devSources.pendingCurators || [] };
+  }, [maintenanceAudit?.devSources]);
 
   const appErrors = useMemo(() => {
-    const errors = collectAppErrors({ config, games, runtimeErrors });
+    const errors = collectAppErrors({ errorsDoc: maintenanceErrorsDoc, runtimeErrors });
     if (subscriptionError) {
       errors.unshift({
         severity: 'error',
@@ -153,7 +155,7 @@ export default function DashboardShell() {
       });
     }
     return errors;
-  }, [config, games, runtimeErrors, subscriptionError, loadErrors]);
+  }, [maintenanceErrorsDoc, runtimeErrors, subscriptionError, loadErrors]);
 
   const errorFingerprint = useMemo(
     () => fingerprintAppErrors(appErrors, { severities: ['error', 'warning'] }),
@@ -218,7 +220,7 @@ export default function DashboardShell() {
   async function handleClearInfo() {
     setClearingInfo(true);
     try {
-      await clearInfoErrorsFromGames('default_app', games);
+      await clearMaintenanceInfoErrors('default_app');
     } catch (err) {
       const message = reportError('Clear info errors', err);
       appendRuntimeError(setRuntimeErrors, 'action', message);
