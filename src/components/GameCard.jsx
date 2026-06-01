@@ -13,7 +13,6 @@ import {
   getOriginalPrice,
   getIsOnSale,
   getDiscountPercent,
-  getSteamOverview,
   getMetacriticScore,
   getCriticsSource,
   getHltbData,
@@ -603,7 +602,6 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
   const thumbnail = getThumbnail(game);
   const price = getPrice(game);
   const originalPrice = getOriginalPrice(game);
-  const steamOverview = getSteamOverview(game);
   const currentVersion = getCurrentVersion(game);
   const libraryState = resolveLibraryState(game);
   const lifecycleColor = getLibraryStateColor(libraryState);
@@ -624,9 +622,9 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
   const statusTooltip = buildStatusTooltip(developmentStatus, game);
   const versionTooltip = buildVersionTooltip(game);
   const hasUserNotes = Boolean(game.userNotes?.user0 || game.userNotes?.user1);
-  const textSlotContent = ruAlert
+  const ruExplanation = ruAlert
     ? game.ruDeveloperExplanation || 'Russian developer ties flagged.'
-    : steamOverview;
+    : null;
 
   const toggleOwned = async () => {
     const key = `owned.user${userIndex}`;
@@ -685,7 +683,7 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
           >
             <button
               type="button"
-              className="card-indicator-btn"
+              className={`card-indicator-btn card-indicator-btn--owned-${ownedStage === 0 ? 'none' : ownedStage === 1 ? 'half' : 'full'}`}
               onClick={toggleOwned}
               aria-label="Toggle ownership"
             >
@@ -709,7 +707,7 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
                 className="hype-ring-outer"
                 style={{
                   background: `conic-gradient(${scoreColor} ${total}%, #1e293b 0)`,
-                  boxShadow: `0 0 10px ${scoreColor}`,
+                  boxShadow: `0 0 6px ${scoreColor}66`,
                 }}
               >
                 <div className="hype-ring-inner">{total}</div>
@@ -814,44 +812,16 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
                   </p>
                 )}
               </div>
-              <FloatingTooltip
-                anchorClassName="game-card-notes-tooltip-anchor"
-                content={buildNotesTooltip(game, hasUserNotes)}
-              >
-                <button
-                  type="button"
-                  className={`game-card-notes-btn ${hasUserNotes ? 'game-card-notes-btn--active' : ''}`}
-                  onClick={() => {
-                    setEditFocusNotes(true);
-                    setEditOpen(true);
-                  }}
-                  aria-label={hasUserNotes ? 'View or edit notes' : 'Add a note'}
-                >
-                  <NotesChatIcon />
-                </button>
-              </FloatingTooltip>
             </div>
           </div>
 
-          <div
-            className={`game-card-text-slot ${ruAlert ? 'game-card-text-slot--ru' : ''}`}
-          >
-            {textSlotContent ? (
-              <div
-                className={`game-card-overview ${ruAlert ? 'game-card-overview--ru-links' : ''}`}
-              >
-                {ruAlert ? (
-                  <TextWithLinks text={textSlotContent} />
-                ) : (
-                  textSlotContent
-                )}
+          {ruAlert && (
+            <div className="game-card-text-slot game-card-text-slot--ru">
+              <div className="game-card-overview game-card-overview--ru-links">
+                <TextWithLinks text={ruExplanation} />
               </div>
-            ) : (
-              <div className="game-card-overview game-card-overview--empty" aria-hidden="true">
-                &nbsp;
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="game-card-tags">
             {libraryState === 'finished' && game.finishedRating && (
@@ -1008,6 +978,22 @@ export default function GameCard({ game, gfnSteamAppIds = new Set() }) {
                 />
               </svg>
             </a>
+            <FloatingTooltip
+              anchorClassName="game-card-notes-tooltip-anchor"
+              content={buildNotesTooltip(game, hasUserNotes)}
+            >
+              <button
+                type="button"
+                className={`game-card-footer-btn game-card-notes-btn ${hasUserNotes ? 'game-card-notes-btn--active' : ''}`}
+                onClick={() => {
+                  setEditFocusNotes(true);
+                  setEditOpen(true);
+                }}
+                aria-label={hasUserNotes ? 'View or edit notes' : 'Add a note'}
+              >
+                <NotesChatIcon />
+              </button>
+            </FloatingTooltip>
             <button
               type="button"
               className="game-card-footer-btn"
