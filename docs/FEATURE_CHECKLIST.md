@@ -63,7 +63,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Per-user tier picker (DRG theme) | ✅ | |
 | MetacriticFactor + ITAD fallback | ✅ | |
 | Sort library by Total Hype | ✅ | Client-side compute |
-| Dynamic BG animated gradient | ✅ | Lavender + mint on lighter slate; `VITE_ENABLE_DYNAMIC_BG=false` to disable |
+| Dynamic BG animated wave mesh | ✅ | Warm graphite + sage wave CSS; `VITE_ENABLE_DYNAMIC_BG=false` to disable |
+| **Unified warm graphite theme** | ✅ | Softer sage accent, glass panels, sidebar/filters |
 | Card thumbnails | ✅ | Full color; hover scale only (no dim filter) |
 | **Contextual lifecycle badge on card** | ✅ | Hidden on lifecycle tabs; shown when filters search full library |
 | Clash Display + General Sans fonts | ✅ | Card redesign, unified badges (6px radius) |
