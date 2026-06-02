@@ -20,13 +20,14 @@ Store region: **`cc=ua`** (UAH, English). All Steam HTTP in Cloud Functions (`fu
 | `previewSteamGame` | Callable | Scrape-only preview for add flow (no write) |
 | `addGameFromSteam` | Callable | Scrape + write + HLTB/ITAD enrich + RU vet |
 | `syncSteamLibrary` | Callable | Manual full sync ("Load meta info") |
+| `refreshGameFromSteam` | Callable | Manual single-game re-scrape (GameEditModal) |
 | `syncLibrarySteam` | Scheduled | Every **6 hours** — gated per-game sync |
 | `syncGfnCatalog` | Callable | GFN GraphQL → `config/gfn-catalog` |
 | `syncSteamOwnership` | Callable | Reconcile `owned.user0/user1` from Steam Web API |
 | `syncSteamWishlists` | Callable | Pull wishlists → candidate games not in Firestore |
 | `syncGfnCatalogScheduled` | Scheduled | Weekly |
 
-Client: `src/services/cloudFunctions.js` — metadata/GFN/dev sync callables use **540s** timeout; `syncSteamOwnership` and `syncSteamWishlists` use **120s**.
+Client: `src/services/cloudFunctions.js` — metadata/GFN/dev sync callables use **540s** timeout; `syncSteamOwnership`, `syncSteamWishlists`, and `refreshGameFromSteam` use **120s**.
 
 ## Third-party
 

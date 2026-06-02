@@ -30,7 +30,7 @@ Card thumbnails: **120px** height, full color at rest; slight scale on card hove
 | :--- | :--- | :--- |
 | `AddGameModal` | Sidebar | Two-phase: preview → co-op confirm → add |
 | `MaintenanceModal` | Sidebar | Sync + error log + dev sources |
-| `GameEditModal` | Card edit | Full metadata, Run dev check |
+| `GameEditModal` | Card edit | Full metadata, Run dev check, **Refresh from Steam** |
 | `LifecycleModal` | Card lifecycle badge (when visible) or edit | State + note + finished stars |
 | `ScreenshotsModal` | Card footer | Fullscreen carousel |
 
@@ -57,7 +57,8 @@ Glassmorphism: `.modal-backdrop` + `.glass-panel` in `index.css`.
 
 Escape + backdrop dismiss supported (disabled while loading). See [Bulk import](./bulk-import.md) for CLI path. Client duplicate check by app ID before persist.
 
+**Refresh from Steam** (GameEditModal Basic section): callable `refreshGameFromSteam` re-scrapes `steamStatic`, `steamDynamic`, player stats, and HLTB/ITAD for one game (`force` sync). Skips banned games; errors recorded in `config/maintenance-errors`.
+
 ## Deferred
 
 - Mobile UX pass (tooltips, sidebar drawer)
-- "Refresh from Steam" in edit modal

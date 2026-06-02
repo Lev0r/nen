@@ -34,7 +34,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | ID | Area | Item | Rationale |
 | :--- | :--- | :--- | :--- |
 | N1 | UI | Mobile pass — tooltips, grid, modals, sidebar drawer | P1 polish; may follow round 2 |
-| N3 | UI | "Refresh from Steam" in GameEditModal | Single-game re-scrape |
+| N3 | UI | ~~"Refresh from Steam" in GameEditModal~~ | Single-game re-scrape — **done** (2026-06-02) |
 | N4 | UI | Live Total Hype preview in edit modal | UX clarity |
 | N5 | Hype | Use or drop `recentReviewPercent` in formula | Fetched but unused |
 | N6 | Hype | Document ITAD missing → neutral Metacritic factor | Transparency in breakdown |
@@ -76,6 +76,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | U2 | Card header/meta layout — title only; price + rating in meta |
 | U3 | Thumbnail always-dim + unified overlay icon chrome |
 | U4 | Footer notes/edit separator + rectangular notes btn |
+| N3 | "Refresh from Steam" in GameEditModal (`refreshGameFromSteam`) |
 
 ---
 

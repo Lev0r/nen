@@ -6,7 +6,7 @@ const { vetAllDevelopers } = require('./devVetting');
 const { aggregateGameVetting, ensureMemoryCache, mergeVettingWithUserAcknowledgment } = require('./devBgCheck');
 const { collectVettingNames } = require('./devSources');
 const { enrichNewGameThirdParty } = require('./thirdParty');
-const { syncLibrarySteam, syncSteamLibrary } = require('./steamSync');
+const { syncLibrarySteam, syncSteamLibrary, refreshGameFromSteam } = require('./steamSync');
 const { syncGfnCatalog, syncGfnCatalogScheduled } = require('./gfnSync');
 const { syncSteamOwnership } = require('./steamOwnershipSync');
 const { syncSteamWishlists } = require('./steamWishlistSync');
@@ -312,6 +312,7 @@ exports.vetGameDevelopers = onCall(
 
 exports.syncLibrarySteam = syncLibrarySteam;
 exports.syncSteamLibrary = syncSteamLibrary;
+exports.refreshGameFromSteam = refreshGameFromSteam;
 exports.syncGfnCatalog = syncGfnCatalog;
 exports.syncGfnCatalogScheduled = syncGfnCatalogScheduled;
 exports.syncSteamOwnership = syncSteamOwnership;

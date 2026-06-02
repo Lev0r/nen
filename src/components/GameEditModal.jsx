@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { updateGame } from '../services/db';
-import { runDevCheck } from '../services/cloudFunctions';
+import { runDevCheck, refreshGameFromSteam } from '../services/cloudFunctions';
 import { reportError } from '../utils/errorReport';
 import { getNickname } from '../utils/userConfig';
 import { HYPE_TIERS, getTier } from '../utils/hypeScore';
@@ -93,6 +93,8 @@ export default function GameEditModal({
   const [saving, setSaving] = useState(false);
   const [devChecking, setDevChecking] = useState(false);
   const [devCheckMessage, setDevCheckMessage] = useState('');
+  const [steamRefreshing, setSteamRefreshing] = useState(false);
+  const [steamRefreshMessage, setSteamRefreshMessage] = useState('');
   const [error, setError] = useState('');
   const notesSectionRef = useRef(null);
   const ratingSectionRef = useRef(null);
@@ -102,6 +104,7 @@ export default function GameEditModal({
     setForm(initForm(game));
     setError('');
     setDevCheckMessage('');
+    setSteamRefreshMessage('');
   }, [isOpen, game]);
 
   useEffect(() => {
@@ -129,8 +132,43 @@ export default function GameEditModal({
 
   if (!isOpen || !game) return null;
 
+  const isBanned = resolveLibraryState(game) === 'banned';
+  const isBusy = saving || devChecking || steamRefreshing;
+
   const setField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleRefreshFromSteam = async () => {
+    setSteamRefreshing(true);
+    setError('');
+    setSteamRefreshMessage('');
+
+    try {
+      const result = await refreshGameFromSteam(game.id, APP_ID);
+
+      if (result.skipped && result.reason === 'banned') {
+        setSteamRefreshMessage(result.message || 'Banned games are not synced from Steam.');
+        return;
+      }
+
+      const parts = [];
+      if (result.staticSyncs) parts.push('store page');
+      if (result.dynamicSyncs) parts.push('reviews & pricing');
+      if (result.playerSamples) parts.push('player stats');
+      if (result.hltbSyncs) parts.push('HLTB');
+      if (result.itadSyncs) parts.push('ITAD');
+
+      setSteamRefreshMessage(
+        result.updated
+          ? `Steam metadata refreshed${parts.length ? ` (${parts.join(', ')})` : ''}.`
+          : 'Refresh complete — no changes from Steam.'
+      );
+    } catch (err) {
+      reportError('Refresh from Steam', err, setError);
+    } finally {
+      setSteamRefreshing(false);
+    }
   };
 
   const handleRunDevCheck = async () => {
@@ -243,7 +281,25 @@ export default function GameEditModal({
         <div className="game-edit-modal-body">
           <div className="game-edit-sections">
           <section className="game-edit-section">
-            <h3 className="game-edit-section-title">Basic</h3>
+            <div className="game-edit-section-header">
+              <h3 className="game-edit-section-title">Basic</h3>
+              <button
+                type="button"
+                className="btn-secondary game-edit-dev-check-btn"
+                onClick={handleRefreshFromSteam}
+                disabled={isBusy || isBanned}
+                title={
+                  isBanned
+                    ? 'Banned games are not synced from Steam'
+                    : 'Re-scrape Steam metadata for this game'
+                }
+              >
+                {steamRefreshing ? 'Refreshing…' : 'Refresh from Steam'}
+              </button>
+            </div>
+            {steamRefreshMessage && (
+              <p className="game-edit-dev-check-message">{steamRefreshMessage}</p>
+            )}
             <label className="game-edit-label" htmlFor="edit-name">
               Name
             </label>
@@ -253,7 +309,7 @@ export default function GameEditModal({
               className="game-edit-input"
               value={form.name}
               onChange={(e) => setField('name', e.target.value)}
-              disabled={saving}
+              disabled={isBusy}
             />
             <label className="game-edit-label" htmlFor="edit-overview">
               Steam overview
@@ -263,7 +319,7 @@ export default function GameEditModal({
               className="game-edit-textarea"
               value={form.steamOverview}
               onChange={(e) => setField('steamOverview', e.target.value)}
-              disabled={saving}
+              disabled={isBusy}
               rows={3}
             />
             <label className="game-edit-label" htmlFor="edit-dev-status">
@@ -274,7 +330,7 @@ export default function GameEditModal({
               className="game-edit-select"
               value={form.developmentStatus}
               onChange={(e) => setField('developmentStatus', e.target.value)}
-              disabled={saving}
+              disabled={isBusy}
             >
               {DEVELOPMENT_STATUSES.map(({ value, label }) => (
                 <option key={value} value={value}>
@@ -300,7 +356,7 @@ export default function GameEditModal({
                       setField('finishedRating', null);
                     }
                   }}
-                  disabled={saving}
+                  disabled={isBusy}
                 >
                   <span className="lifecycle-state-btn-label">
                     {getLibraryStateLabel(state)}
@@ -316,7 +372,7 @@ export default function GameEditModal({
                 idPrefix="edit-finished-rating"
                 value={form.finishedRating}
                 onChange={(value) => setField('finishedRating', value)}
-                disabled={saving}
+                disabled={isBusy}
                 className={
                   form.libraryState === 'finished'
                     ? 'finished-rating-picker--prominent'
@@ -333,7 +389,7 @@ export default function GameEditModal({
               placeholder="Optional note about this lifecycle state…"
               value={form.lifecycleNote}
               onChange={(e) => setField('lifecycleNote', e.target.value)}
-              disabled={saving}
+              disabled={isBusy}
               rows={2}
             />
           </section>
@@ -345,14 +401,14 @@ export default function GameEditModal({
                 id="edit-owned-user0"
                 checked={form.ownedUser0}
                 onChange={(value) => setField('ownedUser0', value)}
-                disabled={saving}
+                disabled={isBusy}
                 label={`${getNickname(0)} owns`}
               />
               <ToggleSwitch
                 id="edit-owned-user1"
                 checked={form.ownedUser1}
                 onChange={(value) => setField('ownedUser1', value)}
-                disabled={saving}
+                disabled={isBusy}
                 label={`${getNickname(1)} owns`}
               />
             </div>
@@ -369,7 +425,7 @@ export default function GameEditModal({
                 className="game-edit-select"
                 value={form.hypeTierUser0}
                 onChange={(e) => setField('hypeTierUser0', e.target.value)}
-                disabled={saving}
+                disabled={isBusy}
               >
                 {Object.entries(HYPE_TIERS).map(([key, { label }]) => (
                   <option key={key} value={key}>
@@ -387,7 +443,7 @@ export default function GameEditModal({
                 className="game-edit-select"
                 value={form.hypeTierUser1}
                 onChange={(e) => setField('hypeTierUser1', e.target.value)}
-                disabled={saving}
+                disabled={isBusy}
               >
                 {Object.entries(HYPE_TIERS).map(([key, { label }]) => (
                   <option key={key} value={key}>
@@ -405,7 +461,7 @@ export default function GameEditModal({
                 type="button"
                 className="btn-secondary game-edit-dev-check-btn"
                 onClick={handleRunDevCheck}
-                disabled={saving || devChecking}
+                disabled={isBusy}
               >
                 {devChecking ? 'Checking…' : 'Run dev check'}
               </button>
@@ -418,7 +474,7 @@ export default function GameEditModal({
               className="toggle-switch--block"
               checked={form.ruDeveloperAlert}
               onChange={(value) => setField('ruDeveloperAlert', value)}
-              disabled={saving || devChecking}
+              disabled={isBusy}
               label="Russian developer alert (manual verification)"
             />
             <label className="game-edit-label" htmlFor="edit-ru-explanation">
@@ -430,7 +486,7 @@ export default function GameEditModal({
               placeholder="Why this flag is set…"
               value={form.ruDeveloperExplanation}
               onChange={(e) => setField('ruDeveloperExplanation', e.target.value)}
-              disabled={saving || devChecking}
+              disabled={isBusy}
               rows={2}
             />
           </section>
@@ -445,7 +501,7 @@ export default function GameEditModal({
               className="game-edit-textarea"
               value={form.userNote0}
               onChange={(e) => setField('userNote0', e.target.value)}
-              disabled={saving}
+              disabled={isBusy}
               rows={2}
             />
             <label className="game-edit-label" htmlFor="edit-user-note-1">
@@ -456,7 +512,7 @@ export default function GameEditModal({
               className="game-edit-textarea"
               value={form.userNote1}
               onChange={(e) => setField('userNote1', e.target.value)}
-              disabled={saving}
+              disabled={isBusy}
               rows={2}
             />
           </section>
@@ -472,7 +528,7 @@ export default function GameEditModal({
               className="game-edit-input"
               value={form.price}
               onChange={(e) => setField('price', e.target.value)}
-              disabled={saving}
+              disabled={isBusy}
             />
             <label className="game-edit-label" htmlFor="edit-original-price">
               Original price
@@ -483,14 +539,14 @@ export default function GameEditModal({
               className="game-edit-input"
               value={form.originalPrice}
               onChange={(e) => setField('originalPrice', e.target.value)}
-              disabled={saving}
+              disabled={isBusy}
             />
             <ToggleSwitch
               id="edit-on-sale"
               className="toggle-switch--block"
               checked={form.isOnSale}
               onChange={(value) => setField('isOnSale', value)}
-              disabled={saving}
+              disabled={isBusy}
               label="On sale"
             />
             <label className="game-edit-label" htmlFor="edit-discount">
@@ -504,7 +560,7 @@ export default function GameEditModal({
               className="game-edit-input game-edit-input--narrow"
               value={form.discountPercent}
               onChange={(e) => setField('discountPercent', e.target.value)}
-              disabled={saving}
+              disabled={isBusy}
             />
           </section>
 
@@ -515,21 +571,21 @@ export default function GameEditModal({
                 id="edit-online-coop"
                 checked={form.onlineCoop}
                 onChange={(value) => setField('onlineCoop', value)}
-                disabled={saving}
+                disabled={isBusy}
                 label="Online co-op"
               />
               <ToggleSwitch
                 id="edit-split-screen"
                 checked={form.splitScreen}
                 onChange={(value) => setField('splitScreen', value)}
-                disabled={saving}
+                disabled={isBusy}
                 label="Split screen"
               />
               <ToggleSwitch
                 id="edit-cross-play"
                 checked={form.crossPlay}
                 onChange={(value) => setField('crossPlay', value)}
-                disabled={saving}
+                disabled={isBusy}
                 label="Cross-play"
               />
             </div>
@@ -542,7 +598,7 @@ export default function GameEditModal({
             type="button"
             className="btn-secondary"
             onClick={onClose}
-            disabled={saving}
+            disabled={isBusy}
           >
             Cancel
           </button>
@@ -550,7 +606,7 @@ export default function GameEditModal({
             type="button"
             className="btn-primary"
             onClick={handleSave}
-            disabled={saving || !form.name.trim()}
+            disabled={isBusy || !form.name.trim()}
           >
             {saving ? 'Saving…' : 'Save'}
           </button>

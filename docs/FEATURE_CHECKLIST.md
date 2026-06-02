@@ -82,7 +82,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | ITAD critics + historical low | ✅ | Needs `ITAD_API_KEY` |
 | GFN catalog sync + badge | ✅ | Weekly + manual |
 | Player stats (official API, 28 samples) | ✅ | Skip TBA/banned |
-| Refresh single game from Steam | 📋 | P1 — not built |
+| Refresh single game from Steam | ✅ | Callable `refreshGameFromSteam` — button in GameEditModal |
 | **Steam wishlist sync** (new games) | ✅ | Callable `syncSteamWishlists` — candidates in `config/steam-wishlist-candidates` |
 | **Steam library sync** (ownership) | ✅ | Callable `syncSteamOwnership` — reconciles `owned.user0/user1` via Steam Web API |
 | "Ready to Play" filter preset | ⏸ | Use chips instead |

@@ -26,6 +26,9 @@ const syncSteamWishlistsFn = httpsCallable(functions, 'syncSteamWishlists', {
   timeout: STEAM_GAME_CALL_TIMEOUT_MS,
 });
 const vetGameDevelopersFn = httpsCallable(functions, 'vetGameDevelopers');
+const refreshGameFromSteamFn = httpsCallable(functions, 'refreshGameFromSteam', {
+  timeout: STEAM_GAME_CALL_TIMEOUT_MS,
+});
 const syncDevSourcesFn = httpsCallable(functions, 'syncDevSources', {
   timeout: SYNC_CALL_TIMEOUT_MS,
 });
@@ -75,6 +78,11 @@ export async function syncSteamWishlists(appId = 'default_app') {
 
 export async function runDevCheck(gameId, appId = 'default_app') {
   const result = await vetGameDevelopersFn({ gameId, appId });
+  return result.data;
+}
+
+export async function refreshGameFromSteam(steamAppId, appId = 'default_app') {
+  const result = await refreshGameFromSteamFn({ steamAppId, appId });
   return result.data;
 }
 
