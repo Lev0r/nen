@@ -103,8 +103,14 @@ Chronological archive of product and technical decisions. Update when shipping m
 - In-app dynamic BG toggle
 - Re-run GFN on every version refresh
 
+## Shipped (2026-06-02)
+
+| Decision | Notes |
+| :--- | :--- |
+| Steam wishlist sync + library ownership sync | Web API key + public Steam profiles (`STEAM_WEB_API_KEY`, `STEAM_ID_0/1`). Ownership: `syncSteamOwnership`. Wishlist: `syncSteamWishlists` → candidates doc + Maintenance add flow. See [steam-sync-and-data.md](./features/steam-sync-and-data.md). |
+
 ## Under discussion
 
 | Proposal | Notes |
 | :--- | :--- |
-| Steam wishlist sync + library ownership sync | Needs Web API key — see [steam-sync-and-data.md](./features/steam-sync-and-data.md) |
+| _(none)_ | |

@@ -11,11 +11,12 @@
 | Load meta info | `syncSteamLibrary` | 540s client |
 | Sync GeForce NOW | `syncGfnCatalog` | 540s client |
 | Sync Steam ownership | `syncSteamOwnership` | 120s client |
+| Sync Steam wishlists | `syncSteamWishlists` | 120s client |
 | Sync dev sources | `syncDevSources` | 540s client |
 | Re-vet all games | `revetAllGames` | 540s client |
 | Clear info errors | `clearMaintenanceInfoErrors` | 60s client |
 
-Sync labels (meta load, GFN, Steam ownership, dev sources) read from **`config/maintenance-audit`** via `useMaintenanceAudit`. GFN app IDs read from **`config/gfn-catalog`** via `useGfnCatalog`.
+Sync labels (meta load, GFN, Steam ownership, Steam wishlists, dev sources) read from **`config/maintenance-audit`** via `useMaintenanceAudit`. GFN app IDs read from **`config/gfn-catalog`** via `useGfnCatalog`. Wishlist candidates read from **`config/steam-wishlist-candidates`** via `useSteamWishlistCandidates`.
 
 **Errors section** — aggregated via `collectAppErrors()` (`appErrors.js`):
 
@@ -41,6 +42,7 @@ Sync labels (meta load, GFN, Steam ownership, dev sources) read from **`config/m
 | `maintenance-audit` | UI snapshot: metaLoad, gfn, devSources, errorsSummary, lastRevet |
 | `steam-library-sync` | Last library sync counters |
 | `steam-ownership-sync` | Last Steam ownership reconcile stats |
+| `steam-wishlist-candidates` | Wishlist titles not yet in Firestore |
 | `third-party-health` | HLTB/ITAD health summary |
 
 ## Error reporting pattern

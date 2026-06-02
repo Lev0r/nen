@@ -4,8 +4,8 @@ import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
 import GameFiltersBar from './GameFiltersBar';
 import MaintenanceModal from './MaintenanceModal';
-import { useGames, useGfnCatalog, useMaintenanceAudit, useMaintenanceErrors } from '../services/db';
-import { syncGfnCatalog, syncSteamLibrary, syncSteamOwnership, syncDevSources, revetAllGames, clearMaintenanceInfoErrors } from '../services/cloudFunctions';
+import { useGames, useGfnCatalog, useMaintenanceAudit, useMaintenanceErrors, useSteamWishlistCandidates } from '../services/db';
+import { syncGfnCatalog, syncSteamLibrary, syncSteamOwnership, syncSteamWishlists, syncDevSources, revetAllGames, clearMaintenanceInfoErrors } from '../services/cloudFunctions';
 import { getNickname } from '../utils/userConfig';
 import {
   LIBRARY_STATES,
@@ -71,6 +71,7 @@ export default function DashboardShell() {
   const { catalog: gfnCatalog } = useGfnCatalog('default_app');
   const { audit: maintenanceAudit } = useMaintenanceAudit('default_app');
   const { errorsDoc: maintenanceErrorsDoc } = useMaintenanceErrors('default_app');
+  const { candidatesDoc: steamWishlistCandidatesDoc } = useSteamWishlistCandidates('default_app');
 
   const [activeTab, setActiveTab] = useState('active');
   const [activeSubTab, setActiveSubTab] = useState('active');
@@ -80,6 +81,7 @@ export default function DashboardShell() {
   const [syncingGfn, setSyncingGfn] = useState(false);
   const [syncingMeta, setSyncingMeta] = useState(false);
   const [syncingSteamOwnership, setSyncingSteamOwnership] = useState(false);
+  const [syncingSteamWishlists, setSyncingSteamWishlists] = useState(false);
   const [syncingDevSources, setSyncingDevSources] = useState(false);
   const [reVettingGames, setReVettingGames] = useState(false);
   const [clearingInfo, setClearingInfo] = useState(false);
@@ -116,6 +118,30 @@ export default function DashboardShell() {
     const updated = ownership.gamesUpdated ?? 0;
     return `${getNickname(0)} ${user0Count} · ${getNickname(1)} ${user1Count} · ${updated} updated`;
   }, [maintenanceAudit?.steamOwnership]);
+
+  const steamWishlistSyncedAtLabel = useMemo(() => {
+    const syncedAt = maintenanceAudit?.steamWishlist?.syncedAt;
+    return formatRelativeTimeShort(syncedAt);
+  }, [maintenanceAudit?.steamWishlist?.syncedAt]);
+
+  const steamWishlistSummary = useMemo(() => {
+    const wishlist = maintenanceAudit?.steamWishlist;
+    if (!wishlist?.syncedAt) return null;
+    const user0Count = wishlist.user0WishlistCount ?? 0;
+    const user1Count = wishlist.user1WishlistCount ?? 0;
+    const candidates = wishlist.candidateCount ?? 0;
+    return `${getNickname(0)} ${user0Count} · ${getNickname(1)} ${user1Count} · ${candidates} candidates`;
+  }, [maintenanceAudit?.steamWishlist]);
+
+  const wishlistCandidates = useMemo(() => {
+    const candidates = steamWishlistCandidatesDoc?.candidates;
+    return Array.isArray(candidates) ? candidates : [];
+  }, [steamWishlistCandidatesDoc?.candidates]);
+
+  const libraryGameIds = useMemo(
+    () => new Set(games.map((game) => String(game.id))),
+    [games]
+  );
 
   const devSourcesSyncedAtLabel = useMemo(() => {
     const syncedAt = maintenanceAudit?.devSources?.syncedAt;
@@ -212,6 +238,18 @@ export default function DashboardShell() {
       appendRuntimeError(setRuntimeErrors, 'Sync Steam ownership', message);
     } finally {
       setSyncingSteamOwnership(false);
+    }
+  }
+
+  async function handleSyncSteamWishlists() {
+    setSyncingSteamWishlists(true);
+    try {
+      await syncSteamWishlists();
+    } catch (err) {
+      const message = reportError('Sync Steam wishlists', err);
+      appendRuntimeError(setRuntimeErrors, 'Sync Steam wishlists', message);
+    } finally {
+      setSyncingSteamWishlists(false);
     }
   }
 
@@ -460,17 +498,23 @@ export default function DashboardShell() {
         syncingMeta={syncingMeta}
         syncingGfn={syncingGfn}
         syncingSteamOwnership={syncingSteamOwnership}
+        syncingSteamWishlists={syncingSteamWishlists}
         syncingDevSources={syncingDevSources}
         reVettingGames={reVettingGames}
         onLoadMeta={handleLoadMeta}
         onSyncGfn={handleSyncGfn}
         onSyncSteamOwnership={handleSyncSteamOwnership}
+        onSyncSteamWishlists={handleSyncSteamWishlists}
         onSyncDevSources={handleSyncDevSources}
         onRevetAllGames={handleRevetAllGames}
         metaSyncedAtLabel={metaSyncedAtLabel}
         gfnSyncedAtLabel={gfnSyncedAtLabel}
         steamOwnershipSyncedAtLabel={steamOwnershipSyncedAtLabel}
         steamOwnershipSummary={steamOwnershipSummary}
+        steamWishlistSyncedAtLabel={steamWishlistSyncedAtLabel}
+        steamWishlistSummary={steamWishlistSummary}
+        wishlistCandidates={wishlistCandidates}
+        libraryGameIds={libraryGameIds}
         devSourcesSyncedAtLabel={devSourcesSyncedAtLabel}
         devSourceSummary={devSourceSummary}
       />

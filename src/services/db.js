@@ -13,6 +13,7 @@ export const DEV_SOURCES_META_DOC_ID = 'dev-sources-meta';
 export const GFN_CATALOG_DOC_ID = 'gfn-catalog';
 export const MAINTENANCE_AUDIT_DOC_ID = 'maintenance-audit';
 export const MAINTENANCE_ERRORS_DOC_ID = 'maintenance-errors';
+export const STEAM_WISHLIST_CANDIDATES_DOC_ID = 'steam-wishlist-candidates';
 
 function configDocRef(appId, docId) {
   return doc(db, `artifacts/${appId}/public/data/config`, docId);
@@ -85,6 +86,29 @@ export function useMaintenanceErrors(appId = 'default_app') {
   }, [appId]);
 
   return { errorsDoc, loading };
+}
+
+export function useSteamWishlistCandidates(appId = 'default_app') {
+  const [candidatesDoc, setCandidatesDoc] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const ref = configDocRef(appId, STEAM_WISHLIST_CANDIDATES_DOC_ID);
+    const unsubscribe = onSnapshot(
+      ref,
+      (snapshot) => {
+        setCandidatesDoc(snapshot.exists() ? snapshot.data() : null);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Steam wishlist candidates subscription error:', error);
+        setLoading(false);
+      }
+    );
+    return () => unsubscribe();
+  }, [appId]);
+
+  return { candidatesDoc, loading };
 }
 
 /** @deprecated Prefer useMaintenanceAudit().audit.devSources */

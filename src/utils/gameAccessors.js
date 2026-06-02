@@ -171,6 +171,7 @@ const SOURCE_LABELS = {
   vetting: 'Developer vetting',
   'steam-sync': 'Steam library sync',
   'steam-ownership': 'Steam ownership sync',
+  'steam-wishlist': 'Steam wishlist sync',
   firestore: 'Firestore',
   'game-data': 'Game data',
   action: 'Action',

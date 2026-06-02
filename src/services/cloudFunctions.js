@@ -22,6 +22,9 @@ const syncSteamLibraryFn = httpsCallable(functions, 'syncSteamLibrary', {
 const syncSteamOwnershipFn = httpsCallable(functions, 'syncSteamOwnership', {
   timeout: STEAM_GAME_CALL_TIMEOUT_MS,
 });
+const syncSteamWishlistsFn = httpsCallable(functions, 'syncSteamWishlists', {
+  timeout: STEAM_GAME_CALL_TIMEOUT_MS,
+});
 const vetGameDevelopersFn = httpsCallable(functions, 'vetGameDevelopers');
 const syncDevSourcesFn = httpsCallable(functions, 'syncDevSources', {
   timeout: SYNC_CALL_TIMEOUT_MS,
@@ -62,6 +65,11 @@ export async function syncSteamLibrary(appId = 'default_app') {
 
 export async function syncSteamOwnership(appId = 'default_app') {
   const result = await syncSteamOwnershipFn({ appId });
+  return result.data;
+}
+
+export async function syncSteamWishlists(appId = 'default_app') {
+  const result = await syncSteamWishlistsFn({ appId });
   return result.data;
 }
 

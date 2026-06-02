@@ -9,6 +9,7 @@ const { enrichNewGameThirdParty } = require('./thirdParty');
 const { syncLibrarySteam, syncSteamLibrary } = require('./steamSync');
 const { syncGfnCatalog, syncGfnCatalogScheduled } = require('./gfnSync');
 const { syncSteamOwnership } = require('./steamOwnershipSync');
+const { syncSteamWishlists } = require('./steamWishlistSync');
 const { syncDevSources, syncDevSourcesScheduled } = require('./devSourceSync');
 const {
   upsertMaintenanceError,
@@ -314,6 +315,7 @@ exports.syncSteamLibrary = syncSteamLibrary;
 exports.syncGfnCatalog = syncGfnCatalog;
 exports.syncGfnCatalogScheduled = syncGfnCatalogScheduled;
 exports.syncSteamOwnership = syncSteamOwnership;
+exports.syncSteamWishlists = syncSteamWishlists;
 exports.syncDevSources = syncDevSources;
 exports.syncDevSourcesScheduled = syncDevSourcesScheduled;
 

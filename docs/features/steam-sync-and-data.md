@@ -23,9 +23,10 @@ Store region: **`cc=ua`** (UAH, English). All Steam HTTP in Cloud Functions (`fu
 | `syncLibrarySteam` | Scheduled | Every **6 hours** — gated per-game sync |
 | `syncGfnCatalog` | Callable | GFN GraphQL → `config/gfn-catalog` |
 | `syncSteamOwnership` | Callable | Reconcile `owned.user0/user1` from Steam Web API |
+| `syncSteamWishlists` | Callable | Pull wishlists → candidate games not in Firestore |
 | `syncGfnCatalogScheduled` | Scheduled | Weekly |
 
-Client: `src/services/cloudFunctions.js` — metadata/GFN/dev sync callables use **540s** timeout; `syncSteamOwnership` uses **120s**.
+Client: `src/services/cloudFunctions.js` — metadata/GFN/dev sync callables use **540s** timeout; `syncSteamOwnership` and `syncSteamWishlists` use **120s**.
 
 ## Third-party
 
@@ -47,7 +48,7 @@ UI checks **global catalog** at render time — not per-game `geforceNowReady` f
 
 ## Steam Web API foundation (implemented)
 
-Low-level client in `functions/steamWebApi.js` — used by upcoming ownership/wishlist sync callables (Chunks 3–4).
+Low-level client in `functions/steamWebApi.js` — used by ownership and wishlist sync callables.
 
 | Function | Steam endpoint | Returns |
 | :--- | :--- | :--- |
@@ -83,13 +84,19 @@ Games in Firestore but not in a user's Steam library get that user's owned flag 
 
 Maintenance UI: **Sync Steam ownership** button (`MaintenanceModal.jsx`).
 
-## Planned (user request)
+## Steam wishlist sync — implemented
 
-### Steam wishlist sync
+Callable **`syncSteamWishlists`** pulls each user's public Steam wishlist via `getWishlist`, compares against Firestore game doc IDs, and stores **candidates** (wishlisted titles not yet in the library).
 
-- Pull each user's public Steam wishlist via Web API (`getWishlist`)
-- Surface **new** wishlist titles not yet in Firestore — candidate games to add (lifecycle `active` or dedicated flow)
-- Callable `syncSteamWishlists` — not yet implemented
+| Write target | Fields |
+| :--- | :--- |
+| `config/steam-wishlist-candidates` | `syncedAt`, `candidates[]`, `user0WishlistCount`, `user1WishlistCount`, `candidateCount`, `errors` |
+| `config/maintenance-audit` | `steamWishlist` snapshot for Maintenance UI |
+| `config/maintenance-errors` | API failures (`source: steam-wishlist`) |
+
+Each candidate: `{ appId, onWishlistUser0, onWishlistUser1 }`. Partial sync when only one user's wishlist is available.
+
+Maintenance UI: **Sync Steam wishlists** button + candidate list with per-row **Add** (reuses `previewSteamGame` → co-op confirm → `addGameFromSteam`). Duplicate guard if a game was added since the last sync.
 
 ## See also
 

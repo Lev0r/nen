@@ -1,19 +1,36 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { formatErrorDateTime } from '../utils/formatDuration';
 import {
   groupAppErrors,
   formatErrorLine,
   countErrorsBySeverity,
 } from '../utils/appErrors';
+import { addGameFromSteam, previewSteamGame } from '../services/cloudFunctions';
+import { getNickname } from '../utils/userConfig';
+import { reportError } from '../utils/errorReport';
+
+const DUPLICATE_MESSAGE = 'This game is already in your library.';
+
+function steamStoreUrl(appId) {
+  return `https://store.steampowered.com/app/${appId}/`;
+}
 
 function isSyncBusy({
   syncingMeta,
   syncingGfn,
   syncingSteamOwnership,
+  syncingSteamWishlists,
   syncingDevSources,
   reVettingGames,
 }) {
-  return syncingMeta || syncingGfn || syncingSteamOwnership || syncingDevSources || reVettingGames;
+  return (
+    syncingMeta ||
+    syncingGfn ||
+    syncingSteamOwnership ||
+    syncingSteamWishlists ||
+    syncingDevSources ||
+    reVettingGames
+  );
 }
 
 export default function MaintenanceModal({
@@ -28,20 +45,38 @@ export default function MaintenanceModal({
   syncingMeta,
   syncingGfn,
   syncingSteamOwnership = false,
+  syncingSteamWishlists = false,
   syncingDevSources = false,
   reVettingGames = false,
   onLoadMeta,
   onSyncGfn,
   onSyncSteamOwnership,
+  onSyncSteamWishlists,
   onSyncDevSources,
   onRevetAllGames,
   metaSyncedAtLabel,
   gfnSyncedAtLabel,
   steamOwnershipSyncedAtLabel,
   steamOwnershipSummary,
+  steamWishlistSyncedAtLabel,
+  steamWishlistSummary,
+  wishlistCandidates = [],
+  libraryGameIds = new Set(),
   devSourcesSyncedAtLabel,
   devSourceSummary,
 }) {
+  const [addingAppId, setAddingAppId] = useState(null);
+  const [addErrorByAppId, setAddErrorByAppId] = useState({});
+  const [coopConfirm, setCoopConfirm] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setAddingAppId(null);
+      setAddErrorByAppId({});
+      setCoopConfirm(null);
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (event) => {
@@ -58,9 +93,106 @@ export default function MaintenanceModal({
     syncingMeta,
     syncingGfn,
     syncingSteamOwnership,
+    syncingSteamWishlists,
     syncingDevSources,
     reVettingGames,
   });
+
+  const isDuplicateAppId = (appId) => libraryGameIds.has(String(appId));
+
+  const clearAddError = (appId) => {
+    setAddErrorByAppId((prev) => {
+      if (!prev[appId]) return prev;
+      const next = { ...prev };
+      delete next[appId];
+      return next;
+    });
+  };
+
+  const persistWishlistCandidate = async (previewData, appId) => {
+    if (isDuplicateAppId(appId)) {
+      setAddErrorByAppId((prev) => ({ ...prev, [appId]: DUPLICATE_MESSAGE }));
+      return;
+    }
+
+    setAddingAppId(appId);
+    clearAddError(appId);
+    try {
+      const result = await addGameFromSteam(steamStoreUrl(appId), 'default_app', {
+        preloadedGame: previewData.game,
+        skipScrape: true,
+      });
+      if (result?.vettingError) {
+        setAddErrorByAppId((prev) => ({
+          ...prev,
+          [appId]: `Game added, but developer source check failed: ${result.vettingError}`,
+        }));
+      }
+      setCoopConfirm(null);
+    } catch (err) {
+      if (err?.code === 'functions/already-exists') {
+        setAddErrorByAppId((prev) => ({ ...prev, [appId]: DUPLICATE_MESSAGE }));
+      } else {
+        const message = reportError('Add wishlist game', err);
+        setAddErrorByAppId((prev) => ({ ...prev, [appId]: message }));
+      }
+    } finally {
+      setAddingAppId(null);
+    }
+  };
+
+  const handleAddWishlistCandidate = async (candidate) => {
+    const appId = String(candidate.appId);
+    if (addingAppId) return;
+
+    if (isDuplicateAppId(appId)) {
+      setAddErrorByAppId((prev) => ({ ...prev, [appId]: DUPLICATE_MESSAGE }));
+      return;
+    }
+
+    setAddingAppId(appId);
+    clearAddError(appId);
+    setCoopConfirm(null);
+    try {
+      const previewData = await previewSteamGame(steamStoreUrl(appId));
+      if (isDuplicateAppId(previewData.appId)) {
+        setAddErrorByAppId((prev) => ({ ...prev, [appId]: DUPLICATE_MESSAGE }));
+        return;
+      }
+
+      if (previewData.hasCoopCategory) {
+        await persistWishlistCandidate(previewData, appId);
+        return;
+      }
+
+      setCoopConfirm({ appId, preview: previewData });
+    } catch (err) {
+      if (err?.code === 'functions/already-exists') {
+        setAddErrorByAppId((prev) => ({ ...prev, [appId]: DUPLICATE_MESSAGE }));
+      } else {
+        const message = reportError('Steam preview', err);
+        setAddErrorByAppId((prev) => ({ ...prev, [appId]: message }));
+      }
+    } finally {
+      setAddingAppId((current) => (current === appId ? null : current));
+    }
+  };
+
+  const handleCoopConfirmNo = () => {
+    setCoopConfirm(null);
+  };
+
+  const handleCoopConfirmYes = async () => {
+    if (!coopConfirm) return;
+    await persistWishlistCandidate(coopConfirm.preview, coopConfirm.appId);
+  };
+
+  const formatWishlistUsers = (candidate) => {
+    const users = [];
+    if (candidate.onWishlistUser0) users.push(getNickname(0));
+    if (candidate.onWishlistUser1) users.push(getNickname(1));
+    return users.length > 0 ? users.join(', ') : '—';
+  };
 
   if (!isOpen) return null;
 
@@ -120,6 +252,24 @@ export default function MaintenanceModal({
                   <span className="maintenance-action-meta">
                     Last sync {steamOwnershipSyncedAtLabel}
                     {steamOwnershipSummary ? ` · ${steamOwnershipSummary}` : ''}
+                  </span>
+                )}
+              </button>
+            )}
+            {onSyncSteamWishlists && (
+              <button
+                type="button"
+                className="btn-secondary maintenance-action-btn"
+                onClick={onSyncSteamWishlists}
+                disabled={syncBusy || clearingInfo}
+              >
+                <span className="maintenance-action-label">
+                  {syncingSteamWishlists ? 'Syncing…' : 'Sync Steam wishlists'}
+                </span>
+                {steamWishlistSyncedAtLabel && !syncingSteamWishlists && (
+                  <span className="maintenance-action-meta">
+                    Last sync {steamWishlistSyncedAtLabel}
+                    {steamWishlistSummary ? ` · ${steamWishlistSummary}` : ''}
                   </span>
                 )}
               </button>
@@ -185,6 +335,81 @@ export default function MaintenanceModal({
                   No curator source data yet — run Sync dev sources.
                 </p>
               )}
+            </div>
+          )}
+
+          {wishlistCandidates.length > 0 && (
+            <div className="maintenance-wishlist-candidates">
+              <p className="maintenance-wishlist-candidates-title">
+                Wishlist candidates ({wishlistCandidates.length})
+              </p>
+              <ul className="maintenance-wishlist-list">
+                {wishlistCandidates.map((candidate) => {
+                  const appId = String(candidate.appId);
+                  const inLibrary = isDuplicateAppId(appId);
+                  const rowError = addErrorByAppId[appId];
+                  const isAdding = addingAppId === appId;
+                  const isCoopConfirm = coopConfirm?.appId === appId;
+
+                  return (
+                    <li key={appId} className="maintenance-wishlist-item">
+                      <div className="maintenance-wishlist-item-main">
+                        <a
+                          className="maintenance-wishlist-appid"
+                          href={steamStoreUrl(appId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          App {appId}
+                        </a>
+                        <span className="maintenance-wishlist-users">
+                          {formatWishlistUsers(candidate)}
+                        </span>
+                        {inLibrary ? (
+                          <span className="maintenance-wishlist-status">In library</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-secondary maintenance-wishlist-add-btn"
+                            onClick={() => handleAddWishlistCandidate(candidate)}
+                            disabled={syncBusy || clearingInfo || Boolean(addingAppId)}
+                          >
+                            {isAdding ? 'Adding…' : 'Add'}
+                          </button>
+                        )}
+                      </div>
+                      {isCoopConfirm && (
+                        <div className="maintenance-wishlist-coop-confirm">
+                          <p className="maintenance-wishlist-coop-text">
+                            {coopConfirm.preview.name} has no co-op tags. Add anyway?
+                          </p>
+                          <div className="maintenance-wishlist-coop-actions">
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={handleCoopConfirmNo}
+                              disabled={Boolean(addingAppId)}
+                            >
+                              No
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              onClick={handleCoopConfirmYes}
+                              disabled={Boolean(addingAppId)}
+                            >
+                              {addingAppId ? 'Adding…' : 'Yes, add'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {rowError && (
+                        <p className="maintenance-wishlist-error">{rowError}</p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
         </section>

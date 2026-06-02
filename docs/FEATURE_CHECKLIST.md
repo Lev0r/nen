@@ -83,7 +83,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | GFN catalog sync + badge | ✅ | Weekly + manual |
 | Player stats (official API, 28 samples) | ✅ | Skip TBA/banned |
 | Refresh single game from Steam | 📋 | P1 — not built |
-| **Steam wishlist sync** (new games) | 📋 | **User request** — Web API key + public profiles |
+| **Steam wishlist sync** (new games) | ✅ | Callable `syncSteamWishlists` — candidates in `config/steam-wishlist-candidates` |
 | **Steam library sync** (ownership) | ✅ | Callable `syncSteamOwnership` — reconciles `owned.user0/user1` via Steam Web API |
 | "Ready to Play" filter preset | ⏸ | Use chips instead |
 
@@ -247,7 +247,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - [x] Edit modal scrollable; hype picker readable; `focusRating` scroll on rating click
 - [x] Footer notes button rectangular with separator; header price row + meta finished rating
 - [x] Steam library ownership sync (`syncSteamOwnership`)
-- [ ] Steam wishlist sync (when implemented)
+- [x] Steam wishlist sync (`syncSteamWishlists`)
 
 ---
 
