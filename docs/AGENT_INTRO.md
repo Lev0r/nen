@@ -51,7 +51,7 @@ nen/
 │   ├── devSourceSync.js     # Weekly NE GRAI + curator sync
 │   ├── gfnSync.js           # GFN catalog
 │   ├── hltb.js / itad.js    # Third-party enrich
-│   └── data/                # Bundled vetting JSON (deployed with functions)
+│   └── data/                # Local-only CLI export (gitignored); prod reads config/dev-sources-*
 ├── scripts/                 # Admin CLI (import, revet, sync sources)
 └── src/
     ├── components/          # DashboardShell, GameCard, modals, filters
@@ -128,4 +128,4 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 
 ## Do not commit
 
-`.firebase/`, `.env.local`, `functions/.env`, `.tmp-ne-grai/`
+`.firebase/`, `.env.local`, `functions/.env`, `.tmp-ne-grai/`, `functions/data/`

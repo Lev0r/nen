@@ -387,7 +387,7 @@ These files are **not used in production**. Production reads Firestore `config/d
 
 You can delete the whole `functions/data/` folder locally; re-create with `npm run sync-dev-sources` when you need offline tests.
 
-**Repo note:** JSON snapshots may be committed for convenience. They can be removed from git and added to `.gitignore` if you only seed via `--to-firestore`.
+**Repo note:** `functions/data/` is gitignored (CLI export artifacts). Seed production via `--to-firestore`; local JSON is for offline dev and smoke tests only.
 
 ---
 
