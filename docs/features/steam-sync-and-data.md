@@ -44,19 +44,42 @@ UI checks **global catalog** at render time — not per-game `geforceNowReady` f
 
 ~700 writes/day @ 147 games. Timeout risk grows ~400–500 games — may need batching.
 
+## Steam Web API foundation (implemented)
+
+Low-level client in `functions/steamWebApi.js` — used by upcoming ownership/wishlist sync callables (Chunks 3–4).
+
+| Function | Steam endpoint | Returns |
+| :--- | :--- | :--- |
+| `getOwnedGames(steamId)` | `IPlayerService/GetOwnedGames/v1` | `{ appIds: number[], error }` |
+| `getWishlist(steamId)` | `IPlayerService/GetWishlist/v1` | `{ appIds: number[], error }` |
+| `getConfiguredSteamIds()` | — | `{ user0, user1 }` from env |
+
+**Env (functions only — see [`OPS.md`](../OPS.md)):**
+
+| Variable | Purpose |
+| :--- | :--- |
+| `STEAM_WEB_API_KEY` | [Steam Web API key](https://steamcommunity.com/dev/apikey) |
+| `STEAM_ID_0`, `STEAM_ID_1` | 64-bit Steam IDs for User 0 / User 1 |
+
+**Requirements:** Each Steam profile must be **public** and **game details** must be visible — private profiles return structured errors, not app ID lists.
+
+Calls use a **300ms** delay between requests (same as `steamSync.js`) to stay rate-limit friendly.
+
+Errors use structured `{ appIds: null, error: '...' }` — missing key, invalid Steam ID, HTTP failure, or private profile.
+
 ## Planned (user request)
 
 ### Steam wishlist sync
 
-- Pull each user's public Steam wishlist via Web API
+- Pull each user's public Steam wishlist via Web API (`getWishlist`)
 - Surface **new** wishlist titles not yet in Firestore — candidate games to add (lifecycle `active` or dedicated flow)
-- Requires Steam Web API key + public profile URLs/IDs per user
+- Callable `syncSteamWishlists` — not yet implemented
 
 ### Steam library sync (ownership)
 
-- Reconcile `owned.user0` / `owned.user1` against each user's Steam **owned games** library
+- Reconcile `owned.user0` / `owned.user1` against each user's Steam **owned games** library (`getOwnedGames`)
 - Distinct from existing 6h **metadata** sync (`syncLibrarySteam`) — this updates ownership flags, not scrape fields
-- Same API key / profile prerequisites as wishlist sync
+- Callable `syncSteamOwnership` — not yet implemented
 
 ## See also
 

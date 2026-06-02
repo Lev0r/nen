@@ -35,6 +35,8 @@
 | `GFN_VPC_ID` | Default `NP-WAW-01` |
 | `ITAD_API_KEY` | Optional ITAD enrichment |
 | `ITAD_COUNTRY` | Default `UA` |
+| `STEAM_WEB_API_KEY` | Steam Web API — owned games + wishlist sync |
+| `STEAM_ID_0`, `STEAM_ID_1` | 64-bit Steam IDs for User 0 / User 1 |
 
 **Do not commit:** `.env.local`, `functions/.env`, `.firebase/`
 
