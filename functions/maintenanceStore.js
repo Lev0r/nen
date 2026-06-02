@@ -7,6 +7,7 @@ const {
   DEFAULT_APP_ID,
   GFN_CATALOG_DOC_ID,
   STEAM_LIBRARY_SYNC_DOC_ID,
+  STEAM_OWNERSHIP_SYNC_DOC_ID,
   MAINTENANCE_ERRORS_DOC_ID,
   MAINTENANCE_AUDIT_DOC_ID,
   configDocPath,
@@ -244,9 +245,10 @@ function buildDevSourcesAuditSection(meta) {
 }
 
 async function rebuildMaintenanceAudit(db, appId = DEFAULT_APP_ID, extra = {}) {
-  const [gfnSnap, syncSnap, metaSnap, errorsSnap, auditSnap] = await Promise.all([
+  const [gfnSnap, syncSnap, ownershipSnap, metaSnap, errorsSnap, auditSnap] = await Promise.all([
     db.doc(configDocPath(appId, GFN_CATALOG_DOC_ID)).get(),
     db.doc(configDocPath(appId, STEAM_LIBRARY_SYNC_DOC_ID)).get(),
+    db.doc(configDocPath(appId, STEAM_OWNERSHIP_SYNC_DOC_ID)).get(),
     db.doc(configDocPath(appId, META_DOC_ID)).get(),
     db.doc(configDocPath(appId, MAINTENANCE_ERRORS_DOC_ID)).get(),
     db.doc(configDocPath(appId, MAINTENANCE_AUDIT_DOC_ID)).get(),
@@ -254,6 +256,7 @@ async function rebuildMaintenanceAudit(db, appId = DEFAULT_APP_ID, extra = {}) {
 
   const gfn = gfnSnap.data() || {};
   const sync = syncSnap.data() || {};
+  const ownership = ownershipSnap.data() || {};
   const meta = metaSnap.data() || {};
   const errorEntries = listMaintenanceErrors(errorsSnap.data());
   const prevAudit = auditSnap.data() || {};
@@ -281,6 +284,14 @@ async function rebuildMaintenanceAudit(db, appId = DEFAULT_APP_ID, extra = {}) {
       syncedAt: gfn.syncedAt ?? null,
       gameCount: gfn.gameCount ?? 0,
       vpcId: gfn.vpcId ?? null,
+    },
+    steamOwnership: {
+      syncedAt: ownership.syncedAt ?? null,
+      user0OwnedCount: ownership.user0OwnedCount ?? 0,
+      user1OwnedCount: ownership.user1OwnedCount ?? 0,
+      gamesUpdated: ownership.gamesUpdated ?? 0,
+      gamesChecked: ownership.gamesChecked ?? 0,
+      errors: ownership.errors ?? 0,
     },
     devSources: buildDevSourcesAuditSection(meta),
     errorsSummary: countErrorsBySeverity(errorEntries),

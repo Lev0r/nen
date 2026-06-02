@@ -170,6 +170,7 @@ const SOURCE_LABELS = {
   itad: 'IsThereAnyDeal',
   vetting: 'Developer vetting',
   'steam-sync': 'Steam library sync',
+  'steam-ownership': 'Steam ownership sync',
   firestore: 'Firestore',
   'game-data': 'Game data',
   action: 'Action',

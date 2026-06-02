@@ -5,7 +5,7 @@ import AddGameModal from './AddGameModal';
 import GameFiltersBar from './GameFiltersBar';
 import MaintenanceModal from './MaintenanceModal';
 import { useGames, useGfnCatalog, useMaintenanceAudit, useMaintenanceErrors } from '../services/db';
-import { syncGfnCatalog, syncSteamLibrary, syncDevSources, revetAllGames, clearMaintenanceInfoErrors } from '../services/cloudFunctions';
+import { syncGfnCatalog, syncSteamLibrary, syncSteamOwnership, syncDevSources, revetAllGames, clearMaintenanceInfoErrors } from '../services/cloudFunctions';
 import { getNickname } from '../utils/userConfig';
 import {
   LIBRARY_STATES,
@@ -79,6 +79,7 @@ export default function DashboardShell() {
   const [gameFilters, setGameFilters] = useState(DEFAULT_GAME_FILTERS);
   const [syncingGfn, setSyncingGfn] = useState(false);
   const [syncingMeta, setSyncingMeta] = useState(false);
+  const [syncingSteamOwnership, setSyncingSteamOwnership] = useState(false);
   const [syncingDevSources, setSyncingDevSources] = useState(false);
   const [reVettingGames, setReVettingGames] = useState(false);
   const [clearingInfo, setClearingInfo] = useState(false);
@@ -101,6 +102,20 @@ export default function DashboardShell() {
     const syncedAt = maintenanceAudit?.metaLoad?.syncedAt;
     return formatRelativeTimeShort(syncedAt);
   }, [maintenanceAudit?.metaLoad?.syncedAt]);
+
+  const steamOwnershipSyncedAtLabel = useMemo(() => {
+    const syncedAt = maintenanceAudit?.steamOwnership?.syncedAt;
+    return formatRelativeTimeShort(syncedAt);
+  }, [maintenanceAudit?.steamOwnership?.syncedAt]);
+
+  const steamOwnershipSummary = useMemo(() => {
+    const ownership = maintenanceAudit?.steamOwnership;
+    if (!ownership?.syncedAt) return null;
+    const user0Count = ownership.user0OwnedCount ?? 0;
+    const user1Count = ownership.user1OwnedCount ?? 0;
+    const updated = ownership.gamesUpdated ?? 0;
+    return `${getNickname(0)} ${user0Count} · ${getNickname(1)} ${user1Count} · ${updated} updated`;
+  }, [maintenanceAudit?.steamOwnership]);
 
   const devSourcesSyncedAtLabel = useMemo(() => {
     const syncedAt = maintenanceAudit?.devSources?.syncedAt;
@@ -185,6 +200,18 @@ export default function DashboardShell() {
       appendRuntimeError(setRuntimeErrors, 'Load meta info', message);
     } finally {
       setSyncingMeta(false);
+    }
+  }
+
+  async function handleSyncSteamOwnership() {
+    setSyncingSteamOwnership(true);
+    try {
+      await syncSteamOwnership();
+    } catch (err) {
+      const message = reportError('Sync Steam ownership', err);
+      appendRuntimeError(setRuntimeErrors, 'Sync Steam ownership', message);
+    } finally {
+      setSyncingSteamOwnership(false);
     }
   }
 
@@ -432,14 +459,18 @@ export default function DashboardShell() {
         clearingInfo={clearingInfo}
         syncingMeta={syncingMeta}
         syncingGfn={syncingGfn}
+        syncingSteamOwnership={syncingSteamOwnership}
         syncingDevSources={syncingDevSources}
         reVettingGames={reVettingGames}
         onLoadMeta={handleLoadMeta}
         onSyncGfn={handleSyncGfn}
+        onSyncSteamOwnership={handleSyncSteamOwnership}
         onSyncDevSources={handleSyncDevSources}
         onRevetAllGames={handleRevetAllGames}
         metaSyncedAtLabel={metaSyncedAtLabel}
         gfnSyncedAtLabel={gfnSyncedAtLabel}
+        steamOwnershipSyncedAtLabel={steamOwnershipSyncedAtLabel}
+        steamOwnershipSummary={steamOwnershipSummary}
         devSourcesSyncedAtLabel={devSourcesSyncedAtLabel}
         devSourceSummary={devSourceSummary}
       />

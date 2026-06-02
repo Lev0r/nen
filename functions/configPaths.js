@@ -8,6 +8,7 @@ const DEFAULT_APP_ID = 'default_app';
 const DEV_BG_CHECK_DOC_ID = 'dev-bg-check';
 const GFN_CATALOG_DOC_ID = 'gfn-catalog';
 const STEAM_LIBRARY_SYNC_DOC_ID = 'steam-library-sync';
+const STEAM_OWNERSHIP_SYNC_DOC_ID = 'steam-ownership-sync';
 const THIRD_PARTY_HEALTH_DOC_ID = 'third-party-health';
 const MAINTENANCE_ERRORS_DOC_ID = 'maintenance-errors';
 const MAINTENANCE_AUDIT_DOC_ID = 'maintenance-audit';
@@ -25,6 +26,7 @@ module.exports = {
   DEV_BG_CHECK_DOC_ID,
   GFN_CATALOG_DOC_ID,
   STEAM_LIBRARY_SYNC_DOC_ID,
+  STEAM_OWNERSHIP_SYNC_DOC_ID,
   THIRD_PARTY_HEALTH_DOC_ID,
   MAINTENANCE_ERRORS_DOC_ID,
   MAINTENANCE_AUDIT_DOC_ID,

@@ -6,8 +6,14 @@ import {
   countErrorsBySeverity,
 } from '../utils/appErrors';
 
-function isSyncBusy({ syncingMeta, syncingGfn, syncingDevSources, reVettingGames }) {
-  return syncingMeta || syncingGfn || syncingDevSources || reVettingGames;
+function isSyncBusy({
+  syncingMeta,
+  syncingGfn,
+  syncingSteamOwnership,
+  syncingDevSources,
+  reVettingGames,
+}) {
+  return syncingMeta || syncingGfn || syncingSteamOwnership || syncingDevSources || reVettingGames;
 }
 
 export default function MaintenanceModal({
@@ -21,14 +27,18 @@ export default function MaintenanceModal({
   clearingInfo,
   syncingMeta,
   syncingGfn,
+  syncingSteamOwnership = false,
   syncingDevSources = false,
   reVettingGames = false,
   onLoadMeta,
   onSyncGfn,
+  onSyncSteamOwnership,
   onSyncDevSources,
   onRevetAllGames,
   metaSyncedAtLabel,
   gfnSyncedAtLabel,
+  steamOwnershipSyncedAtLabel,
+  steamOwnershipSummary,
   devSourcesSyncedAtLabel,
   devSourceSummary,
 }) {
@@ -44,7 +54,13 @@ export default function MaintenanceModal({
   const groupedErrors = useMemo(() => groupAppErrors(errors), [errors]);
   const severityCounts = useMemo(() => countErrorsBySeverity(errors), [errors]);
   const hasActionableErrors = severityCounts.error + severityCounts.warning > 0;
-  const syncBusy = isSyncBusy({ syncingMeta, syncingGfn, syncingDevSources, reVettingGames });
+  const syncBusy = isSyncBusy({
+    syncingMeta,
+    syncingGfn,
+    syncingSteamOwnership,
+    syncingDevSources,
+    reVettingGames,
+  });
 
   if (!isOpen) return null;
 
@@ -90,6 +106,24 @@ export default function MaintenanceModal({
                 <span className="maintenance-action-meta">Last sync {gfnSyncedAtLabel}</span>
               )}
             </button>
+            {onSyncSteamOwnership && (
+              <button
+                type="button"
+                className="btn-secondary maintenance-action-btn"
+                onClick={onSyncSteamOwnership}
+                disabled={syncBusy || clearingInfo}
+              >
+                <span className="maintenance-action-label">
+                  {syncingSteamOwnership ? 'Syncing…' : 'Sync Steam ownership'}
+                </span>
+                {steamOwnershipSyncedAtLabel && !syncingSteamOwnership && (
+                  <span className="maintenance-action-meta">
+                    Last sync {steamOwnershipSyncedAtLabel}
+                    {steamOwnershipSummary ? ` · ${steamOwnershipSummary}` : ''}
+                  </span>
+                )}
+              </button>
+            )}
             {onSyncDevSources && (
               <button
                 type="button"

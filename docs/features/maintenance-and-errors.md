@@ -10,11 +10,12 @@
 | :--- | :--- | :--- |
 | Load meta info | `syncSteamLibrary` | 540s client |
 | Sync GeForce NOW | `syncGfnCatalog` | 540s client |
+| Sync Steam ownership | `syncSteamOwnership` | 120s client |
 | Sync dev sources | `syncDevSources` | 540s client |
 | Re-vet all games | `revetAllGames` | 540s client |
 | Clear info errors | `clearMaintenanceInfoErrors` | 60s client |
 
-Sync labels (meta load, GFN, dev sources) read from **`config/maintenance-audit`** via `useMaintenanceAudit`. GFN app IDs read from **`config/gfn-catalog`** via `useGfnCatalog`.
+Sync labels (meta load, GFN, Steam ownership, dev sources) read from **`config/maintenance-audit`** via `useMaintenanceAudit`. GFN app IDs read from **`config/gfn-catalog`** via `useGfnCatalog`.
 
 **Errors section** — aggregated via `collectAppErrors()` (`appErrors.js`):
 
@@ -39,6 +40,7 @@ Sync labels (meta load, GFN, dev sources) read from **`config/maintenance-audit`
 | `maintenance-errors` | `{ entries: { [entryId]: ErrorEntry } }` |
 | `maintenance-audit` | UI snapshot: metaLoad, gfn, devSources, errorsSummary, lastRevet |
 | `steam-library-sync` | Last library sync counters |
+| `steam-ownership-sync` | Last Steam ownership reconcile stats |
 | `third-party-health` | HLTB/ITAD health summary |
 
 ## Error reporting pattern

@@ -84,7 +84,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Player stats (official API, 28 samples) | ✅ | Skip TBA/banned |
 | Refresh single game from Steam | 📋 | P1 — not built |
 | **Steam wishlist sync** (new games) | 📋 | **User request** — Web API key + public profiles |
-| **Steam library sync** (ownership) | 📋 | **User request** — reconcile `owned.user0/user1` from Steam libraries |
+| **Steam library sync** (ownership) | ✅ | Callable `syncSteamOwnership` — reconciles `owned.user0/user1` via Steam Web API |
 | "Ready to Play" filter preset | ⏸ | Use chips instead |
 
 ---
@@ -246,7 +246,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - [x] Dynamic gradient background visible; card thumbnails full color
 - [x] Edit modal scrollable; hype picker readable; `focusRating` scroll on rating click
 - [x] Footer notes button rectangular with separator; header price row + meta finished rating
-- [ ] Wishlist / library ownership sync (when implemented)
+- [x] Steam library ownership sync (`syncSteamOwnership`)
+- [ ] Steam wishlist sync (when implemented)
 
 ---
 

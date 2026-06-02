@@ -22,9 +22,10 @@ Store region: **`cc=ua`** (UAH, English). All Steam HTTP in Cloud Functions (`fu
 | `syncSteamLibrary` | Callable | Manual full sync ("Load meta info") |
 | `syncLibrarySteam` | Scheduled | Every **6 hours** — gated per-game sync |
 | `syncGfnCatalog` | Callable | GFN GraphQL → `config/gfn-catalog` |
+| `syncSteamOwnership` | Callable | Reconcile `owned.user0/user1` from Steam Web API |
 | `syncGfnCatalogScheduled` | Scheduled | Weekly |
 
-Client: `src/services/cloudFunctions.js` — sync callables use **540s** timeout.
+Client: `src/services/cloudFunctions.js` — metadata/GFN/dev sync callables use **540s** timeout; `syncSteamOwnership` uses **120s**.
 
 ## Third-party
 
@@ -67,6 +68,21 @@ Calls use a **300ms** delay between requests (same as `steamSync.js`) to stay ra
 
 Errors use structured `{ appIds: null, error: '...' }` — missing key, invalid Steam ID, HTTP failure, or private profile.
 
+## Steam library sync (ownership) — implemented
+
+Callable **`syncSteamOwnership`** reconciles `owned.user0` / `owned.user1` on every game doc against each user's Steam **owned games** list (`getOwnedGames`). Distinct from the 6h **metadata** sync (`syncLibrarySteam` / `syncSteamLibrary`).
+
+| Write target | Fields |
+| :--- | :--- |
+| Game docs | `owned.user0`, `owned.user1` |
+| `config/steam-ownership-sync` | `syncedAt`, `user0OwnedCount`, `user1OwnedCount`, `gamesUpdated`, `gamesChecked`, `errors` |
+| `config/maintenance-audit` | `steamOwnership` snapshot for Maintenance UI |
+| `config/maintenance-errors` | API / per-game update failures (`source: steam-ownership`) |
+
+Games in Firestore but not in a user's Steam library get that user's owned flag set to **false** (full reconcile when both libraries fetch successfully). Partial reconcile when only one user's library is available.
+
+Maintenance UI: **Sync Steam ownership** button (`MaintenanceModal.jsx`).
+
 ## Planned (user request)
 
 ### Steam wishlist sync
@@ -74,12 +90,6 @@ Errors use structured `{ appIds: null, error: '...' }` — missing key, invalid 
 - Pull each user's public Steam wishlist via Web API (`getWishlist`)
 - Surface **new** wishlist titles not yet in Firestore — candidate games to add (lifecycle `active` or dedicated flow)
 - Callable `syncSteamWishlists` — not yet implemented
-
-### Steam library sync (ownership)
-
-- Reconcile `owned.user0` / `owned.user1` against each user's Steam **owned games** library (`getOwnedGames`)
-- Distinct from existing 6h **metadata** sync (`syncLibrarySteam`) — this updates ownership flags, not scrape fields
-- Callable `syncSteamOwnership` — not yet implemented
 
 ## See also
 
