@@ -130,7 +130,7 @@ export default function DashboardShell() {
     const user0Count = wishlist.user0WishlistCount ?? 0;
     const user1Count = wishlist.user1WishlistCount ?? 0;
     const candidates = wishlist.candidateCount ?? 0;
-    return `${getNickname(0)} ${user0Count} · ${getNickname(1)} ${user1Count} · ${candidates} candidates`;
+    return `${getNickname(0)} ${user0Count} · ${getNickname(1)} ${user1Count} · ${candidates} co-op candidates`;
   }, [maintenanceAudit?.steamWishlist]);
 
   const wishlistCandidates = useMemo(() => {

@@ -2808,14 +2808,14 @@ button {
   flex-wrap: wrap;
 }
 
-.maintenance-wishlist-appid {
+.maintenance-wishlist-link {
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--accent-mint);
   text-decoration: none;
 }
 
-.maintenance-wishlist-appid:hover {
+.maintenance-wishlist-link:hover {
   text-decoration: underline;
 }
 

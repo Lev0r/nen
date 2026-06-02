@@ -83,7 +83,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | GFN catalog sync + badge | ✅ | Weekly + manual |
 | Player stats (official API, 28 samples) | ✅ | Skip TBA/banned |
 | Refresh single game from Steam | ✅ | Callable `refreshGameFromSteam` — button in GameEditModal |
-| **Steam wishlist sync** (new games) | ✅ | Callable `syncSteamWishlists` — candidates in `config/steam-wishlist-candidates` |
+| **Steam wishlist sync** (new games) | ✅ | Callable `syncSteamWishlists` — co-op-only candidates with store names in Maintenance |
 | **Steam library sync** (ownership) | ✅ | Callable `syncSteamOwnership` — reconciles `owned.user0/user1` via Steam Web API |
 | "Ready to Play" filter preset | ⏸ | Use chips instead |
 

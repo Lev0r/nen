@@ -12,6 +12,13 @@ const {
   clearMaintenanceError,
 } = require('./maintenanceStore');
 const { getConfiguredSteamIds, getWishlist } = require('./steamWebApi');
+const { fetchStoreCoopAndName } = require('./steam');
+
+const STEAM_STORE_DELAY_MS = 300;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function getAllowedEmails() {
   return [process.env.ALLOWED_EMAIL_0, process.env.ALLOWED_EMAIL_1].filter(Boolean);
@@ -65,6 +72,9 @@ async function writeSteamWishlistCandidates(db, appId, payload) {
       candidates: payload.candidates,
       user0WishlistCount: payload.user0WishlistCount,
       user1WishlistCount: payload.user1WishlistCount,
+      preFilterCandidateCount: payload.preFilterCandidateCount,
+      nonCoopSkipped: payload.nonCoopSkipped,
+      scrapeFailed: payload.scrapeFailed,
       candidateCount: payload.candidateCount,
       errors: payload.errors,
     },
@@ -96,6 +106,36 @@ function buildCandidates(user0Set, user1Set, libraryIds) {
 
   candidates.sort((a, b) => a.appId - b.appId);
   return candidates;
+}
+
+async function filterCoopWishlistCandidates(candidates) {
+  const filtered = [];
+  let nonCoopSkipped = 0;
+  let scrapeFailed = 0;
+
+  for (let i = 0; i < candidates.length; i += 1) {
+    if (i > 0) {
+      await sleep(STEAM_STORE_DELAY_MS);
+    }
+
+    const candidate = candidates[i];
+    const meta = await fetchStoreCoopAndName(candidate.appId);
+    if (!meta) {
+      scrapeFailed += 1;
+      continue;
+    }
+    if (!meta.hasCoop) {
+      nonCoopSkipped += 1;
+      continue;
+    }
+
+    filtered.push({
+      ...candidate,
+      name: meta.name,
+    });
+  }
+
+  return { filtered, nonCoopSkipped, scrapeFailed };
 }
 
 async function syncSteamWishlistsCore(appId = DEFAULT_APP_ID) {
@@ -139,22 +179,36 @@ async function syncSteamWishlistsCore(appId = DEFAULT_APP_ID) {
   }
 
   let candidates = [];
+  let preFilterCandidateCount = 0;
+  let nonCoopSkipped = 0;
+  let scrapeFailed = 0;
+
   if (user0WishlistSet || user1WishlistSet) {
     const snapshot = await db.collection(gamesCollectionPath(appId)).get();
     const libraryIds = snapshot.docs.map((doc) => doc.id);
-    candidates = buildCandidates(user0WishlistSet, user1WishlistSet, libraryIds);
+    const rawCandidates = buildCandidates(user0WishlistSet, user1WishlistSet, libraryIds);
+    preFilterCandidateCount = rawCandidates.length;
+
+    const coopResult = await filterCoopWishlistCandidates(rawCandidates);
+    candidates = coopResult.filtered;
+    nonCoopSkipped = coopResult.nonCoopSkipped;
+    scrapeFailed = coopResult.scrapeFailed;
+    errors += scrapeFailed;
   }
 
   const stats = {
     candidates,
     user0WishlistCount,
     user1WishlistCount,
+    preFilterCandidateCount,
+    nonCoopSkipped,
+    scrapeFailed,
     candidateCount: candidates.length,
     errors,
   };
 
   console.log(
-    `syncSteamWishlists: user0WishlistCount=${user0WishlistCount}, user1WishlistCount=${user1WishlistCount}, candidateCount=${stats.candidateCount}, errors=${errors}`
+    `syncSteamWishlists: user0WishlistCount=${user0WishlistCount}, user1WishlistCount=${user1WishlistCount}, preFilterCandidateCount=${preFilterCandidateCount}, candidateCount=${stats.candidateCount}, nonCoopSkipped=${nonCoopSkipped}, scrapeFailed=${scrapeFailed}, errors=${errors}`
   );
 
   await writeSteamWishlistCandidates(db, appId, stats);
@@ -178,8 +232,8 @@ async function syncSteamWishlistsCallable(request) {
 const syncSteamWishlists = onCall(
   {
     region: 'europe-west1',
-    timeoutSeconds: 120,
-    memory: '256MiB',
+    timeoutSeconds: 300,
+    memory: '512MiB',
     cors: true,
   },
   syncSteamWishlistsCallable

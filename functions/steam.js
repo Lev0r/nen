@@ -265,6 +265,15 @@ async function fetchAppDetailsEntry(appId) {
   return entry.data;
 }
 
+async function fetchStoreCoopAndName(appId) {
+  const data = await fetchAppDetailsEntry(appId);
+  if (!data) return null;
+  return {
+    name: typeof data.name === 'string' ? data.name : null,
+    hasCoop: hasCoopCategory(data.categories),
+  };
+}
+
 function mapPriceData(data) {
   const priceOverview = data.price_overview;
   const discountPercent = priceOverview?.discount_percent || 0;
@@ -484,6 +493,7 @@ module.exports = {
   parseAppId,
   hasCoopCategory,
   COOP_CATEGORY_IDS,
+  fetchStoreCoopAndName,
   fetchSteamGame,
   fetchCurrentVersion,
   fetchGeForceNowReady,

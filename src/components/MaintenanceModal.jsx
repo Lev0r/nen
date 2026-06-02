@@ -67,13 +67,11 @@ export default function MaintenanceModal({
 }) {
   const [addingAppId, setAddingAppId] = useState(null);
   const [addErrorByAppId, setAddErrorByAppId] = useState({});
-  const [coopConfirm, setCoopConfirm] = useState(null);
 
   useEffect(() => {
     if (!isOpen) {
       setAddingAppId(null);
       setAddErrorByAppId({});
-      setCoopConfirm(null);
     }
   }, [isOpen]);
 
@@ -128,7 +126,6 @@ export default function MaintenanceModal({
           [appId]: `Game added, but developer source check failed: ${result.vettingError}`,
         }));
       }
-      setCoopConfirm(null);
     } catch (err) {
       if (err?.code === 'functions/already-exists') {
         setAddErrorByAppId((prev) => ({ ...prev, [appId]: DUPLICATE_MESSAGE }));
@@ -152,7 +149,6 @@ export default function MaintenanceModal({
 
     setAddingAppId(appId);
     clearAddError(appId);
-    setCoopConfirm(null);
     try {
       const previewData = await previewSteamGame(steamStoreUrl(appId));
       if (isDuplicateAppId(previewData.appId)) {
@@ -160,12 +156,7 @@ export default function MaintenanceModal({
         return;
       }
 
-      if (previewData.hasCoopCategory) {
-        await persistWishlistCandidate(previewData, appId);
-        return;
-      }
-
-      setCoopConfirm({ appId, preview: previewData });
+      await persistWishlistCandidate(previewData, appId);
     } catch (err) {
       if (err?.code === 'functions/already-exists') {
         setAddErrorByAppId((prev) => ({ ...prev, [appId]: DUPLICATE_MESSAGE }));
@@ -176,15 +167,6 @@ export default function MaintenanceModal({
     } finally {
       setAddingAppId((current) => (current === appId ? null : current));
     }
-  };
-
-  const handleCoopConfirmNo = () => {
-    setCoopConfirm(null);
-  };
-
-  const handleCoopConfirmYes = async () => {
-    if (!coopConfirm) return;
-    await persistWishlistCandidate(coopConfirm.preview, coopConfirm.appId);
   };
 
   const formatWishlistUsers = (candidate) => {
@@ -341,7 +323,7 @@ export default function MaintenanceModal({
           {wishlistCandidates.length > 0 && (
             <div className="maintenance-wishlist-candidates">
               <p className="maintenance-wishlist-candidates-title">
-                Wishlist candidates ({wishlistCandidates.length})
+                Co-op wishlist candidates ({wishlistCandidates.length})
               </p>
               <ul className="maintenance-wishlist-list">
                 {wishlistCandidates.map((candidate) => {
@@ -349,18 +331,18 @@ export default function MaintenanceModal({
                   const inLibrary = isDuplicateAppId(appId);
                   const rowError = addErrorByAppId[appId];
                   const isAdding = addingAppId === appId;
-                  const isCoopConfirm = coopConfirm?.appId === appId;
+                  const displayName = candidate.name?.trim() || `App ${appId}`;
 
                   return (
                     <li key={appId} className="maintenance-wishlist-item">
                       <div className="maintenance-wishlist-item-main">
                         <a
-                          className="maintenance-wishlist-appid"
+                          className="maintenance-wishlist-link"
                           href={steamStoreUrl(appId)}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          App {appId}
+                          {displayName}
                         </a>
                         <span className="maintenance-wishlist-users">
                           {formatWishlistUsers(candidate)}
@@ -378,31 +360,6 @@ export default function MaintenanceModal({
                           </button>
                         )}
                       </div>
-                      {isCoopConfirm && (
-                        <div className="maintenance-wishlist-coop-confirm">
-                          <p className="maintenance-wishlist-coop-text">
-                            {coopConfirm.preview.name} has no co-op tags. Add anyway?
-                          </p>
-                          <div className="maintenance-wishlist-coop-actions">
-                            <button
-                              type="button"
-                              className="btn-secondary"
-                              onClick={handleCoopConfirmNo}
-                              disabled={Boolean(addingAppId)}
-                            >
-                              No
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-primary"
-                              onClick={handleCoopConfirmYes}
-                              disabled={Boolean(addingAppId)}
-                            >
-                              {addingAppId ? 'Adding…' : 'Yes, add'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
                       {rowError && (
                         <p className="maintenance-wishlist-error">{rowError}</p>
                       )}

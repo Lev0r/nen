@@ -7,8 +7,36 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function normalizeSteamWebApiKey(raw) {
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) return null;
+
+  // Accept plain hex keys (e.g. C1F410E37C14EC0A…) — also tolerate pasted sample URLs.
+  if (/^https?:\/\//i.test(trimmed) || /[?&]key=/i.test(trimmed) || /^key=/i.test(trimmed)) {
+    try {
+      const url = /^https?:\/\//i.test(trimmed)
+        ? new URL(trimmed)
+        : new URL(`https://local/?${trimmed.replace(/^\?/, '')}`);
+      const fromQuery = url.searchParams.get('key');
+      if (fromQuery?.trim()) return fromQuery.trim();
+    } catch {
+      // fall through to regex
+    }
+    const keyMatch = trimmed.match(/[?&]key=([^&]+)/i) || trimmed.match(/^key=([^&]+)/i);
+    if (keyMatch?.[1]) {
+      try {
+        return decodeURIComponent(keyMatch[1]).trim();
+      } catch {
+        return keyMatch[1].trim();
+      }
+    }
+  }
+
+  return trimmed;
+}
+
 function getSteamWebApiKey() {
-  return process.env.STEAM_WEB_API_KEY || null;
+  return normalizeSteamWebApiKey(process.env.STEAM_WEB_API_KEY);
 }
 
 function getConfiguredSteamIds() {
@@ -117,7 +145,7 @@ async function getWishlist(steamId) {
     return { appIds: null, error: 'Invalid Steam ID' };
   }
 
-  const result = await steamWebApiFetch('IPlayerService/GetWishlist/v1', {
+  const result = await steamWebApiFetch('IWishlistService/GetWishlist/v1', {
     steamid: normalizedId,
   });
   if (result.error) {
@@ -125,7 +153,7 @@ async function getWishlist(steamId) {
   }
 
   const items = result.data?.response?.items;
-  if (items == null) {
+  if (!Array.isArray(items)) {
     return {
       appIds: null,
       error: 'Steam Web API returned no wishlist (profile may be private)',
@@ -137,6 +165,7 @@ async function getWishlist(steamId) {
 
 module.exports = {
   STEAM_WEB_API_DELAY_MS,
+  normalizeSteamWebApiKey,
   getSteamWebApiKey,
   getConfiguredSteamIds,
   getOwnedGames,
