@@ -393,6 +393,21 @@ button {
   flex-shrink: 0;
 }
 
+.nav-item-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nav-item-update-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--accent-yellow);
+  box-shadow: 0 0 0 2px rgba(15, 13, 12, 0.85);
+  flex-shrink: 0;
+}
+
 .sidebar-footer .error-banner {
   width: 100%;
 }
@@ -583,11 +598,35 @@ button {
   padding-top: 0.15rem;
 }
 
+.game-filters-expanded-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin: -0.35rem 0 -0.15rem;
+}
+
+.game-filters-collapse {
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  padding: 0.15rem 0.4rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.game-filters-collapse:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .game-filters-group {
   display: flex;
   align-items: flex-start;
   gap: 0.65rem;
-  flex: 1 1 280px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -700,6 +739,11 @@ button {
   font-size: 0.8rem;
 }
 
+.game-filters-open {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
 .game-filters-chips {
   display: flex;
   flex-wrap: wrap;
@@ -738,6 +782,28 @@ button {
 .filter-chip--tag.filter-chip--active {
   border-color: var(--accent-mint);
   background: rgba(76, 201, 160, 0.15);
+}
+
+.filter-chip--disabled,
+.filter-chip--disabled:hover {
+  opacity: 0.38;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
+}
+
+.filter-chip--disabled.filter-chip--active {
+  opacity: 0.55;
+}
+
+.game-filters-switch--disabled,
+.game-filters-switch--disabled:hover {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.game-filters-switch--disabled .game-filters-switch-label {
+  color: var(--text-muted);
 }
 
 .game-filters-group .game-filters-label {
@@ -1642,6 +1708,32 @@ button {
 .game-card-version {
   font-size: 0.75rem;
   color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+button.game-card-version--pending {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+
+button.game-card-version--pending:hover .version-new-indicator {
+  color: var(--accent-mint);
+}
+
+.version-new-indicator {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-yellow);
+  line-height: 1;
 }
 
 .ru-alert-text {
@@ -2366,21 +2458,33 @@ button {
   background: var(--badge-pill-bg);
 }
 
-.update-available-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 var(--badge-pad-x);
-  min-height: var(--badge-height);
-  border-radius: var(--badge-radius);
-  border: 1px solid var(--accent-yellow);
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--accent-yellow);
-  font-size: var(--badge-font-size);
-  font-weight: 600;
-  line-height: 1;
-  box-sizing: border-box;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.32);
+.version-ack-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.version-ack-popover {
+  padding: 0.65rem 0.75rem;
+  min-width: 140px;
+  background: rgba(18, 16, 14, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.version-ack-popover-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.version-ack-popover-btn {
+  width: 100%;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.8rem;
 }
 
 .lifecycle-modal {

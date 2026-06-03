@@ -5,6 +5,7 @@ import {
   getDevelopmentStatus,
   getSteamTags,
   getIsOnSale,
+  isFreeToPlay,
 } from './gameAccessors';
 
 export const DEFAULT_GAME_FILTERS = {
@@ -26,6 +27,11 @@ export function getOwnershipCategory(owned) {
   if (user0 && user1) return 'both';
   if (user0 || user1) return 'one';
   return 'neither';
+}
+
+export function getEffectiveOwnership(game) {
+  if (isFreeToPlay(game)) return 'both';
+  return getOwnershipCategory(game?.owned);
 }
 
 export function hasActiveFilters(filters) {
@@ -68,7 +74,7 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
       return false;
     }
 
-    if (ownership !== 'all' && getOwnershipCategory(game.owned) !== ownership) {
+    if (ownership !== 'all' && getEffectiveOwnership(game) !== ownership) {
       return false;
     }
 
@@ -76,7 +82,7 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
       if (!getIsOnSale(game)) {
         return false;
       }
-      if (game.owned?.user0 && game.owned?.user1) {
+      if (getEffectiveOwnership(game) === 'both') {
         return false;
       }
     }
@@ -119,6 +125,39 @@ function isExcludedSteamFilterTag(tag) {
   if (normalized.includes('co-op') || normalized.includes('coop')) return true;
   if (normalized.includes('multi-player') || normalized.includes('multiplayer')) return true;
   return false;
+}
+
+export function countGamesForFilterOption(games, filters, gfnSteamAppIds, overrides) {
+  return filterGames(games, { ...filters, ...overrides }, gfnSteamAppIds).length;
+}
+
+export function isLibraryStateFilterEnabled(games, filters, gfnSteamAppIds, state) {
+  if (filters.libraryStates?.includes(state)) return true;
+  return (
+    countGamesForFilterOption(games, filters, gfnSteamAppIds, { libraryStates: [state] }) > 0
+  );
+}
+
+export function isDevelopmentStatusFilterEnabled(games, filters, gfnSteamAppIds, status) {
+  if ((filters.developmentStatus ?? 'all') === status) return true;
+  return (
+    countGamesForFilterOption(games, filters, gfnSteamAppIds, { developmentStatus: status }) > 0
+  );
+}
+
+export function isOwnershipFilterEnabled(games, filters, gfnSteamAppIds, ownership) {
+  if ((filters.ownership ?? 'all') === ownership) return true;
+  return countGamesForFilterOption(games, filters, gfnSteamAppIds, { ownership }) > 0;
+}
+
+export function isSteamTagFilterEnabled(games, filters, gfnSteamAppIds, tag) {
+  if (filters.steamTags?.includes(tag)) return true;
+  return countGamesForFilterOption(games, filters, gfnSteamAppIds, { steamTags: [tag] }) > 0;
+}
+
+export function isBooleanFilterEnabled(games, filters, gfnSteamAppIds, key) {
+  if (Boolean(filters[key])) return true;
+  return countGamesForFilterOption(games, filters, gfnSteamAppIds, { [key]: true }) > 0;
 }
 
 export function collectSteamTags(games) {

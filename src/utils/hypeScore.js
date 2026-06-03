@@ -5,7 +5,9 @@ import {
   getMetacriticScore,
   getCriticsSource,
   getReviewPercent,
+  isFreeToPlay,
 } from './gameAccessors';
+import { getEffectiveOwnership } from './gameFilters';
 
 export const HYPE_TIERS = {
   worthless_crystal: { label: 'Worthless Crystal', multiplier: 0.5 },
@@ -34,8 +36,8 @@ export function effectivePersonalHype(tier) {
   return PERSONAL_BASE * config.multiplier;
 }
 
-export function getOwnershipFactor(owned) {
-  if (owned?.user0 && owned?.user1) {
+export function getOwnershipFactor(owned, game) {
+  if (game && getEffectiveOwnership(game) === 'both') {
     return { factor: 1.0, label: 'Both own the game' };
   }
   if (owned?.user0 || owned?.user1) {
@@ -164,14 +166,14 @@ export function calculateTotalHype(game) {
   const eff1 = effectivePersonalHype(tier1);
   const tierBase = ((eff0 + eff1) / MAX_PAIR_EFFECTIVE) * 100;
 
+  const effectiveBoth = getEffectiveOwnership(game) === 'both';
   const ownership = {
-    ...getOwnershipFactor(game.owned),
-    color:
-      game.owned?.user0 && game.owned?.user1
-        ? 'var(--accent-mint)'
-        : game.owned?.user0 || game.owned?.user1
-          ? 'var(--accent-yellow)'
-          : 'var(--accent-red)',
+    ...getOwnershipFactor(game.owned, game),
+    color: effectiveBoth
+      ? 'var(--accent-mint)'
+      : game.owned?.user0 || game.owned?.user1
+        ? 'var(--accent-yellow)'
+        : 'var(--accent-red)',
   };
   const status = getStatusFactor(getDevelopmentStatus(game));
   const steamReview = getSteamReviewFactor(getReviewPercent(game));
@@ -228,7 +230,8 @@ export function getScoreGlowShadow(score) {
   return `0 0 14px color-mix(in srgb, ${color} 55%, transparent)`;
 }
 
-export function getOwnershipStage(owned) {
+export function getOwnershipStage(owned, game) {
+  if (game && isFreeToPlay(game)) return 2;
   const count = [owned?.user0, owned?.user1].filter(Boolean).length;
   return count;
 }

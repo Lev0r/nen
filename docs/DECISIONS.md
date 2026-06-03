@@ -2,7 +2,7 @@
 
 Chronological archive of product and technical decisions. Update when shipping material changes.
 
-**Last updated:** 2026-06-03
+**Last updated:** 2026-06-03 (library UX batch)
 
 ---
 
@@ -123,6 +123,12 @@ Chronological archive of product and technical decisions. Update when shipping m
 | :--- | :--- |
 | Sync orchestrator + app-meta cache | Deployed. `scheduledSyncOrchestrator`, `scheduler/tasks.js`, `steamAppMetaCache.js`, `gamePersist.js`, `lib/*`. Legacy scheduler jobs removed. |
 | SPA performance (CSS + render path) | Static nebula BG; no wave mesh; opaque glass; `React.memo(GameCard)`; `MaintenanceDataContext`; `prefers-reduced-motion`. |
+| F2P virtual both-own | Client-only via `getEffectiveOwnership`; no auto-write to `owned.*` |
+| Steam playtime piggyback | Parse `playtime_forever` in existing `getOwnedGames` during 24h ownership sync only — zero extra Web API calls |
+| `hasUpdateSinceState` + status snapshot | `developmentStatusAtEntry` alongside `versionAtEntry`; library static sync flags TBA→EA→Released drift |
+| Filter UX batch | Collapse panel with active filters; facet disabling; RU deprioritized sort; hide hype when picker disabled; mobile collapsed default |
+| Version acknowledge on card | Inline popover rebaselines `stateMeta` (same lifecycle) — replaces tags-row Update badge |
+| HLTB search sanitization | Strip ™®© before API `searchTerms`; regression `scripts/test-hltb-matching.mjs` |
 
 ## Under discussion
 

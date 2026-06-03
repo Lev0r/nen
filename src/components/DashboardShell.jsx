@@ -20,6 +20,7 @@ import {
   collectSteamTags,
   hasActiveFilters,
 } from '../utils/gameFilters';
+import { isRuDeveloperAlert } from '../utils/gameHelpers';
 import { formatRelativeTimeShort } from '../utils/formatDuration';
 import { reportError } from '../utils/errorReport';
 import {
@@ -316,6 +317,41 @@ export default function DashboardShell() {
     [games]
   );
 
+  const tabUpdateCounts = useMemo(
+    () =>
+      LIFECYCLE_TABS.reduce((counts, tab) => {
+        if (tab.id === 'active') {
+          counts[tab.id] = games.filter(
+            (game) =>
+              isActiveLibraryGame(game) &&
+              !isTbaGame(game) &&
+              game.hasUpdateSinceState === true
+          ).length;
+        } else {
+          counts[tab.id] = games.filter(
+            (game) =>
+              resolveLibraryState(game) === tab.id &&
+              game.hasUpdateSinceState === true
+          ).length;
+        }
+        return counts;
+      }, {}),
+    [games]
+  );
+
+  const activeSubTabUpdateCounts = useMemo(
+    () =>
+      ACTIVE_SUB_TABS.reduce((counts, subTab) => {
+        counts[subTab.id] = games.filter(
+          (game) =>
+            matchesActiveSubTab(game, subTab.id) &&
+            game.hasUpdateSinceState === true
+        ).length;
+        return counts;
+      }, {}),
+    [games]
+  );
+
   const lifecycleGames = useMemo(() => {
     return games.filter((game) => {
       if (activeTab === 'active') {
@@ -335,10 +371,14 @@ export default function DashboardShell() {
     [filtersScopeGlobal, games, lifecycleGames]
   );
 
-  const filteredGames = useMemo(
-    () => filterGames(filterSourceGames, gameFilters, gfnSteamAppIds),
-    [filterSourceGames, gameFilters, gfnSteamAppIds]
-  );
+  const filteredGames = useMemo(() => {
+    const filtered = filterGames(filterSourceGames, gameFilters, gfnSteamAppIds);
+    return filtered.slice().sort((a, b) => {
+      const aRu = isRuDeveloperAlert(a) ? 1 : 0;
+      const bRu = isRuDeveloperAlert(b) ? 1 : 0;
+      return aRu - bRu;
+    });
+  }, [filterSourceGames, gameFilters, gfnSteamAppIds]);
 
   const availableTags = useMemo(() => collectSteamTags(games), [games]);
   const filtersActive = hasActiveFilters(gameFilters);
@@ -375,7 +415,15 @@ export default function DashboardShell() {
                 className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
                 onClick={() => handleLifecycleTabClick(tab.id)}
               >
-                <span>{tab.label}</span>
+                <span className="nav-item-label">
+                  {tab.label}
+                  {tabUpdateCounts[tab.id] > 0 && (
+                    <span
+                      className="nav-item-update-dot"
+                      aria-label="Unacknowledged updates"
+                    />
+                  )}
+                </span>
                 <span className="nav-item-badge">{tabCounts[tab.id]}</span>
               </div>
               {tab.id === 'active' && activeTab === 'active' && (
@@ -386,7 +434,15 @@ export default function DashboardShell() {
                       className={`nav-sub-item ${activeSubTab === subTab.id ? 'active' : ''}`}
                       onClick={() => handleActiveSubTabClick(subTab.id)}
                     >
-                      <span>{subTab.label}</span>
+                      <span className="nav-item-label">
+                        {subTab.label}
+                        {activeSubTabUpdateCounts[subTab.id] > 0 && (
+                          <span
+                            className="nav-item-update-dot"
+                            aria-label="Unacknowledged updates"
+                          />
+                        )}
+                      </span>
                       <span className="nav-item-badge">{activeSubTabCounts[subTab.id]}</span>
                     </div>
                   ))}
@@ -430,6 +486,8 @@ export default function DashboardShell() {
           <GameFiltersBar
             filters={gameFilters}
             onChange={setGameFilters}
+            filterSourceGames={filterSourceGames}
+            gfnSteamAppIds={gfnSteamAppIds}
             availableTags={availableTags}
             resultCount={filteredGames.length}
             totalCount={filterSourceGames.length}

@@ -480,6 +480,7 @@ function buildUserDefaults(developmentStatus, currentVersion) {
     finishedRating: null,
     stateMeta: {
       versionAtEntry: developmentStatus === 'tba' ? null : currentVersion,
+      developmentStatusAtEntry: developmentStatus,
       note: '',
       enteredAt: FieldValue.serverTimestamp(),
     },

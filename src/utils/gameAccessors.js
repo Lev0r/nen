@@ -28,6 +28,10 @@ export function getPrice(game) {
   return game?.steamDynamic?.price ?? null;
 }
 
+export function isFreeToPlay(game) {
+  return getPrice(game) === 'Free to Play';
+}
+
 export function getOriginalPrice(game) {
   return game?.steamDynamic?.originalPrice ?? null;
 }
@@ -121,6 +125,22 @@ export function getEstimatedPlaytimeHours(game) {
   const hours = game?.steamStatic?.estimatedPlaytimeHours;
   if (hours == null) return null;
   return Number(hours);
+}
+
+export function getSteamPlaytimeHours(game, userIndex) {
+  const key = userIndex === 0 ? 'user0Minutes' : 'user1Minutes';
+  const minutes = game?.steamPlaytime?.[key];
+  if (minutes == null || minutes === '') return null;
+  const n = Number(minutes);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round((n / 60) * 10) / 10;
+}
+
+export function hasSteamPlaytimeForBoth(game) {
+  if (game?.steamPlaytime?.syncedAt == null) return false;
+  return (
+    getSteamPlaytimeHours(game, 0) != null && getSteamPlaytimeHours(game, 1) != null
+  );
 }
 
 export function getHltbData(game) {

@@ -2,7 +2,7 @@
 
 Local admin scripts for Nen? — run from repo root unless noted.
 
-**Last updated:** 2026-06-01
+**Last updated:** 2026-06-03
 
 **Not covered here:** React app (`npm run dev`), production Maintenance buttons (Cloud Callables), scheduled functions.
 
@@ -38,6 +38,7 @@ Alternative: set `GOOGLE_APPLICATION_CREDENTIALS` to a service account JSON path
 | | `npm run sync-dev-sources:firestore:full` | Yes | Yes | **Preferred Firestore seed (Windows)** |
 | | `npm run sync-dev-sources:local` | No | No | Local JSON export |
 | [test-dev-sources](#test-dev-sources) | `npm run test-dev-sources` | No | No | Active (local smoke) |
+| [test-hltb-matching](#test-hltb-matching) | `node scripts/test-hltb-matching.mjs` | No | No | Active (local smoke) |
 | [revet-ru-games](#revet-ru-games) | `npm run revet-ru-games --` | Yes | Yes | Active |
 | [fix-steam-links](#fix-steam-links) | `npm run fix-steam-links --` | No | No | Active (import prep) |
 | [wipe-maintenance-errors](#wipe-maintenance-errors) | `npm run wipe-maintenance-errors --` | Yes | Yes | Active (cleanup) |
@@ -171,6 +172,32 @@ None.
 npm run sync-dev-sources
 npm run test-dev-sources
 ```
+
+---
+
+## test-hltb-matching
+
+Offline regression for HLTB title normalization and search-query building (`functions/hltb.js` exports). No network, no Firestore.
+
+**Invoke**
+
+```text
+node scripts/test-hltb-matching.mjs
+```
+
+### Parameters
+
+None.
+
+### Examples
+
+**After changing `functions/hltb.js`**
+
+```bash
+node scripts/test-hltb-matching.mjs
+```
+
+Expect `2/2 cases passed` for `Returnal™` and `ENDLESS™ Dungeon - Definitive Edition`.
 
 ---
 

@@ -76,10 +76,25 @@ function normalizeTitle(value) {
   );
 }
 
+function sanitizeSearchQuery(query) {
+  return String(query || '')
+    .replace(/[™®©]/g, '')
+    .replace(/[\u2013\u2014\u2212\uFE58\uFE63\uFF0D]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function buildSearchQueries(gameName) {
   const trimmed = gameName.trim();
   const stripped = stripMarketingSuffixes(trimmed);
-  return [...new Set([stripped, trimmed].filter(Boolean))];
+  const normalized = normalizeTitle(trimmed);
+  return [...new Set(
+    [
+      sanitizeSearchQuery(stripped),
+      sanitizeSearchQuery(trimmed),
+      normalized,
+    ].filter(Boolean)
+  )];
 }
 
 function titleSimilarity(a, b) {
@@ -238,7 +253,7 @@ function buildSearchPayload(query, limit, auth) {
 
 async function searchHltb(query, { limit = 8, retry = true } = {}) {
   const auth = await getAuth();
-  const payload = buildSearchPayload(query, limit, auth);
+  const payload = buildSearchPayload(sanitizeSearchQuery(query), limit, auth);
   const url = `${HLTB_BASE_URL}${auth.endpoint}`;
 
   const res = await fetch(url, {
@@ -365,5 +380,6 @@ module.exports = {
   normalizeTitle,
   titleSimilarity,
   stripMarketingSuffixes,
+  sanitizeSearchQuery,
   buildSearchQueries,
 };

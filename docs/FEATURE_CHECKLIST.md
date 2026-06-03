@@ -45,10 +45,11 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | :--- | :---: | :--- |
 | 5 lifecycle states + sidebar tabs | ✅ | |
 | **TBA games — separate sub-tab under Active** | ✅ | Default Active excludes TBA |
-| Lifecycle modal + update badge | ✅ | |
-| `hasUpdateSinceState` from sync | ✅ | |
+| Lifecycle modal + version `new` / acknowledge | ✅ | Sidebar dot per tab |
+| `hasUpdateSinceState` from sync (version + status) | ✅ | `developmentStatusAtEntry` |
 | Finished rating 1–5 stars | ✅ | |
 | Ownership quick toggle on card | ✅ | |
+| **F2P virtual both-own (client-only)** | ✅ | `isFreeToPlay` / `getEffectiveOwnership`; no Firestore writes |
 | Banned tab passcode | ⏸ | Deferred |
 
 ---
@@ -80,7 +81,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Scheduled 6h library sync | ✅ | Via `libraryMetadata` orchestrator task |
 | **Unified scheduler orchestrator** | ✅ | Single `scheduledSyncOrchestrator` every 6h; state in `config/scheduler-state` |
 | Manual "Load meta info" | ✅ | Maintenance modal |
-| HLTB playtime | ✅ | Fragile unofficial API |
+| HLTB playtime | ✅ | Fragile unofficial API; search sanitizes ™/edition variants |
 | ITAD critics + historical low | ✅ | Needs `ITAD_API_KEY` |
 | GFN catalog sync + badge | ✅ | Weekly orchestrator task + manual |
 | Player stats (official API, 28 samples) | ✅ | Skip TBA/banned |
@@ -90,6 +91,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **Scheduled wishlist sync** (24h auto-import) | ✅ | Orchestrator `steamWishlist` task — co-op auto-import via `enrichAndPersistFromSteam` |
 | **Steam library sync** (ownership) | ✅ | Callable `syncSteamOwnership` — one-way merge via Steam Web API |
 | **Scheduled ownership sync** (24h one-way) | ✅ | Orchestrator `steamOwnership` task — never clears `true` → `false` |
+| **Per-user Steam playtime (ownership piggyback)** | ✅ | `steamPlaytime.*` from `playtime_forever` in same `GetOwnedGames` — no extra Web API calls |
 | "Ready to Play" filter preset | ⏸ | Use chips instead |
 
 ---
@@ -133,8 +135,13 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Global scope when any filter active | ✅ | |
 | Tab click resets filters | ✅ | |
 | Clear filters in header | ✅ | |
+| **Filter panel collapse (× / outside / Escape)** | ✅ | Active filters kept; search focus or chip change re-opens |
 | **Remove co-op tags from filter UI** | ✅ | Co-op tag chips hidden |
+| **Dynamic filter option disabling** | ✅ | Count per option vs other active filters; disabled chips/switches when 0 and not selected |
+| **RU games sorted to grid end** | ✅ | Stable sort after filter; hype order preserved within groups |
+| **Hide hype ring when picker disabled** | ✅ | RU / finished / banned — no `.card-indicator--hype` |
 | **Co-op warning on add game** | ✅ | Two-phase confirm if no co-op categories 9/38/39/48 |
+| **Mobile filter panel (≤768px)** | ✅ | Collapsed by default; no auto-expand on active; Filters button / search / chip opens |
 
 ---
 
@@ -148,7 +155,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Error acknowledge dot | ✅ | |
 | **Errors panel — group by source/severity** | ✅ | Counters, clear info, weekly purge |
 | **UI polish round 2 + follow-ups** | ✅ | See session logs below |
-| Mobile UX pass | 📋 | P1 (fold into round 2 or separate) |
+| **Mobile UX pass** | ✅ | Partial — filter panel defaults collapsed on ≤768px; hover→click tooltips deferred |
 | News feed UI | 🚫 | Dropped |
 
 ---
@@ -168,6 +175,15 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **Local Cloud Functions testing** | 📋 | **User request** — emulator workflow documented + validated |
 
 ---
+
+## Session log — 2026-06-03 (library UX + sync batch)
+
+- **F2P virtual both-own** — client-only `getEffectiveOwnership`; filters, hype, header; no Firestore writes
+- **HLTB search** — sanitize ™/edition in queries; `scripts/test-hltb-matching.mjs`
+- **Steam playtime** — `steamPlaytime.user0Minutes` / `user1Minutes` piggybacked on 24h ownership sync (`GetOwnedGames`); card header `{nick}: Xh` when both own
+- **Version/status updates** — `developmentStatusAtEntry`; `hasUpdateSinceState` for version or TBA/EA/Released drift; version `new` + acknowledge popover; sidebar update dots
+- **Filters** — collapse with active filters (× / outside / Escape); dynamic disabled chips; RU games sorted to grid end; hide hype ring when locked; mobile collapsed default + Filters button
+- **Ops:** deploy functions + run ownership sync for playtime/HLTB fixes in production
 
 ## Session log — 2026-06-03 (performance + static nebula BG)
 

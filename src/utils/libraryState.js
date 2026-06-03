@@ -56,12 +56,19 @@ export function normalizeFinishedRating(value) {
   return null;
 }
 
-export function buildStateMetaUpdates(state, note, currentVersion, finishedRating) {
+export function buildStateMetaUpdates(
+  state,
+  note,
+  currentVersion,
+  finishedRating,
+  developmentStatus
+) {
   const updates = {
     libraryState: state,
     hasUpdateSinceState: false,
     stateMeta: {
       versionAtEntry: currentVersion ?? null,
+      developmentStatusAtEntry: developmentStatus ?? null,
       note: String(note ?? '').trim(),
       enteredAt: serverTimestamp(),
     },

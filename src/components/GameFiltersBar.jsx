@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { DEFAULT_GAME_FILTERS, hasActiveFilters } from '../utils/gameFilters';
+import {
+  DEFAULT_GAME_FILTERS,
+  hasActiveFilters,
+  isLibraryStateFilterEnabled,
+  isDevelopmentStatusFilterEnabled,
+  isOwnershipFilterEnabled,
+  isSteamTagFilterEnabled,
+  isBooleanFilterEnabled,
+} from '../utils/gameFilters';
 import { LIBRARY_STATES, getLibraryStateLabel } from '../utils/libraryState';
 
 const DEVELOPMENT_STATUS_OPTIONS = [
@@ -16,23 +24,49 @@ const OWNERSHIP_OPTIONS = [
   { value: 'both', label: 'Both own' },
 ];
 
-export default function GameFiltersBar({ filters, onChange, availableTags, resultCount, totalCount }) {
+const FOOTER_BOOLEAN_FILTERS = [
+  { key: 'onSaleOnly', label: 'On sale only' },
+  { key: 'gfnOnly', label: 'GeForce NOW' },
+  { key: 'ruOnly', label: 'RU alert' },
+  { key: 'updateAvailableOnly', label: 'Update available' },
+];
+
+const MOBILE_MEDIA = '(max-width: 768px)';
+
+export default function GameFiltersBar({
+  filters,
+  onChange,
+  filterSourceGames,
+  gfnSteamAppIds = new Set(),
+  availableTags,
+  resultCount,
+  totalCount,
+}) {
   const active = hasActiveFilters(filters);
   const barRef = useRef(null);
   const [expanded, setExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(MOBILE_MEDIA).matches : false
+  );
 
   useEffect(() => {
-    if (active) {
+    const mq = window.matchMedia(MOBILE_MEDIA);
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile && active) {
       setExpanded(true);
     }
-  }, [active]);
+  }, [active, isMobile]);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
       if (barRef.current && !barRef.current.contains(event.target)) {
-        if (!hasActiveFilters(filters)) {
-          setExpanded(false);
-        }
+        setExpanded(false);
       }
     };
 
@@ -42,13 +76,13 @@ export default function GameFiltersBar({ filters, onChange, availableTags, resul
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [filters]);
+  }, []);
 
   const updateFilter = (patch) => {
     setExpanded(true);
@@ -77,8 +111,14 @@ export default function GameFiltersBar({ filters, onChange, availableTags, resul
   };
 
   const toggleBooleanFilter = (key) => {
+    if (!isBooleanFilterEnabled(filterSourceGames, filters, gfnSteamAppIds, key)) return;
     updateFilter({ [key]: !Boolean(filters[key]) });
   };
+
+  const chipClassName = (active, enabled) =>
+    `filter-chip${active ? ' filter-chip--active' : ''}${
+      enabled ? '' : ' filter-chip--disabled'
+    }`;
 
   return (
     <div className="game-filters-bar glass-panel" ref={barRef}>
@@ -121,6 +161,17 @@ export default function GameFiltersBar({ filters, onChange, availableTags, resul
           <span className="game-filters-count">
             {resultCount} of {totalCount}
           </span>
+          {isMobile && (
+            <button
+              type="button"
+              className="btn-secondary game-filters-open"
+              onClick={() => setExpanded(true)}
+              aria-expanded={expanded}
+              aria-controls="game-filters-panel"
+            >
+              Filters{active ? ' · on' : ''}
+            </button>
+          )}
           {active && (
             <button
               type="button"
@@ -133,56 +184,99 @@ export default function GameFiltersBar({ filters, onChange, availableTags, resul
         </div>
       </div>
 
-      <div className={`game-filters-expanded${expanded ? ' game-filters-expanded--open' : ''}`}>
+      <div
+        id="game-filters-panel"
+        className={`game-filters-expanded${expanded ? ' game-filters-expanded--open' : ''}`}
+      >
         <div className="game-filters-expanded-inner">
+          <div className="game-filters-expanded-header">
+            <button
+              type="button"
+              className="game-filters-collapse"
+              onClick={() => setExpanded(false)}
+              aria-label="Collapse filters"
+            >
+              ×
+            </button>
+          </div>
           <div className="game-filters-groups">
             <div className="game-filters-group">
               <span className="game-filters-label">Lifecycle</span>
               <div className="game-filters-chips">
-                {LIBRARY_STATES.map((state) => (
-                  <button
-                    key={state}
-                    type="button"
-                    className={`filter-chip ${
-                      filters.libraryStates?.includes(state) ? 'filter-chip--active' : ''
-                    }`}
-                    onClick={() => toggleLibraryState(state)}
-                  >
-                    {getLibraryStateLabel(state)}
-                  </button>
-                ))}
+                {LIBRARY_STATES.map((state) => {
+                  const active = filters.libraryStates?.includes(state);
+                  const enabled = isLibraryStateFilterEnabled(
+                    filterSourceGames,
+                    filters,
+                    gfnSteamAppIds,
+                    state
+                  );
+                  return (
+                    <button
+                      key={state}
+                      type="button"
+                      className={chipClassName(active, enabled)}
+                      disabled={!enabled}
+                      onClick={() => enabled && toggleLibraryState(state)}
+                    >
+                      {getLibraryStateLabel(state)}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div className="game-filters-group">
               <span className="game-filters-label">Status</span>
               <div className="game-filters-chips">
-                {DEVELOPMENT_STATUS_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`filter-chip ${filters.developmentStatus === option.value ? 'filter-chip--active' : ''}`}
-                    onClick={() => updateFilter({ developmentStatus: option.value })}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+                {DEVELOPMENT_STATUS_OPTIONS.map((option) => {
+                  const active = filters.developmentStatus === option.value;
+                  const enabled = isDevelopmentStatusFilterEnabled(
+                    filterSourceGames,
+                    filters,
+                    gfnSteamAppIds,
+                    option.value
+                  );
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={chipClassName(active, enabled)}
+                      disabled={!enabled}
+                      onClick={() =>
+                        enabled && updateFilter({ developmentStatus: option.value })
+                      }
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div className="game-filters-group">
               <span className="game-filters-label">Ownership</span>
               <div className="game-filters-chips">
-                {OWNERSHIP_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`filter-chip ${filters.ownership === option.value ? 'filter-chip--active' : ''}`}
-                    onClick={() => updateFilter({ ownership: option.value })}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+                {OWNERSHIP_OPTIONS.map((option) => {
+                  const active = filters.ownership === option.value;
+                  const enabled = isOwnershipFilterEnabled(
+                    filterSourceGames,
+                    filters,
+                    gfnSteamAppIds,
+                    option.value
+                  );
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={chipClassName(active, enabled)}
+                      disabled={!enabled}
+                      onClick={() => enabled && updateFilter({ ownership: option.value })}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -190,71 +284,58 @@ export default function GameFiltersBar({ filters, onChange, availableTags, resul
               <div className="game-filters-group game-filters-group--tags">
                 <span className="game-filters-label">Steam tags</span>
                 <div className="game-filters-chips game-filters-chips--tags">
-                  {availableTags.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      className={`filter-chip filter-chip--tag ${
-                        filters.steamTags?.includes(tag) ? 'filter-chip--active' : ''
-                      }`}
-                      onClick={() => toggleSteamTag(tag)}
-                    >
-                      {tag}
-                    </button>
-                  ))}
+                  {availableTags.map((tag) => {
+                    const active = filters.steamTags?.includes(tag);
+                    const enabled = isSteamTagFilterEnabled(
+                      filterSourceGames,
+                      filters,
+                      gfnSteamAppIds,
+                      tag
+                    );
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        className={`${chipClassName(active, enabled)} filter-chip--tag`}
+                        disabled={!enabled}
+                        onClick={() => enabled && toggleSteamTag(tag)}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
           </div>
 
           <div className="game-filters-footer">
-            <button
-              type="button"
-              className={`game-filters-switch${filters.onSaleOnly ? ' game-filters-switch--on' : ''}`}
-              aria-pressed={Boolean(filters.onSaleOnly)}
-              onClick={() => toggleBooleanFilter('onSaleOnly')}
-            >
-              <span className="game-filters-switch-label">On sale only</span>
-              <span className="game-filters-switch-track" aria-hidden="true">
-                <span className="game-filters-switch-thumb" />
-              </span>
-            </button>
-
-            <button
-              type="button"
-              className={`game-filters-switch${filters.gfnOnly ? ' game-filters-switch--on' : ''}`}
-              aria-pressed={Boolean(filters.gfnOnly)}
-              onClick={() => toggleBooleanFilter('gfnOnly')}
-            >
-              <span className="game-filters-switch-label">GeForce NOW</span>
-              <span className="game-filters-switch-track" aria-hidden="true">
-                <span className="game-filters-switch-thumb" />
-              </span>
-            </button>
-
-            <button
-              type="button"
-              className={`game-filters-switch${filters.ruOnly ? ' game-filters-switch--on' : ''}`}
-              aria-pressed={Boolean(filters.ruOnly)}
-              onClick={() => toggleBooleanFilter('ruOnly')}
-            >
-              <span className="game-filters-switch-label">RU alert</span>
-              <span className="game-filters-switch-track" aria-hidden="true">
-                <span className="game-filters-switch-thumb" />
-              </span>
-            </button>
-
-            <button
-              type="button"
-              className={`game-filters-switch${filters.updateAvailableOnly ? ' game-filters-switch--on' : ''}`}
-              aria-pressed={Boolean(filters.updateAvailableOnly)}
-              onClick={() => toggleBooleanFilter('updateAvailableOnly')}
-            >
-              <span className="game-filters-switch-label">Update available</span>
-              <span className="game-filters-switch-track" aria-hidden="true">
-                <span className="game-filters-switch-thumb" />
-              </span>
-            </button>
+            {FOOTER_BOOLEAN_FILTERS.map(({ key, label }) => {
+              const on = Boolean(filters[key]);
+              const enabled = isBooleanFilterEnabled(
+                filterSourceGames,
+                filters,
+                gfnSteamAppIds,
+                key
+              );
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={`game-filters-switch${on ? ' game-filters-switch--on' : ''}${
+                    enabled ? '' : ' game-filters-switch--disabled'
+                  }`}
+                  aria-pressed={on}
+                  disabled={!enabled}
+                  onClick={() => toggleBooleanFilter(key)}
+                >
+                  <span className="game-filters-switch-label">{label}</span>
+                  <span className="game-filters-switch-track" aria-hidden="true">
+                    <span className="game-filters-switch-thumb" />
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

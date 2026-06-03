@@ -1,5 +1,7 @@
 # Filters & Search
 
+**Last updated:** 2026-06-03
+
 **Spec:** [`manifest_of_understanding.md`](../manifest_of_understanding.md) § F2  
 **Related:** [Lifecycle](./lifecycle-and-ownership.md) · [RU vetting](./ru-developer-vetting.md) · [UI shell](./ui-shell-and-modals.md)
 
@@ -42,8 +44,19 @@ Two-phase add flow — see [UI shell](./ui-shell-and-modals.md):
 
 - **Ready to Play preset** — use ownership + lifecycle chips instead
 
+## Dynamic option disabling
+
+`filterSourceGames` is the same pool as the result count denominator (current tab or full library). For each chip/toggle option, count games matching **all other active filters** plus that option alone. An option is **enabled** when count &gt; 0 **or** it is already selected; otherwise the chip gets `filter-chip--disabled` and footer switches get `game-filters-switch--disabled` (still visible). Helpers live in `gameFilters.js` (`isLibraryStateFilterEnabled`, `isDevelopmentStatusFilterEnabled`, etc.).
+
+## Grid sort (filtered view)
+
+After `filterGames`, the grid applies a **stable** sort: non–RU-alert games first, `isRuDeveloperAlert` games last, preserving descending Total Hype order within each group (inherited from Firestore subscription sort).
+
 ## UX notes
 
-- Panel expands on search focus or active filters
-- **Clear filters** in header when any filter active
+- Panel expands on search focus or when changing a filter (`updateFilter`)
+- **Desktop:** active filters auto-expand the panel (`matchMedia` above 768px)
+- **Mobile (≤768px):** panel stays collapsed until the user opens it (search focus, **Filters** button, or a chip/toggle change); active filters alone do not auto-expand
+- Collapse: **×** in expanded panel header, click outside the bar, or **Escape** — filters and grid results stay unchanged
+- **Clear filters** in header when any filter active (resets values and collapses panel)
 - Do not use CSS `:focus-within` for panel expand (breaks toggles)

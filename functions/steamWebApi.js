@@ -63,6 +63,22 @@ function normalizeAppIds(items, appIdKey = 'appid') {
   return ids;
 }
 
+function normalizePlaytimeByAppId(items, appIdKey = 'appid') {
+  const playtimeByAppId = {};
+  if (!Array.isArray(items)) return playtimeByAppId;
+
+  for (const item of items) {
+    const raw = item?.[appIdKey];
+    const appId = Number(raw);
+    if (!Number.isInteger(appId) || appId <= 0) continue;
+
+    const minutes = Number(item?.playtime_forever);
+    playtimeByAppId[appId] =
+      Number.isFinite(minutes) && minutes >= 0 ? minutes : 0;
+  }
+  return playtimeByAppId;
+}
+
 async function steamWebApiFetch(servicePath, params = {}) {
   const apiKey = getSteamWebApiKey();
   if (!apiKey) {
@@ -109,7 +125,7 @@ async function steamWebApiFetch(servicePath, params = {}) {
 async function getOwnedGames(steamId) {
   const normalizedId = normalizeSteamId(steamId);
   if (!normalizedId) {
-    return { appIds: null, error: 'Invalid Steam ID' };
+    return { appIds: null, playtimeByAppId: null, error: 'Invalid Steam ID' };
   }
 
   const result = await steamWebApiFetch('IPlayerService/GetOwnedGames/v1', {
@@ -118,18 +134,23 @@ async function getOwnedGames(steamId) {
     include_played_free_games: 1,
   });
   if (result.error) {
-    return { appIds: null, error: result.error };
+    return { appIds: null, playtimeByAppId: null, error: result.error };
   }
 
   const games = result.data?.response?.games;
   if (games == null) {
     return {
       appIds: null,
+      playtimeByAppId: null,
       error: 'Steam Web API returned no owned games (profile may be private)',
     };
   }
 
-  return { appIds: normalizeAppIds(games), error: null };
+  return {
+    appIds: normalizeAppIds(games),
+    playtimeByAppId: normalizePlaytimeByAppId(games),
+    error: null,
+  };
 }
 
 async function getWishlist(steamId) {

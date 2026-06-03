@@ -29,6 +29,8 @@ import {
   getRecentReviewCount,
   getReviewScoreDesc,
   getLastUpdateAt,
+  getSteamPlaytimeHours,
+  hasSteamPlaytimeForBoth,
 } from '../utils/gameAccessors';
 import {
   calculateTotalHype,
@@ -41,13 +43,15 @@ import {
   getSteamReviewColor,
   getMetacriticColor,
 } from '../utils/hypeScore';
+import { getEffectiveOwnership } from '../utils/gameFilters';
 import { formatDurationSince, formatDurationBetween, getUpdateRecencyColor } from '../utils/formatDuration';
 import { TextWithLinks, stripMarkdownLinks } from '../utils/textWithLinks';
-import { updateGame } from '../services/db';
+import { setGameLifecycle, updateGame } from '../services/db';
 import HypePicker from './HypePicker';
 import ScreenshotsModal from './ScreenshotsModal';
 import GameEditModal from './GameEditModal';
 import LifecycleModal from './LifecycleModal';
+import VersionAcknowledgePopover from './VersionAcknowledgePopover';
 import FloatingTooltip from './FloatingTooltip';
 import { FinishedRatingMetaDigit } from './FinishedRatingPicker';
 import {
@@ -55,6 +59,7 @@ import {
   getLibraryStateLabel,
   getLibraryStateColor,
   STATE_DESCRIPTIONS,
+  normalizeFinishedRating,
 } from '../utils/libraryState';
 
 const APP_ID = 'default_app';
@@ -344,39 +349,46 @@ function buildVersionTooltip(game) {
   );
 }
 
-function buildUpdateTooltip(game) {
+function buildPendingUpdateTooltip(game, developmentStatus) {
   const versionAtEntry = game.stateMeta?.versionAtEntry;
   const currentVersion = getCurrentVersion(game);
+  const statusAtEntry = game.stateMeta?.developmentStatusAtEntry;
+  const versionChanged =
+    versionAtEntry != null &&
+    currentVersion != null &&
+    versionAtEntry !== currentVersion;
+  const statusChanged =
+    statusAtEntry != null && statusAtEntry !== developmentStatus;
   const lastUpdateAt = getLastUpdateAt(game);
   const lastUpdate = withAgo(formatDurationSince(lastUpdateAt));
-  const lines = [
-    {
-      key: 'intro',
-      content:
-        'Version changed since this state was set. Re-assign the lifecycle state to mute.',
-    },
-  ];
-
-  if (versionAtEntry || currentVersion) {
-    lines.push({
-      key: 'versions',
-      content: `State version: ${versionAtEntry ?? 'unknown'} → Current: ${currentVersion ?? 'unknown'}`,
-    });
-  }
-  if (lastUpdate) {
-    lines.push({
-      key: 'last-update',
-      content: <LastUpdateLine game={game} />,
-    });
-  }
 
   return (
     <div className="card-tooltip-breakdown">
-      {lines.map(({ key, content }) => (
-        <p key={key} className="card-tooltip-line">
-          {content}
+      <p className="card-tooltip-line">
+        Changed since this state was set. Click version to acknowledge.
+      </p>
+      {versionChanged && (
+        <p className="card-tooltip-line">
+          Version: {versionAtEntry} → {currentVersion}
         </p>
-      ))}
+      )}
+      {statusChanged && (
+        <p className="card-tooltip-line">
+          Status:{' '}
+          <span style={{ color: getStatusColor(statusAtEntry) }}>
+            {formatStatusLabel(statusAtEntry)}
+          </span>
+          {' → '}
+          <span style={{ color: getStatusColor(developmentStatus) }}>
+            {formatStatusLabel(developmentStatus)}
+          </span>
+        </p>
+      )}
+      {lastUpdate && (
+        <p className="card-tooltip-line">
+          <LastUpdateLine game={game} />
+        </p>
+      )}
     </div>
   );
 }
@@ -585,6 +597,9 @@ function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false
   const [editFocusNotes, setEditFocusNotes] = useState(false);
   const [editFocusRating, setEditFocusRating] = useState(false);
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
+  const [acknowledgeOpen, setAcknowledgeOpen] = useState(false);
+  const [acknowledgeSaving, setAcknowledgeSaving] = useState(false);
+  const [versionAnchorRect, setVersionAnchorRect] = useState(null);
   const [anchorRect, setAnchorRect] = useState(null);
   const [hypeTooltipActive, setHypeTooltipActive] = useState(false);
   const hypeRingRef = useRef(null);
@@ -597,8 +612,11 @@ function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false
   const scoreColor = getScoreColor(total);
   const steamUrl = game.url || `https://store.steampowered.com/app/${game.id}/`;
   const steamDbUrl = `https://steamdb.info/app/${game.id}/`;
-  const ownedStage = getOwnershipStage(game.owned);
-  const bothOwn = game.owned?.user0 && game.owned?.user1;
+  const ownedStage = getOwnershipStage(game.owned, game);
+  const bothOwn = getEffectiveOwnership(game) === 'both';
+  const showBothPlaytimeHeader = bothOwn && hasSteamPlaytimeForBoth(game);
+  const steamPlaytimeHours0 = getSteamPlaytimeHours(game, 0);
+  const steamPlaytimeHours1 = getSteamPlaytimeHours(game, 1);
   const developmentStatus = getDevelopmentStatus(game);
   const statusColor = getStatusColor(developmentStatus);
   const currentTier = getTier(game, `user${userIndex}`);
@@ -703,6 +721,44 @@ function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false
     setHypeTooltipActive(true);
   }, []);
 
+  const openAcknowledgePopover = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setVersionAnchorRect(rect);
+    setAcknowledgeOpen(true);
+  }, []);
+
+  const handleAcknowledgeUpdate = useCallback(async () => {
+    setAcknowledgeSaving(true);
+    try {
+      await setGameLifecycle(
+        APP_ID,
+        game.id,
+        libraryState,
+        game.stateMeta?.note || '',
+        currentVersion,
+        libraryState === 'finished'
+          ? normalizeFinishedRating(game.finishedRating)
+          : null,
+        developmentStatus
+      );
+      setAcknowledgeOpen(false);
+    } finally {
+      setAcknowledgeSaving(false);
+    }
+  }, [
+    game.id,
+    game.stateMeta?.note,
+    game.finishedRating,
+    libraryState,
+    currentVersion,
+    developmentStatus,
+  ]);
+
+  const showVersionMeta = Boolean(currentVersion) || hasUpdateSinceState;
+  const pendingUpdateTooltip = buildPendingUpdateTooltip(game, developmentStatus);
+
   return (
     <>
       <div
@@ -751,37 +807,39 @@ function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false
             </button>
           </FloatingTooltip>
 
-          <FloatingTooltip
-            wide
-            anchorClassName="card-indicator card-indicator--hype"
-            content={
-              hypeBreakdown ? (
-                <HypeBreakdownTooltip breakdown={hypeBreakdown} />
-              ) : (
-                <CardTooltipText>Total Hype: {total}</CardTooltipText>
-              )
-            }
-          >
-            <button
-              type="button"
-              ref={hypeRingRef}
-              className="card-indicator-btn card-indicator-btn--hype"
-              onMouseEnter={activateHypeTooltip}
-              onFocus={activateHypeTooltip}
-              onClick={openPicker}
-              aria-label={`Total Hype ${total}. Click to change your tier.`}
+          {!isHypePickerDisabled(game) && (
+            <FloatingTooltip
+              wide
+              anchorClassName="card-indicator card-indicator--hype"
+              content={
+                hypeBreakdown ? (
+                  <HypeBreakdownTooltip breakdown={hypeBreakdown} />
+                ) : (
+                  <CardTooltipText>Total Hype: {total}</CardTooltipText>
+                )
+              }
             >
-              <div
-                className="hype-ring-outer"
-                style={{
-                  background: `conic-gradient(${scoreColor} ${total}%, var(--bg-dark) 0)`,
-                  boxShadow: getScoreGlowShadow(total),
-                }}
+              <button
+                type="button"
+                ref={hypeRingRef}
+                className="card-indicator-btn card-indicator-btn--hype"
+                onMouseEnter={activateHypeTooltip}
+                onFocus={activateHypeTooltip}
+                onClick={openPicker}
+                aria-label={`Total Hype ${total}. Click to change your tier.`}
               >
-                <div className="hype-ring-inner">{total}</div>
-              </div>
-            </button>
-          </FloatingTooltip>
+                <div
+                  className="hype-ring-outer"
+                  style={{
+                    background: `conic-gradient(${scoreColor} ${total}%, var(--bg-dark) 0)`,
+                    boxShadow: getScoreGlowShadow(total),
+                  }}
+                >
+                  <div className="hype-ring-inner">{total}</div>
+                </div>
+              </button>
+            </FloatingTooltip>
+          )}
 
           {showGfnBadge && (
             <FloatingTooltip
@@ -852,7 +910,11 @@ function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false
             </div>
             <div className="game-card-price-row">
               {bothOwn ? (
-                <p className="game-card-owned-both">Owned by both players</p>
+                <p className="game-card-owned-both">
+                  {showBothPlaytimeHeader
+                    ? `${getNickname(0)}: ${steamPlaytimeHours0}h · ${getNickname(1)}: ${steamPlaytimeHours1}h`
+                    : 'Owned by both players'}
+                </p>
               ) : (
                 price && renderHeaderPrice()
               )}
@@ -868,14 +930,6 @@ function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false
           )}
 
           <div className="game-card-tags">
-            {hasUpdateSinceState && (
-              <FloatingTooltip
-                anchorClassName="floating-tooltip-anchor--meta"
-                content={buildUpdateTooltip(game)}
-              >
-                <span className="update-available-badge">Update</span>
-              </FloatingTooltip>
-            )}
             <FloatingTooltip
               anchorClassName="floating-tooltip-anchor--meta"
               content={<CardTooltipText>{statusTooltip}</CardTooltipText>}
@@ -914,22 +968,38 @@ function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false
           </div>
 
           <div className="game-card-meta-line">
-            {currentVersion && (
+            {showVersionMeta && (
               <div className="game-card-meta-item">
                 <FloatingTooltip
                   anchorClassName="floating-tooltip-anchor--meta-inline"
                   content={
-                    <div className="card-tooltip-breakdown">
-                      <p className="card-tooltip-heading">Version</p>
-                      <div className="card-tooltip-line">
-                        {versionTooltip || currentVersion}
+                    hasUpdateSinceState ? (
+                      pendingUpdateTooltip
+                    ) : (
+                      <div className="card-tooltip-breakdown">
+                        <p className="card-tooltip-heading">Version</p>
+                        <div className="card-tooltip-line">
+                          {versionTooltip || currentVersion}
+                        </div>
                       </div>
-                    </div>
+                    )
                   }
                 >
-                  <span className="game-card-version" title="Version">
-                    {currentVersion}
-                  </span>
+                  {hasUpdateSinceState ? (
+                    <button
+                      type="button"
+                      className="game-card-version game-card-version--pending"
+                      title="Version — click to acknowledge update"
+                      onClick={openAcknowledgePopover}
+                    >
+                      {currentVersion || '—'}
+                      <span className="version-new-indicator">new</span>
+                    </button>
+                  ) : (
+                    <span className="game-card-version" title="Version">
+                      {currentVersion}
+                    </span>
+                  )}
                 </FloatingTooltip>
               </div>
             )}
@@ -1116,6 +1186,15 @@ function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false
           game={game}
           isOpen={lifecycleOpen}
           onClose={() => setLifecycleOpen(false)}
+        />
+      )}
+
+      {acknowledgeOpen && (
+        <VersionAcknowledgePopover
+          anchorRect={versionAnchorRect}
+          onConfirm={handleAcknowledgeUpdate}
+          onClose={() => setAcknowledgeOpen(false)}
+          saving={acknowledgeSaving}
         />
       )}
     </>

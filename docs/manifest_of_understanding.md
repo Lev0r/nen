@@ -106,6 +106,11 @@ Split documents under `/artifacts/{appId}/public/data/config/`:
     "user0": false,
     "user1": false
   },
+  "steamPlaytime": {
+    "user0Minutes": 0,
+    "user1Minutes": 0,
+    "syncedAt": "Firestore Timestamp"
+  },
   "userNotes": {
     "user0": "",
     "user1": ""
@@ -186,6 +191,7 @@ Split documents under `/artifacts/{appId}/public/data/config/`:
 * **`releaseDate` / `earlyAccessDate`:** ISO date strings or `null`; used for badge tooltips (human-readable duration).
 * **`metacriticScore`:** Integer `0`–`100` or omitted; feeds MetacriticFactor in Total Hype.
 * **`estimatedPlaytimeHours`:** Integer hours from Steam store data when available.
+* **`steamPlaytime`:** Per-user **lifetime Steam playtime** in minutes (`user0Minutes`, `user1Minutes`) from `GetOwnedGames` `playtime_forever`, written only by the **24h ownership sync** (`syncSteamOwnership` / `steamOwnership` task) — no extra Steam HTTP calls. `syncedAt` is set when either minute field changes. Omitted until first successful ownership sync with playtime data for that user.
 * **`samples`:** Append-only player snapshots; trim to last 28. `avgPlayers7d` is a rolling average over available samples (official Steam API only).
 
 #### Root-level field glossary
@@ -449,7 +455,7 @@ Extract from store API (`data[appId].data`) and write to nested objects:
 
 ### F6: Card display rules
 
-* **Price hidden** when both users own the game (`owned.user0 && owned.user1`); header shows **"Owned by both players"** instead of price (reads `steamDynamic.price` when shown).
+* **Price hidden** when both users own the game (`owned.user0 && owned.user1`); header shows **"{nick0}: Xh · {nick1}: Yh"** from `steamPlaytime` when both minute fields and `syncedAt` are present, otherwise **"Owned by both players"** (reads `steamDynamic.price` when price is shown).
 * **Historical low** badge in the price row — **only when the game is on sale**.
 * **GeForce NOW badge** when `geforceNowReady === true`.
 * **SteamDB link** — `https://steamdb.info/app/{appId}/` in card actions.

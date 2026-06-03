@@ -13,7 +13,7 @@ LoginGate → DashboardShell
         └── GameCard[]
 ```
 
-- **Sidebar** — lifecycle tabs with counts, Add Game, Maintenance (no top header)
+- **Sidebar** — lifecycle tabs with counts and **update dot** (`nav-item-update-dot`) when any game in that tab (or Active sub-tab) has `hasUpdateSinceState`; Add Game, Maintenance (no top header)
 - **Palette** — warm graphite glass + softer sage `#4cc9a0`; no blue in primary UI
 - **Typography** — Clash Display (titles/headings), General Sans (body/UI) — see `index.css`
 - **Title** — browser tab `Nen?`
@@ -43,6 +43,7 @@ Panels: `.modal-backdrop` + `.glass-panel` in `index.css` (opaque glass, no back
 - Header: title + price row (mid-size typography under title); truncation tooltip on title
 - Price row: sale price + discount; **historical low icon only when on sale**; **"Owned by both players"** when both users own (keeps header height stable)
 - Meta line: version, critics, players, HLTB, finished rating — intrinsic-width cluster, pipe-separated
+- **Pending update** — when `hasUpdateSinceState`, version shows a `new` indicator; tooltip lists version and/or status drift; click → `VersionAcknowledgePopover` rebaselines `stateMeta` without changing lifecycle
 - Cards, sidebar, and panels share `--glass-bg` (warm graphite glass)
 - Finished rating: color-coded 1–5 in meta; click opens edit modal at rating (`focusRating`)
 - Hype ring (bottom-right): vertical center on thumbnail bottom border (overlaps thumb + body); opaque graphite fill, graphite outline, score-colored glow

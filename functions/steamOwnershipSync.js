@@ -15,6 +15,13 @@ function toOwnedSet(appIds) {
   return new Set((appIds || []).map((id) => String(id)));
 }
 
+function playtimeMinutesForUser(ownedSet, playtimeByAppId, appId) {
+  if (!ownedSet || !playtimeByAppId) return undefined;
+  if (!ownedSet.has(appId)) return undefined;
+  const minutes = playtimeByAppId[appId];
+  return Number.isFinite(minutes) && minutes >= 0 ? minutes : 0;
+}
+
 async function recordUserOwnedGamesError(db, appId, userKey, errorMessage) {
   const message = `User ${userKey} owned games: ${errorMessage}`;
   await upsertMaintenanceError(db, appId, {
@@ -58,6 +65,8 @@ async function syncSteamOwnershipCore(appId = DEFAULT_APP_ID) {
 
   let user0OwnedSet = null;
   let user1OwnedSet = null;
+  let user0PlaytimeByAppId = null;
+  let user1PlaytimeByAppId = null;
   let user0OwnedCount = 0;
   let user1OwnedCount = 0;
   let errors = 0;
@@ -72,6 +81,7 @@ async function syncSteamOwnershipCore(appId = DEFAULT_APP_ID) {
       errors += 1;
     } else {
       user0OwnedSet = toOwnedSet(result0.appIds);
+      user0PlaytimeByAppId = result0.playtimeByAppId;
       user0OwnedCount = user0OwnedSet.size;
       await clearUserOwnedGamesError(db, appId, 0);
     }
@@ -87,6 +97,7 @@ async function syncSteamOwnershipCore(appId = DEFAULT_APP_ID) {
       errors += 1;
     } else {
       user1OwnedSet = toOwnedSet(result1.appIds);
+      user1PlaytimeByAppId = result1.playtimeByAppId;
       user1OwnedCount = user1OwnedSet.size;
       await clearUserOwnedGamesError(db, appId, 1);
     }
@@ -120,16 +131,47 @@ async function syncSteamOwnershipCore(appId = DEFAULT_APP_ID) {
 
     const user0Transition = !currentUser0 && nextUser0;
     const user1Transition = !currentUser1 && nextUser1;
-    if (!user0Transition && !user1Transition) {
-      continue;
-    }
+
+    const nextUser0Minutes = playtimeMinutesForUser(
+      user0OwnedSet,
+      user0PlaytimeByAppId,
+      doc.id
+    );
+    const nextUser1Minutes = playtimeMinutesForUser(
+      user1OwnedSet,
+      user1PlaytimeByAppId,
+      doc.id
+    );
 
     const ownershipUpdate = {};
     if (user0Transition) ownershipUpdate['owned.user0'] = true;
     if (user1Transition) ownershipUpdate['owned.user1'] = true;
 
+    const playtimeUpdate = {};
+    const currentPlaytime = game.steamPlaytime || {};
+    if (
+      nextUser0Minutes !== undefined &&
+      currentPlaytime.user0Minutes !== nextUser0Minutes
+    ) {
+      playtimeUpdate['steamPlaytime.user0Minutes'] = nextUser0Minutes;
+    }
+    if (
+      nextUser1Minutes !== undefined &&
+      currentPlaytime.user1Minutes !== nextUser1Minutes
+    ) {
+      playtimeUpdate['steamPlaytime.user1Minutes'] = nextUser1Minutes;
+    }
+    if (Object.keys(playtimeUpdate).length > 0) {
+      playtimeUpdate['steamPlaytime.syncedAt'] = FieldValue.serverTimestamp();
+    }
+
+    const docUpdate = { ...ownershipUpdate, ...playtimeUpdate };
+    if (Object.keys(docUpdate).length === 0) {
+      continue;
+    }
+
     try {
-      await doc.ref.update(ownershipUpdate);
+      await doc.ref.update(docUpdate);
       gamesUpdated += 1;
     } catch (err) {
       console.error(`syncSteamOwnership failed for ${doc.id}:`, err);

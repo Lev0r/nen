@@ -9,7 +9,11 @@ import {
   normalizeFinishedRating,
 } from '../utils/libraryState';
 import FinishedRatingPicker from './FinishedRatingPicker';
-import { getCurrentVersion, getGameName } from '../utils/gameAccessors';
+import {
+  getCurrentVersion,
+  getDevelopmentStatus,
+  getGameName,
+} from '../utils/gameAccessors';
 
 const APP_ID = 'default_app';
 
@@ -49,7 +53,8 @@ export default function LifecycleModal({ game, isOpen, onClose }) {
         selectedState,
         note,
         getCurrentVersion(game),
-        selectedState === 'finished' ? finishedRating : null
+        selectedState === 'finished' ? finishedRating : null,
+        getDevelopmentStatus(game)
       );
       onClose();
     } catch (err) {

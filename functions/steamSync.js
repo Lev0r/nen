@@ -107,12 +107,24 @@ function shouldRunItadSync(game, libraryState, force) {
   return isStale(game.steamDynamic?.itadSyncedAt, interval);
 }
 
-function mergeHasUpdateSinceState(game, currentVersion) {
+function mergeHasUpdateSinceState(game, currentVersion, developmentStatus) {
+  if (game.hasUpdateSinceState === true) return true;
+
   const versionAtEntry = game.stateMeta?.versionAtEntry;
   if (versionAtEntry && currentVersion && currentVersion !== versionAtEntry) {
     return true;
   }
-  return game.hasUpdateSinceState === true;
+
+  const statusAtEntry = game.stateMeta?.developmentStatusAtEntry;
+  if (
+    statusAtEntry &&
+    developmentStatus &&
+    developmentStatus !== statusAtEntry
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 async function writeSteamLibrarySyncMeta(db, appId, stats) {
@@ -287,10 +299,6 @@ async function syncOneGameSteamMetadata(db, appId, doc, { force = false } = {}) 
         steamDynamic = { ...steamDynamic, ...dynamicData };
         updates.steamDynamic = steamDynamic;
 
-        if (mergeHasUpdateSinceState(game, steamDynamic.currentVersion)) {
-          updates.hasUpdateSinceState = true;
-        }
-
         stats.dynamicSyncs++;
       }
     } else if (runStatic && appDetails) {
@@ -300,6 +308,15 @@ async function syncOneGameSteamMetadata(db, appId, doc, { force = false } = {}) 
         syncedAt: FieldValue.serverTimestamp(),
       };
       updates.steamDynamic = steamDynamic;
+    }
+
+    if (runStatic || runDynamic) {
+      const statusForCheck = steamStatic.developmentStatus || developmentStatus;
+      if (
+        mergeHasUpdateSinceState(game, steamDynamic.currentVersion, statusForCheck)
+      ) {
+        updates.hasUpdateSinceState = true;
+      }
     }
 
     if (runPlayers && resolvedStatus !== 'tba') {

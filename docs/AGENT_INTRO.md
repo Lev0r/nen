@@ -1,6 +1,6 @@
 # Agent Intro — Nen?
 
-**Last updated:** 2026-06-03 (orchestrator deployed; static nebula BG + perf CSS)  
+**Last updated:** 2026-06-03 (library UX batch: F2P, playtime piggyback, version/status updates, filters)  
 **Repo:** https://github.com/Lev0r/nen  
 **Firebase project:** `nen-tracker` (CLI alias: `staging` in `.firebaserc`)
 
@@ -136,6 +136,10 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 12. **Lifecycle badge on card** — hidden when browsing a lifecycle sidebar tab; shown when `hasActiveFilters` scopes the grid to the full library.
 13. **Post-deploy RU re-vet** — required after vetting *logic* changes only (not source re-sync); completed 2026-06-02.
 14. **Background** — `public/backgrounds/nebula1.webp` with blur on one fixed layer only; cards use opaque `--glass-bg` (no per-card `backdrop-filter`).
+15. **F2P ownership** — `getEffectiveOwnership` treats `Free to Play` as both-own client-side; Firestore `owned` flags unchanged.
+16. **Steam playtime** — only `steamOwnership` sync writes `steamPlaytime.*` from existing `GetOwnedGames`; never add per-game Web API calls for hours.
+17. **Version/status “new”** — `hasUpdateSinceState` covers version or `developmentStatus` drift; acknowledge on card rebaselines `stateMeta` without changing lifecycle; sidebar dot per tab.
+18. **Filter panel** — can collapse while filters stay active; mobile ≤768px does not auto-expand on active filters.
 
 ---
 

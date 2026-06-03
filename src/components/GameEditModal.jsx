@@ -230,7 +230,8 @@ export default function GameEditModal({
           form.libraryState,
           form.lifecycleNote,
           getCurrentVersion(game),
-          form.libraryState === 'finished' ? form.finishedRating : null
+          form.libraryState === 'finished' ? form.finishedRating : null,
+          getDevelopmentStatus(game)
         )
       );
     } else {

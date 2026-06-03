@@ -146,12 +146,19 @@ export function setGameLifecycle(
   state,
   note,
   currentVersion,
-  finishedRating
+  finishedRating,
+  developmentStatus
 ) {
   const gameRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
   return updateDoc(
     gameRef,
-    buildStateMetaUpdates(state, note, currentVersion, finishedRating)
+    buildStateMetaUpdates(
+      state,
+      note,
+      currentVersion,
+      finishedRating,
+      developmentStatus
+    )
   );
 }
 

@@ -114,6 +114,8 @@ Client: `src/services/cloudFunctions.js` — metadata/GFN/dev sync callables use
 | ITAD | `steamDynamic` critics, historical low | `ITAD_API_KEY` |
 | GFN | `config/gfn-catalog.steamAppIds` | `GFN_VPC_ID` (default Warsaw) |
 
+HLTB search strips trademark symbols (™®©), normalizes dashes, and tries edition-stripped plus normalized title variants before ranking results (`functions/hltb.js`). Smoke test: `node scripts/test-hltb-matching.mjs`.
+
 HLTB/ITAD failures are recorded in `config/maintenance-errors`, not on game documents.
 
 ## GFN badge
@@ -130,7 +132,7 @@ Low-level client in `functions/steamWebApi.js` — used by ownership and wishlis
 
 | Function | Steam endpoint | Returns |
 | :--- | :--- | :--- |
-| `getOwnedGames(steamId)` | `IPlayerService/GetOwnedGames/v1` | `{ appIds: number[], error }` |
+| `getOwnedGames(steamId)` | `IPlayerService/GetOwnedGames/v1` | `{ appIds: number[], playtimeByAppId: Record<appId, minutes>, error }` — `playtime_forever` parsed from the same response (no extra calls) |
 | `getWishlist(steamId)` | `IWishlistService/GetWishlist/v1` | `{ appIds: number[], error }` |
 | `getConfiguredSteamIds()` | — | `{ user0, user1 }` from env |
 
@@ -149,13 +151,13 @@ Errors use structured `{ appIds: null, error: '...' }` — missing key, invalid 
 
 ## Steam library sync (ownership) — implemented
 
-Callable **`syncSteamOwnership`** and orchestrator task **`steamOwnership`** (24h) merge `owned.user0` / `owned.user1` from each user's Steam **owned games** list (`getOwnedGames`). Distinct from the 6h **metadata** sync (`libraryMetadata` / `syncSteamLibrary`).
+Callable **`syncSteamOwnership`** and orchestrator task **`steamOwnership`** (24h) merge `owned.user0` / `owned.user1` from each user's Steam **owned games** list (`getOwnedGames`). The same `GetOwnedGames` response also supplies **`playtime_forever`** per app — piggybacked into `steamPlaytime.user0Minutes` / `user1Minutes` on game docs (no additional Steam Web API calls). Distinct from the 6h **metadata** sync (`libraryMetadata` / `syncSteamLibrary`), which does **not** write playtime.
 
 **One-way merge:** if Steam reports owned and Firestore is `false` → set `true`. Never clears `true` → `false` (manual toggle in UI remains authoritative for removals).
 
 | Write target | Fields |
 | :--- | :--- |
-| Game docs | `owned.user0`, `owned.user1` (only `false` → `true` transitions) |
+| Game docs | `owned.user0`, `owned.user1` (only `false` → `true` transitions); `steamPlaytime.user0Minutes`, `steamPlaytime.user1Minutes`, `steamPlaytime.syncedAt` when playtime changes for apps in that user's owned list |
 | `config/steam-ownership-sync` | `syncedAt`, `user0OwnedCount`, `user1OwnedCount`, `gamesUpdated`, `gamesChecked`, `errors` |
 | `config/maintenance-audit` | `steamOwnership` snapshot for Maintenance UI |
 | `config/maintenance-errors` | API / per-game update failures (`source: steam-ownership`) |
