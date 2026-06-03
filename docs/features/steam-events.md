@@ -39,7 +39,7 @@ Client: `syncSteamEvents()` in `src/services/cloudFunctions.js` (120s timeout).
 | :--- | :--- |
 | Events page | `src/components/EventsPage.jsx` |
 | Subscription | `useSteamEvents` in `src/services/db.js` via `MaintenanceDataContext` |
-| Nav | Sidebar **Events** (top, above lifecycle tabs); `topView`: `library` \| `events` in `DashboardShell.jsx` |
+| Nav | Sidebar **Events** (top, above lifecycle tabs); default `topView` is `events` on load; lifecycle tabs set `library` |
 
 ## Deploy
 

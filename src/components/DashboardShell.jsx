@@ -132,7 +132,7 @@ export default function DashboardShell() {
     gfnSyncedAtLabel,
   } = useMaintenanceData();
 
-  const [topView, setTopView] = useState('library');
+  const [topView, setTopView] = useState('events');
   const [activeTab, setActiveTab] = useState('active');
   const [activeSubTab, setActiveSubTab] = useState('active');
   const [isModalOpen, setIsModalOpen] = useState(false);

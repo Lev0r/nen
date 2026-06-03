@@ -143,7 +143,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **RU games sorted to grid end** | ✅ | Stable sort after filter; hype order preserved within groups |
 | **Hide hype ring when picker disabled** | ✅ | RU / finished / banned — no `.card-indicator--hype` |
 | **Co-op warning on add game** | ✅ | Two-phase confirm if no co-op categories 9/38/39/48 |
-| **Mobile filter panel (≤768px)** | ✅ | Collapsed by default; no auto-expand on active; Filters button / search / chip opens |
+| **Filter panel collapsed on load** | ✅ | No auto-expand when nav presets are active; opens via search / Filters button / user change |
 
 ---
 

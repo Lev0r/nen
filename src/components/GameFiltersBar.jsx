@@ -66,12 +66,6 @@ export default function GameFiltersBar({
   }, []);
 
   useEffect(() => {
-    if (!isMobile && active) {
-      setExpanded(true);
-    }
-  }, [active, isMobile]);
-
-  useEffect(() => {
     if (expandFiltersSignal > 0) {
       setExpanded(true);
     }

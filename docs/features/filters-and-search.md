@@ -82,9 +82,8 @@ After `filterGames`, the grid applies a **stable** sort: non–RU-alert games fi
 
 ## UX notes
 
-- Panel expands on search focus or when changing a filter (`updateFilter`)
-- **Desktop:** `hasActiveFilters` auto-expands the panel
-- **Mobile (≤768px):** panel stays collapsed until the user opens it (search focus, **Filters** button, or a chip/toggle change)
+- Panel starts **collapsed** on page load (sidebar nav presets do not auto-expand it)
+- Opens on search focus, **Filters** button (mobile), chip/toggle change (`updateFilter`), or mobile search modal “Open filters”
 - Collapse: **×** in expanded panel header, click outside the bar, or **Escape** — filters and grid results stay unchanged
 - **Clear filters** when `hasActiveFilters` (any include/exclude/search/footer not `off`); `onResetFilters` sets `DEFAULT_GAME_FILTERS`
 - Do not use CSS `:focus-within` for panel expand (breaks toggles)

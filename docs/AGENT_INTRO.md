@@ -143,7 +143,7 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 15. **F2P ownership** — `getEffectiveOwnership` treats `Free to Play` as both-own client-side; Firestore `owned` flags unchanged.
 16. **Steam playtime** — only `steamOwnership` sync writes `steamPlaytime.*` from existing `GetOwnedGames`; never add per-game Web API calls for hours.
 17. **Version/status “new”** — `hasUpdateSinceState` covers version or `developmentStatus` drift; acknowledge on card rebaselines `stateMeta` without changing lifecycle; sidebar dot per tab.
-18. **Filter panel** — can collapse while filters stay active; mobile ≤768px does not auto-expand on active filters.
+18. **Filter panel** — collapsed on load; opens on user action (search focus, Filters button, filter change); can collapse while filters stay active.
 19. **Filter facets** — status/ownership/tags/lifecycle use tri-state `{ include, exclude }` (chip cycle off → include → exclude); footer toggles same tri-state. Facet gating always on (`filterMode={true}`). **Clear filters** uses `hasActiveFilters` / `onResetFilters` → `DEFAULT_GAME_FILTERS` (entire library).
 
 ---
