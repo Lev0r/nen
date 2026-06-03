@@ -68,7 +68,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **SPA performance (scroll/GPU)** | ✅ | No per-card `backdrop-filter`; opaque glass; `React.memo(GameCard)`; `MaintenanceDataContext`; `prefers-reduced-motion` |
 | **Unified warm graphite theme** | ✅ | Softer sage accent, glass panels, sidebar/filters |
 | Card thumbnails | ✅ | Full color; hover scale only (no dim filter) |
-| **Contextual lifecycle badge on card** | ✅ | Hidden on lifecycle tabs; shown when filters search full library |
+| **Lifecycle badge on card** | ✅ | Always on grid (sidebar = filter preset, full library) |
 | Clash Display + General Sans fonts | ✅ | Card redesign, unified badges (6px radius) |
 
 ---
@@ -132,9 +132,9 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Text search (game name) | ✅ | |
 | Lifecycle / tag / status / ownership filters | ✅ | Status & ownership multi-select (OR); lifecycle enablement uses full library |
 | Sale / GFN / update / RU toggles | ✅ | |
-| Global scope when any filter active | ✅ | |
-| Tab click resets filters | ✅ | |
-| Clear filters in header | ✅ | |
+| Full library grid + filter panel | ✅ | Sidebar = lifecycle preset via `filtersForSidebarNav` |
+| Tab click sets nav preset | ✅ | Clears non-lifecycle filters |
+| Clear filters → sidebar preset | ✅ | `hasFiltersBeyondNavPreset` + `onResetFilters` |
 | **Filter panel collapse (× / outside / Escape)** | ✅ | Active filters kept; search focus or chip change re-opens |
 | **Remove co-op tags from filter UI** | ✅ | Co-op tag chips hidden |
 | **Dynamic filter option disabling** | ✅ | Count per option vs other active filters; disabled chips/switches when 0 and not selected |

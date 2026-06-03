@@ -231,15 +231,16 @@ Split documents under `/artifacts/{appId}/public/data/config/`:
 ### F2: Library Views, Lifecycle & Search
 
 #### Sidebar lifecycle tabs (primary navigation)
-Each tab filters by `libraryState`:
+Each tab sets a filter preset on the full library. **Active** has sub-tabs **Active** (excludes TBA) and **TBA** (active + `developmentStatus === 'tba'`).
 
-| Tab | Filter |
+| Tab | Preset |
 | :--- | :--- |
-| **Active** | `libraryState === 'active'` |
-| **Replayable** | `libraryState === 'replayable'` |
-| **Waiting for updates** | `libraryState === 'waiting_for_updates'` |
-| **Finished** | `libraryState === 'finished'` |
-| **Banned** | `libraryState === 'banned'` |
+| **Active** (sub: Active) | `libraryStates: ['active']`, exclude TBA |
+| **Active** (sub: TBA) | `libraryStates: ['active']`, `developmentStatuses: ['tba']` |
+| **Replayable** | `libraryStates: ['replayable']` |
+| **Waiting for updates** | `libraryStates: ['waiting_for_updates']` |
+| **Finished** | `libraryStates: ['finished']` |
+| **Banned** | `libraryStates: ['banned']` |
 
 Lifecycle is changed via a **modal** on the game card (all states visible, optional note). Re-selecting the current state re-baselines `stateMeta` and clears `hasUpdateSinceState`.
 
@@ -247,13 +248,16 @@ Lifecycle is changed via a **modal** on the game card (all states visible, optio
 
 **Scope rules (implemented):**
 
-* **No filters active:** search/filters apply only to games in the **current sidebar lifecycle tab**.
-* **Any filter active** (`hasActiveFilters` — search text, lifecycle chips, tags, status, ownership, sale/GFN/update toggles): pool becomes the **entire library**; sidebar tab is ignored until filters are cleared.
-* **Sidebar tab click** resets all filters to defaults.
+* **Grid and filter panel** always use the **entire library**.
+* **Sidebar tab / Active sub-tab** sets a lifecycle **filter preset** (`filtersForSidebarNav`) and clears other fields — not a separate browse pool.
+* **Active → Active:** `libraryStates: ['active']`, exclude TBA via `excludeDevelopmentStatuses: ['tba']` (games with null/unknown status remain).
+* **Active → TBA:** `libraryStates: ['active']`, `developmentStatuses: ['tba']`.
+* **Other tabs:** `libraryStates: [tabId]`.
+* **Clear filters** resets to the current sidebar preset (`hasFiltersBeyondNavPreset`), not empty filters.
 
-Within the active pool, users can filter by:
+Users can refine on the full library by:
 * Game **name** (text search)
-* **Lifecycle** multi-select chips (Active / Replayable / Waiting for updates / Finished / Banned) — chip enablement counts use the **full library**, not the current sidebar tab
+* **Lifecycle** multi-select chips (Active / Replayable / Waiting for updates / Finished / Banned)
 * **Steam tags** (`steamStatic.steamTags` from scrape — tag list shows tags from **full library**)
 * **Development status** — multi-select `developmentStatuses[]` (`released` / `early_access` / `tba`; OR within dimension; empty = no filter)
 * **Ownership** — multi-select `ownerships[]` (`neither` / `one` / `both`; OR within dimension; empty = no filter)
@@ -484,7 +488,7 @@ The dashboard should feel like a premium, sleek gaming platform (similar to Stea
 * **Color Palette**: Dark obsidian base (`#121620`), **mint accent** (`#14e8a0`) for scores and primary actions — **no blue** in primary UI. Crimson red for RU alerts; yellow for early access / warnings.
 * **Layout**: Lifecycle navigation and actions live in the **left sidebar** (no top header bar). Browser tab title: **`Nen?`**.
 * **Dynamic background**: Layered CSS wave mesh — warm graphite base, coral/moss/teal blobs on a fixed diagonal layout (static; no animation). Disable via `VITE_ENABLE_DYNAMIC_BG=false`.
-* **Lifecycle badge on thumbnail**: Hidden when viewing a sidebar lifecycle tab; shown when any filter is active (full-library scope).
+* **Lifecycle badge on thumbnail**: Always shown on dashboard grid cards.
 * **Aero Glassmorphism**: Cards and panels use translucent backdrop filters.
 * **Total Hype ring**: Bottom-right; vertical center aligned with the **thumbnail bottom border** (overlaps thumbnail and card body). Opaque graphite center and track; graphite outline; score-colored glow. Shows the Total Hype integer **without a `%` symbol**. Color scales red → yellow → mint by score. Click opens a small tier picker for the **active user only** (opaque panel for readability). Hover shows the full score breakdown tooltip.
 * **Owned indicator**: Bottom-left inside the thumbnail; three distinct icons (hands → sword → crossed swords). Click toggles ownership for the active user.

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  DEFAULT_GAME_FILTERS,
   hasActiveFilters,
   isLibraryStateFilterEnabled,
   isDevelopmentStatusFilterEnabled,
@@ -41,6 +40,8 @@ export default function GameFiltersBar({
   resultCount,
   totalCount,
   filterMode = false,
+  showClearFilters = false,
+  onResetFilters,
 }) {
   const active = hasActiveFilters(filters);
   const facetGating = filterMode;
@@ -124,7 +125,9 @@ export default function GameFiltersBar({
   };
 
   const clearFilters = () => {
-    onChange({ ...DEFAULT_GAME_FILTERS });
+    if (onResetFilters) {
+      onResetFilters();
+    }
     setExpanded(false);
   };
 
@@ -191,7 +194,7 @@ export default function GameFiltersBar({
               Filters{active ? ' · on' : ''}
             </button>
           )}
-          {active && (
+          {showClearFilters && (
             <button
               type="button"
               className="btn-secondary game-filters-clear"

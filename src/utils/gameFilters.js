@@ -12,6 +12,7 @@ export const DEFAULT_GAME_FILTERS = {
   searchText: '',
   steamTags: [],
   developmentStatuses: [],
+  excludeDevelopmentStatuses: [],
   ownerships: [],
   onSaleOnly: false,
   gfnOnly: false,
@@ -19,6 +20,54 @@ export const DEFAULT_GAME_FILTERS = {
   ruOnly: false,
   libraryStates: [],
 };
+
+export function filtersForSidebarNav(activeTab, activeSubTab = 'active') {
+  const base = { ...DEFAULT_GAME_FILTERS };
+  if (activeTab === 'active' && activeSubTab === 'tba') {
+    return {
+      ...base,
+      libraryStates: ['active'],
+      developmentStatuses: ['tba'],
+    };
+  }
+  if (activeTab === 'active' && activeSubTab === 'active') {
+    return {
+      ...base,
+      libraryStates: ['active'],
+      excludeDevelopmentStatuses: ['tba'],
+    };
+  }
+  return {
+    ...base,
+    libraryStates: [activeTab],
+  };
+}
+
+function sortedArrayKey(arr) {
+  return [...(arr ?? [])].sort().join('\0');
+}
+
+export function filtersMatchNavPreset(filters, activeTab, activeSubTab = 'active') {
+  const preset = filtersForSidebarNav(activeTab, activeSubTab);
+  return (
+    (filters.searchText?.trim() ?? '') === (preset.searchText?.trim() ?? '') &&
+    sortedArrayKey(filters.steamTags) === sortedArrayKey(preset.steamTags) &&
+    sortedArrayKey(filters.developmentStatuses) ===
+      sortedArrayKey(preset.developmentStatuses) &&
+    sortedArrayKey(filters.excludeDevelopmentStatuses) ===
+      sortedArrayKey(preset.excludeDevelopmentStatuses) &&
+    sortedArrayKey(filters.ownerships) === sortedArrayKey(preset.ownerships) &&
+    Boolean(filters.onSaleOnly) === Boolean(preset.onSaleOnly) &&
+    Boolean(filters.gfnOnly) === Boolean(preset.gfnOnly) &&
+    Boolean(filters.updateAvailableOnly) === Boolean(preset.updateAvailableOnly) &&
+    Boolean(filters.ruOnly) === Boolean(preset.ruOnly) &&
+    sortedArrayKey(filters.libraryStates) === sortedArrayKey(preset.libraryStates)
+  );
+}
+
+export function hasFiltersBeyondNavPreset(filters, activeTab, activeSubTab = 'active') {
+  return !filtersMatchNavPreset(filters, activeTab, activeSubTab);
+}
 
 export function getOwnershipCategory(owned) {
   const user0 = Boolean(owned?.user0);
@@ -52,6 +101,7 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
   const searchText = filters.searchText?.trim().toLowerCase() ?? '';
   const selectedTags = filters.steamTags ?? [];
   const developmentStatuses = filters.developmentStatuses ?? [];
+  const excludeDevelopmentStatuses = filters.excludeDevelopmentStatuses ?? [];
   const ownerships = filters.ownerships ?? [];
   const onSaleOnly = Boolean(filters.onSaleOnly);
   const gfnOnly = Boolean(filters.gfnOnly);
@@ -73,6 +123,13 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
     if (
       developmentStatuses.length > 0 &&
       !developmentStatuses.includes(getDevelopmentStatus(game))
+    ) {
+      return false;
+    }
+
+    if (
+      excludeDevelopmentStatuses.length > 0 &&
+      excludeDevelopmentStatuses.includes(getDevelopmentStatus(game))
     ) {
       return false;
     }

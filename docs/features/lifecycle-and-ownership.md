@@ -30,7 +30,7 @@ Implemented in `DashboardShell.jsx` (`ACTIVE_SUB_TABS`, `matchesActiveSubTab`).
 
 - **`resolveLibraryState`** — `src/utils/libraryState.js` (legacy `abandoned` → `banned`)
 - **`LifecycleModal`** — card lifecycle badge (when visible) or edit modal; optional note; finished rating when `finished`
-- **Lifecycle badge on card** — shown only when filters scope the full library (`showLifecycleBadge={filtersScopeGlobal}` in `DashboardShell.jsx`); hidden on sidebar lifecycle tabs
+- **Lifecycle badge on card** — always shown on dashboard grid (`showLifecycleBadge={true}` in `DashboardShell.jsx`)
 - **`stateMeta`** — `versionAtEntry`, `developmentStatusAtEntry`, `enteredAt`, `note` on state change via `buildStateMetaUpdates`
 - **`hasUpdateSinceState`** — set when Steam version ≠ `versionAtEntry` or `steamStatic.developmentStatus` ≠ `developmentStatusAtEntry` (`steamSync.js`, sticky once true); cleared on lifecycle re-assign or version **Acknowledge** on the card
 - **Update UX** — small `new` label on the version meta line (not a tag badge); click opens acknowledge popover; sidebar tab dot when the tab has unmuted updates

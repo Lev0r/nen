@@ -123,7 +123,7 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 ## Known pitfalls
 
 1. **Filter panel** — use React `expanded` state, not CSS `:focus-within` (breaks toggles).
-2. **Filter scope** — no filters = current tab; any filter active = full library.
+2. **Filter scope** — sidebar sets lifecycle preset (`filtersForSidebarNav`); grid and filter panel always use full library; Clear resets to preset.
 3. **Schema v2 only** — nested `steamStatic` / `steamDynamic` / `steamStats`; no v1 flat fields.
 4. **Banned games** — skip all Steam sync; **TBA** — no player stats.
 5. **GFN badge** — reads `config/gfn-catalog.steamAppIds`, not per-game scrape field.
@@ -133,14 +133,14 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 9. **NE GRAI vetting** — exact normalized name match only (no substring; no suffix stripping on studio/games/entertainment).
 10. **RU alert text** — NE GRAI: `developer found in "Не Грай" database`; curator: markdown link + `(not recommended or informational)`; no duplicate curator line when app ID already flagged.
 11. **Scheduled sync** — single Cloud Scheduler job `scheduledSyncOrchestrator` (every 6h); per-task intervals in `config/scheduler-state`. Old jobs `syncLibrarySteam`, `syncGfnCatalogScheduled`, `syncDevSourcesScheduled` are removed.
-12. **Lifecycle badge on card** — hidden when browsing a lifecycle sidebar tab; shown when `hasActiveFilters` scopes the grid to the full library.
+12. **Lifecycle badge on card** — always shown on grid cards (full-library view).
 13. **Post-deploy RU re-vet** — required after vetting *logic* changes only (not source re-sync); completed 2026-06-02.
 14. **Background** — `public/backgrounds/nebula1.webp` with blur on one fixed layer only; cards use opaque `--glass-bg` (no per-card `backdrop-filter`).
 15. **F2P ownership** — `getEffectiveOwnership` treats `Free to Play` as both-own client-side; Firestore `owned` flags unchanged.
 16. **Steam playtime** — only `steamOwnership` sync writes `steamPlaytime.*` from existing `GetOwnedGames`; never add per-game Web API calls for hours.
 17. **Version/status “new”** — `hasUpdateSinceState` covers version or `developmentStatus` drift; acknowledge on card rebaselines `stateMeta` without changing lifecycle; sidebar dot per tab.
 18. **Filter panel** — can collapse while filters stay active; mobile ≤768px does not auto-expand on active filters.
-19. **Filter facets** — status/ownership/tags are multi-select arrays (OR within dimension); lifecycle chip disabled state uses `allGames`, not the active sidebar tab pool. **Browse mode** (no active filters): all chips enabled; **filter mode**: dynamic disabling via `chipEnabled` + `filterMode` on `GameFiltersBar`.
+19. **Filter facets** — status/ownership/tags are multi-select arrays (OR within dimension); facet gating always on (`filterMode={true}`). **Clear filters** uses `hasFiltersBeyondNavPreset` / `onResetFilters`, not `DEFAULT_GAME_FILTERS`.
 
 ---
 

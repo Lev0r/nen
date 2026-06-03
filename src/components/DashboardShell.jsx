@@ -15,10 +15,10 @@ import {
 } from '../utils/libraryState';
 import { getDevelopmentStatus } from '../utils/gameAccessors';
 import {
-  DEFAULT_GAME_FILTERS,
   filterGames,
   collectSteamTags,
-  hasActiveFilters,
+  filtersForSidebarNav,
+  hasFiltersBeyondNavPreset,
 } from '../utils/gameFilters';
 import { isRuDeveloperAlert } from '../utils/gameHelpers';
 import { formatRelativeTimeShort } from '../utils/formatDuration';
@@ -82,7 +82,9 @@ export default function DashboardShell() {
   const [activeSubTab, setActiveSubTab] = useState('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
-  const [gameFilters, setGameFilters] = useState(DEFAULT_GAME_FILTERS);
+  const [gameFilters, setGameFilters] = useState(() =>
+    filtersForSidebarNav('active', 'active')
+  );
   const [syncingGfn, setSyncingGfn] = useState(false);
   const [syncingMeta, setSyncingMeta] = useState(false);
   const [syncingSteamOwnership, setSyncingSteamOwnership] = useState(false);
@@ -352,36 +354,21 @@ export default function DashboardShell() {
     [games]
   );
 
-  const lifecycleGames = useMemo(() => {
-    return games.filter((game) => {
-      if (activeTab === 'active') {
-        return matchesActiveSubTab(game, activeSubTab);
-      }
-      return resolveLibraryState(game) === activeTab;
-    });
-  }, [games, activeTab, activeSubTab]);
-
-  const filtersScopeGlobal = useMemo(
-    () => hasActiveFilters(gameFilters),
-    [gameFilters]
-  );
-
-  const filterSourceGames = useMemo(
-    () => (filtersScopeGlobal ? games : lifecycleGames),
-    [filtersScopeGlobal, games, lifecycleGames]
-  );
-
   const filteredGames = useMemo(() => {
-    const filtered = filterGames(filterSourceGames, gameFilters, gfnSteamAppIds);
+    const filtered = filterGames(games, gameFilters, gfnSteamAppIds);
     return filtered.slice().sort((a, b) => {
       const aRu = isRuDeveloperAlert(a) ? 1 : 0;
       const bRu = isRuDeveloperAlert(b) ? 1 : 0;
       return aRu - bRu;
     });
-  }, [filterSourceGames, gameFilters, gfnSteamAppIds]);
+  }, [games, gameFilters, gfnSteamAppIds]);
 
   const availableTags = useMemo(() => collectSteamTags(games), [games]);
-  const filtersActive = hasActiveFilters(gameFilters);
+  const filtersBeyondNav = hasFiltersBeyondNavPreset(
+    gameFilters,
+    activeTab,
+    activeSubTab
+  );
   const activeTabLabel =
     activeTab === 'active'
       ? ACTIVE_SUB_TABS.find((subTab) => subTab.id === activeSubTab)?.label ?? 'Active'
@@ -390,12 +377,16 @@ export default function DashboardShell() {
   function handleLifecycleTabClick(tabId) {
     setActiveTab(tabId);
     setActiveSubTab('active');
-    setGameFilters(DEFAULT_GAME_FILTERS);
+    setGameFilters(filtersForSidebarNav(tabId, 'active'));
   }
 
   function handleActiveSubTabClick(subTabId) {
     setActiveSubTab(subTabId);
-    setGameFilters(DEFAULT_GAME_FILTERS);
+    setGameFilters(filtersForSidebarNav('active', subTabId));
+  }
+
+  function handleResetFilters() {
+    setGameFilters(filtersForSidebarNav(activeTab, activeSubTab));
   }
 
   return (
@@ -486,13 +477,15 @@ export default function DashboardShell() {
           <GameFiltersBar
             filters={gameFilters}
             onChange={setGameFilters}
-            filterSourceGames={filterSourceGames}
+            filterSourceGames={games}
             allGames={games}
             gfnSteamAppIds={gfnSteamAppIds}
             availableTags={availableTags}
             resultCount={filteredGames.length}
-            totalCount={filterSourceGames.length}
-            filterMode={filtersScopeGlobal}
+            totalCount={games.length}
+            filterMode={true}
+            showClearFilters={filtersBeyondNav}
+            onResetFilters={handleResetFilters}
           />
         )}
 
@@ -505,7 +498,7 @@ export default function DashboardShell() {
                 key={game.id}
                 game={game}
                 gfnSteamAppIds={gfnSteamAppIds}
-                showLifecycleBadge={filtersScopeGlobal}
+                showLifecycleBadge={true}
               />
             ))
           ) : (
@@ -519,15 +512,7 @@ export default function DashboardShell() {
                       : 'Use + Add Game, or bulk-import with scripts/import-games.mjs using --app-id default_app.'}
                   </p>
                 </>
-              ) : filterSourceGames.length === 0 ? (
-                <>
-                  <p>No games in {activeTabLabel}.</p>
-                  <p className="dashboard-empty-hint">
-                    Your library has {games.length} game{games.length === 1 ? '' : 's'} — check
-                    other tabs in the sidebar.
-                  </p>
-                </>
-              ) : filtersActive ? (
+              ) : filtersBeyondNav ? (
                 <>
                   <p>No games match your filters.</p>
                   <p className="dashboard-empty-hint">
@@ -536,7 +521,7 @@ export default function DashboardShell() {
                   <button
                     type="button"
                     className="btn-secondary dashboard-empty-action"
-                    onClick={() => setGameFilters(DEFAULT_GAME_FILTERS)}
+                    onClick={handleResetFilters}
                   >
                     Clear filters
                   </button>
@@ -545,8 +530,8 @@ export default function DashboardShell() {
                 <>
                   <p>No games in {activeTabLabel}.</p>
                   <p className="dashboard-empty-hint">
-                    {games.length} game{games.length === 1 ? '' : 's'} in your library — try another
-                    tab or clear filters.
+                    Your library has {games.length} game{games.length === 1 ? '' : 's'} — check
+                    other tabs in the sidebar.
                   </p>
                 </>
               )}

@@ -7,13 +7,25 @@
 
 ## Scope rules
 
-| Condition | Game pool |
+| Source | Behavior |
 | :--- | :--- |
-| No active filters | **Current sidebar lifecycle tab** only |
-| Any filter active (`hasActiveFilters`) | **Entire library** |
-| Sidebar tab click | Resets all filters to defaults |
+| **Sidebar tab / Active sub-tab** | Sets a **lifecycle filter preset** via `filtersForSidebarNav(activeTab, activeSubTab)` and clears all other filter fields |
+| **Grid & filter panel** | Always operate on the **full library** (`games`) |
+| **Clear filters** | Resets to the **current sidebar preset**, not empty filters |
+
+The sidebar is not a separate browse pool — it is the primary way to choose `libraryStates` (and Active sub-tabs add TBA include/exclude rules). Users refine in the filter panel on top of that preset.
 
 Implemented: `src/utils/gameFilters.js`, `src/components/GameFiltersBar.jsx`, `DashboardShell.jsx`.
+
+### Nav presets (`filtersForSidebarNav`)
+
+| Nav | Preset |
+| :--- | :--- |
+| Active → **Active** | `libraryStates: ['active']`, `excludeDevelopmentStatuses: ['tba']` (null/unknown status kept) |
+| Active → **TBA** | `libraryStates: ['active']`, `developmentStatuses: ['tba']` |
+| Other lifecycle tabs | `libraryStates: [tabId]` |
+
+Helpers: `filtersMatchNavPreset`, `hasFiltersBeyondNavPreset` (Clear button + empty state).
 
 ## Filter fields
 
@@ -21,17 +33,18 @@ Implemented: `src/utils/gameFilters.js`, `src/components/GameFiltersBar.jsx`, `D
 | :--- | :--- |
 | `searchText` | Name substring (case-insensitive) |
 | `libraryStates[]` | Lifecycle chips |
+| `developmentStatuses[]` | released / early_access / tba (OR) |
+| `excludeDevelopmentStatuses[]` | Exclude listed statuses (used by Active sub-tab preset; no chip UI) |
 | `steamTags[]` | Tag chips (OR) — **co-op tags excluded** |
-| `developmentStatuses[]` | released / early_access / tba (OR within dimension; empty = no filter) |
-| `ownerships[]` | neither / one / both (OR within dimension; empty = no filter) |
+| `ownerships[]` | neither / one / both (OR) |
 | `onSaleOnly` | Toggle (excludes games owned by both users) |
 | `gfnOnly` | Toggle (global GFN catalog) |
 | `ruOnly` | Toggle |
 | `updateAvailableOnly` | Toggle (`hasUpdateSinceState`) |
 
-Tag list built from **full library** (`collectSteamTags(games)`), not current tab. Co-op-related tags filtered out in `gameFilters.js` (`isCoopTag`).
+Tag list built from **full library** (`collectSteamTags(games)`). Co-op-related tags filtered out in `gameFilters.js`.
 
-When **any filter is active**, the grid searches the full library and each `GameCard` shows its **lifecycle badge** on the thumbnail (hidden on lifecycle-only tab views where state is implicit).
+Each `GameCard` shows its **lifecycle badge** on the thumbnail (full-library view).
 
 ## Add game co-op validation
 
@@ -46,16 +59,11 @@ Two-phase add flow — see [UI shell](./ui-shell-and-modals.md):
 
 ## Dynamic option disabling (facet gating)
 
-`DashboardShell` passes `filterMode={filtersScopeGlobal}` (`hasActiveFilters`) into `GameFiltersBar`.
+`DashboardShell` passes `filterMode={true}` always. `filterSourceGames` is the full library.
 
-| Mode | Condition | Chip / toggle enabled state |
-| :--- | :--- | :--- |
-| **Browse** | No active filters | **All** chips and footer toggles enabled (click any filter to enter filter mode) |
-| **Filter** | Any filter active | Dynamic facet disabling (below) |
+For each chip/toggle option, count games matching **all other active filters** plus that option alone. An option is **enabled** when count &gt; 0 **or** it is already selected; otherwise the chip gets `filter-chip--disabled` and footer switches get `game-filters-switch--disabled`. Helpers live in `gameFilters.js`; `GameFiltersBar` uses `chipEnabled` with `filterMode`.
 
-In **filter mode**, `filterSourceGames` is the full library (same pool as the result count denominator). For each chip/toggle option, count games matching **all other active filters** plus that option alone. An option is **enabled** when count &gt; 0 **or** it is already selected; otherwise the chip gets `filter-chip--disabled` and footer switches get `game-filters-switch--disabled` (still visible). Helpers live in `gameFilters.js` (`isLibraryStateFilterEnabled`, `isDevelopmentStatusFilterEnabled`, etc.); `GameFiltersBar` wraps them with `chipEnabled` so browse mode skips gating.
-
-**Lifecycle chips** use the **full library** (`allGames`) for facet counts. **Status, ownership, tags, and footer toggles** use `filterSourceGames` (equals full `games` in filter mode). On a sidebar tab in browse mode, tab-scoped `filterSourceGames` does **not** affect chip disabled state — only grid results and counts do.
+**Lifecycle chips** use `allGames`. **Status, ownership, tags, and footer toggles** use `filterSourceGames` (same full library).
 
 Status and ownership are **additive multi-select** (OR within each dimension, AND across dimensions). No “All” chip — deselect all chips in a group to clear that dimension.
 
@@ -66,8 +74,8 @@ After `filterGames`, the grid applies a **stable** sort: non–RU-alert games fi
 ## UX notes
 
 - Panel expands on search focus or when changing a filter (`updateFilter`)
-- **Desktop:** active filters auto-expand the panel (`matchMedia` above 768px)
-- **Mobile (≤768px):** panel stays collapsed until the user opens it (search focus, **Filters** button, or a chip/toggle change); active filters alone do not auto-expand
+- **Desktop:** `hasActiveFilters` auto-expands the panel (nav preset always includes lifecycle, so panel tends to stay expanded)
+- **Mobile (≤768px):** panel stays collapsed until the user opens it (search focus, **Filters** button, or a chip/toggle change)
 - Collapse: **×** in expanded panel header, click outside the bar, or **Escape** — filters and grid results stay unchanged
-- **Clear filters** in header when any filter active (resets values and collapses panel)
+- **Clear filters** when `hasFiltersBeyondNavPreset` (resets to sidebar preset via `onResetFilters`)
 - Do not use CSS `:focus-within` for panel expand (breaks toggles)
