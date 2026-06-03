@@ -21,6 +21,7 @@ function isSyncBusy({
   syncingSteamOwnership,
   syncingSteamWishlists,
   syncingDevSources,
+  syncingSteamEvents,
   reVettingGames,
 }) {
   return (
@@ -29,6 +30,7 @@ function isSyncBusy({
     syncingSteamOwnership ||
     syncingSteamWishlists ||
     syncingDevSources ||
+    syncingSteamEvents ||
     reVettingGames
   );
 }
@@ -47,12 +49,14 @@ export default function MaintenanceModal({
   syncingSteamOwnership = false,
   syncingSteamWishlists = false,
   syncingDevSources = false,
+  syncingSteamEvents = false,
   reVettingGames = false,
   onLoadMeta,
   onSyncGfn,
   onSyncSteamOwnership,
   onSyncSteamWishlists,
   onSyncDevSources,
+  onSyncSteamEvents,
   onRevetAllGames,
   metaSyncedAtLabel,
   gfnSyncedAtLabel,
@@ -64,6 +68,7 @@ export default function MaintenanceModal({
   libraryGameIds = new Set(),
   devSourcesSyncedAtLabel,
   devSourceSummary,
+  steamEventsSyncedAtLabel,
 }) {
   const [addingAppId, setAddingAppId] = useState(null);
   const [addErrorByAppId, setAddErrorByAppId] = useState({});
@@ -93,6 +98,7 @@ export default function MaintenanceModal({
     syncingSteamOwnership,
     syncingSteamWishlists,
     syncingDevSources,
+    syncingSteamEvents,
     reVettingGames,
   });
 
@@ -269,6 +275,23 @@ export default function MaintenanceModal({
                 {devSourcesSyncedAtLabel && !syncingDevSources && (
                   <span className="maintenance-action-meta">
                     Last sync {devSourcesSyncedAtLabel}
+                  </span>
+                )}
+              </button>
+            )}
+            {onSyncSteamEvents && (
+              <button
+                type="button"
+                className="btn-secondary maintenance-action-btn"
+                onClick={onSyncSteamEvents}
+                disabled={syncBusy || clearingInfo}
+              >
+                <span className="maintenance-action-label">
+                  {syncingSteamEvents ? 'Syncing…' : 'Sync Steam events'}
+                </span>
+                {steamEventsSyncedAtLabel && !syncingSteamEvents && (
+                  <span className="maintenance-action-meta">
+                    Last sync {steamEventsSyncedAtLabel}
                   </span>
                 )}
               </button>

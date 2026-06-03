@@ -6,6 +6,7 @@ const { syncGfnCatalogToFirestore } = require('../gfnSync');
 const { syncDevSourcesToFirestore } = require('../devSourceSync');
 const { rebuildMaintenanceAudit } = require('../maintenanceStore');
 const { purgeExpiredAppMeta } = require('../steamAppMetaCache');
+const { syncSteamEventsCore } = require('../steamEventsSync');
 
 const MS_6H = 6 * 60 * 60 * 1000;
 const MS_24H = 24 * 60 * 60 * 1000;
@@ -65,6 +66,13 @@ const TASK_REGISTRY = [
     async run(appId, _taskState, context) {
       const db = context.db || getFirestore();
       return purgeExpiredAppMeta(db, appId);
+    },
+  },
+  {
+    id: 'steamEvents',
+    intervalMs: MS_7D,
+    async run(appId) {
+      return syncSteamEventsCore(appId);
     },
   },
 ];

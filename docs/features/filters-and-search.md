@@ -11,9 +11,9 @@
 | :--- | :--- |
 | **Sidebar tab / Active sub-tab** | Sets a **lifecycle filter preset** via `filtersForSidebarNav(activeTab, activeSubTab)` and clears all other filter fields |
 | **Grid & filter panel** | Always operate on the **full library** (`games`) |
-| **Clear filters** | Resets to the **current sidebar preset**, not empty filters |
+| **Clear filters** | Resets to `DEFAULT_GAME_FILTERS` (entire library — all includes/excludes empty, footer tri-states `off`) |
 
-The sidebar is not a separate browse pool — it is the primary way to choose `libraryStates` (and Active sub-tabs add TBA include/exclude rules). Users refine in the filter panel on top of that preset.
+The sidebar is not a separate browse pool — it is the primary way to choose lifecycle include rules (and Active sub-tabs add TBA include/exclude). Users refine in the filter panel on top of that preset.
 
 Implemented: `src/utils/gameFilters.js`, `src/components/GameFiltersBar.jsx`, `DashboardShell.jsx`.
 
@@ -21,26 +21,37 @@ Implemented: `src/utils/gameFilters.js`, `src/components/GameFiltersBar.jsx`, `D
 
 | Nav | Preset |
 | :--- | :--- |
-| Active → **Active** | `libraryStates: ['active']`, `excludeDevelopmentStatuses: ['tba']` (null/unknown status kept) |
-| Active → **TBA** | `libraryStates: ['active']`, `developmentStatuses: ['tba']` |
-| Other lifecycle tabs | `libraryStates: [tabId]` |
+| Active → **Active** | `libraryStates.include: ['active']`, `developmentStatuses.exclude: ['tba']` (null/unknown status kept) |
+| Active → **TBA** | `libraryStates.include: ['active']`, `developmentStatuses.include: ['tba']` |
+| Other lifecycle tabs | `libraryStates.include: [tabId]` |
 
-Helpers: `filtersMatchNavPreset`, `hasFiltersBeyondNavPreset` (Clear button + empty state).
+## Tri-state filter model
+
+Each chip dimension uses `{ include: [], exclude: [] }`. Footer toggles use `'off' | 'include' | 'exclude'`.
+
+| Rule | Behavior |
+| :--- | :--- |
+| **Include non-empty** | Game must match **at least one** included value in that dimension |
+| **Exclude non-empty** | Game must **not** match any excluded value |
+| **Both empty / footer `off`** | Dimension ignored |
+
+**Chip click cycle:** neutral → include (green `.filter-chip--include`) → exclude (red outline `.filter-chip--exclude`) → neutral. Helper: `cycleChipState(current)`.
+
+**Footer toggles** cycle the same tri-state (`off` → `include` → `exclude` → `off`). Include = must match condition; exclude = must not match.
 
 ## Filter fields
 
 | Field | UI |
 | :--- | :--- |
 | `searchText` | Name substring (case-insensitive) |
-| `libraryStates[]` | Lifecycle chips |
-| `developmentStatuses[]` | released / early_access / tba (OR) |
-| `excludeDevelopmentStatuses[]` | Exclude listed statuses (used by Active sub-tab preset; no chip UI) |
-| `steamTags[]` | Tag chips (OR) — **co-op tags excluded** |
-| `ownerships[]` | neither / one / both (OR) |
-| `onSaleOnly` | Toggle (excludes games owned by both users) |
-| `gfnOnly` | Toggle (global GFN catalog) |
-| `ruOnly` | Toggle |
-| `updateAvailableOnly` | Toggle (`hasUpdateSinceState`) |
+| `libraryStates` | Lifecycle chips (tri-state) |
+| `developmentStatuses` | released / early_access / tba (tri-state) |
+| `steamTags` | Tag chips (tri-state) — **co-op tags excluded** |
+| `ownerships` | neither / one / both (tri-state) |
+| `onSaleOnly` | Footer tri-state (include excludes games owned by both users) |
+| `gfnOnly` | Footer tri-state (global GFN catalog) |
+| `ruOnly` | Footer tri-state |
+| `updateAvailableOnly` | Footer tri-state (`hasUpdateSinceState`) |
 
 Tag chip cloud: `collectSteamTags(games, currentFilters, gfnIds)` — only tags that appear on games matching the **current sidebar preset and other filters** (Steam tag selection ignored when building the list). Tags not in the current view (e.g. `sports` only on Finished games while browsing Active) are **omitted**, not shown disabled. Excluded from the cloud: co-op-related tags and **`early access`** (use Status chips instead). Source: `steamStatic.steamTags` from Steam scrape (genres + co-op categories).
 
@@ -61,11 +72,9 @@ Two-phase add flow — see [UI shell](./ui-shell-and-modals.md):
 
 `DashboardShell` passes `filterMode={true}` always. `filterSourceGames` is the full library.
 
-For each chip/toggle option, count games matching **all other active filters** plus that option alone. An option is **enabled** when count &gt; 0 **or** it is already selected; otherwise the chip gets `filter-chip--disabled` and footer switches get `game-filters-switch--disabled`. Helpers live in `gameFilters.js`; `GameFiltersBar` uses `chipEnabled` with `filterMode`.
+For each chip/toggle option, count games matching **all other active filters** plus that option alone (simulated as include). An option is **enabled** when count &gt; 0 **or** it is already in include/exclude; otherwise the chip gets `filter-chip--disabled` and footer switches get `game-filters-switch--disabled`. Helpers live in `gameFilters.js`; `GameFiltersBar` uses `chipEnabled` with `filterMode`.
 
 **Lifecycle chips** use `allGames`. **Status, ownership, tags, and footer toggles** use `filterSourceGames` (same full library).
-
-Status and ownership are **additive multi-select** (OR within each dimension, AND across dimensions). No “All” chip — deselect all chips in a group to clear that dimension.
 
 ## Grid sort (filtered view)
 
@@ -74,8 +83,8 @@ After `filterGames`, the grid applies a **stable** sort: non–RU-alert games fi
 ## UX notes
 
 - Panel expands on search focus or when changing a filter (`updateFilter`)
-- **Desktop:** `hasActiveFilters` auto-expands the panel (nav preset always includes lifecycle, so panel tends to stay expanded)
+- **Desktop:** `hasActiveFilters` auto-expands the panel
 - **Mobile (≤768px):** panel stays collapsed until the user opens it (search focus, **Filters** button, or a chip/toggle change)
 - Collapse: **×** in expanded panel header, click outside the bar, or **Escape** — filters and grid results stay unchanged
-- **Clear filters** when `hasFiltersBeyondNavPreset` (resets to sidebar preset via `onResetFilters`)
+- **Clear filters** when `hasActiveFilters` (any include/exclude/search/footer not `off`); `onResetFilters` sets `DEFAULT_GAME_FILTERS`
 - Do not use CSS `:focus-within` for panel expand (breaks toggles)

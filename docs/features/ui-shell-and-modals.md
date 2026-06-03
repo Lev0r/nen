@@ -8,12 +8,13 @@
 ```
 LoginGate → DashboardShell
   ├── DynamicBackground (fixed, z-index 0)
-  └── sidebar + main grid
+  └── sidebar + main (`library` grid or `events` view)
         ├── GameFiltersBar
         └── GameCard[]
 ```
 
-- **Sidebar** — lifecycle tabs with counts and **update dot** (`nav-item-update-dot`) when any game in that tab (or Active sub-tab) has `hasUpdateSinceState`; Add Game, Maintenance (no top header)
+- **Sidebar** — **Events** nav first (sales/festivals view); lifecycle tabs with counts and **update dot** (`nav-item-update-dot`) when any game in that tab (or Active sub-tab) has `hasUpdateSinceState`; Add Game, Maintenance (no top header)
+- **Mobile (≤768px)** — hamburger opens drawer with same nav; search in top-right icon → modal; inline filter search hidden (`hideSearch` on `GameFiltersBar`)
 - **Palette** — warm graphite glass + softer sage `#4cc9a0`; no blue in primary UI
 - **Typography** — Clash Display (titles/headings), General Sans (body/UI) — see `index.css`
 - **Title** — browser tab `Nen?`
@@ -36,7 +37,7 @@ Card thumbnails: **120px** height, full color at rest; slight scale on card hove
 | `LifecycleModal` | Card lifecycle badge (when visible) or edit | State + note + finished stars |
 | `ScreenshotsModal` | Card footer | Fullscreen carousel |
 
-Panels: `.modal-backdrop` + `.glass-panel` in `index.css` (opaque glass, no backdrop blur on cards).
+Panels: `.modal-backdrop` (`--modal-backdrop-bg`) + modal panels (`--modal-panel-bg`, ~92% opacity) in `index.css` — less transparent than shell cards (`--glass-bg`).
 
 ## GameCard highlights
 
@@ -62,6 +63,10 @@ Escape + backdrop dismiss supported (disabled while loading). See [Bulk import](
 
 **Refresh from Steam** (GameEditModal Basic section): callable `refreshGameFromSteam` re-scrapes `steamStatic`, `steamDynamic`, player stats, and HLTB/ITAD for one game (`force` sync). Skips banned games; errors recorded in `config/maintenance-errors`.
 
+## Events view
+
+`EventsPage.jsx` — hero for `nextFeatured`, grid of six `upcoming` events from `config/steam-events`. See [Steam events](./steam-events.md).
+
 ## Deferred
 
-- Mobile UX pass (tooltips, sidebar drawer)
+- Mobile tooltips (hover → tap) polish

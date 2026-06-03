@@ -31,6 +31,7 @@ Due tasks run in parallel via `Promise.allSettled`; all `store.steampowered.com`
 | `gfnCatalog` | 7d | `syncGfnCatalogToFirestore` | |
 | `devSources` | 7d | `syncDevSourcesToFirestore` | Incremental curator resume |
 | `cachePurge` | 7d | `purgeExpiredAppMeta` | Deletes expired app-meta docs |
+| `steamEvents` | 7d | `syncSteamEventsCore` | Store featuredcategories + known schedule → `config/steam-events` |
 
 ```mermaid
 flowchart TB

@@ -92,6 +92,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **Steam library sync** (ownership) | ✅ | Callable `syncSteamOwnership` — one-way merge via Steam Web API |
 | **Scheduled ownership sync** (24h one-way) | ✅ | Orchestrator `steamOwnership` task — never clears `true` → `false` |
 | **Per-user Steam playtime (ownership piggyback)** | ✅ | `steamPlaytime.*` from `playtime_forever` in same `GetOwnedGames` — no extra Web API calls |
+| **Steam events** (sales/festivals overview) | ✅ | `steamEvents` 7d task + `syncSteamEvents` callable; Events sidebar — [doc](./features/steam-events.md) |
 | "Ready to Play" filter preset | ⏸ | Use chips instead |
 
 ---
@@ -134,7 +135,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Sale / GFN / update / RU toggles | ✅ | |
 | Full library grid + filter panel | ✅ | Sidebar = lifecycle preset via `filtersForSidebarNav` |
 | Tab click sets nav preset | ✅ | Clears non-lifecycle filters |
-| Clear filters → sidebar preset | ✅ | `hasFiltersBeyondNavPreset` + `onResetFilters` |
+| Tri-state include/exclude filters | ✅ | Chips + footer cycle off → include → exclude; `cycleChipState` |
+| Clear filters → entire library | ✅ | `hasActiveFilters` + `onResetFilters` → `DEFAULT_GAME_FILTERS` |
 | **Filter panel collapse (× / outside / Escape)** | ✅ | Active filters kept; search focus or chip change re-opens |
 | **Remove co-op tags from filter UI** | ✅ | Co-op tag chips hidden |
 | **Dynamic filter option disabling** | ✅ | Count per option vs other active filters; disabled chips/switches when 0 and not selected |
@@ -155,7 +157,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Error acknowledge dot | ✅ | |
 | **Errors panel — group by source/severity** | ✅ | Counters, clear info, weekly purge |
 | **UI polish round 2 + follow-ups** | ✅ | See session logs below |
-| **Mobile UX pass** | ✅ | Partial — filter panel defaults collapsed on ≤768px; hover→click tooltips deferred |
+| **Mobile UX pass** | ✅ | Hamburger drawer nav; search modal; filter panel collapsed default; hover→click tooltips deferred |
 | News feed UI | 🚫 | Dropped |
 
 ---

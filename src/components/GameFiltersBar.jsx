@@ -5,7 +5,10 @@ import {
   isDevelopmentStatusFilterEnabled,
   isOwnershipFilterEnabled,
   isSteamTagFilterEnabled,
-  isBooleanFilterEnabled,
+  isFooterFilterEnabled,
+  cycleChipState,
+  getValueTriState,
+  applyChipTriState,
 } from '../utils/gameFilters';
 import { LIBRARY_STATES, getLibraryStateLabel } from '../utils/libraryState';
 
@@ -21,7 +24,7 @@ const OWNERSHIP_OPTIONS = [
   { value: 'both', label: 'Both own' },
 ];
 
-const FOOTER_BOOLEAN_FILTERS = [
+const FOOTER_FILTERS = [
   { key: 'onSaleOnly', label: 'On sale only' },
   { key: 'gfnOnly', label: 'GeForce NOW' },
   { key: 'ruOnly', label: 'RU alert' },
@@ -42,6 +45,8 @@ export default function GameFiltersBar({
   filterMode = false,
   showClearFilters = false,
   onResetFilters,
+  hideSearch = false,
+  expandFiltersSignal = 0,
 }) {
   const active = hasActiveFilters(filters);
   const facetGating = filterMode;
@@ -65,6 +70,12 @@ export default function GameFiltersBar({
       setExpanded(true);
     }
   }, [active, isMobile]);
+
+  useEffect(() => {
+    if (expandFiltersSignal > 0) {
+      setExpanded(true);
+    }
+  }, [expandFiltersSignal]);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -92,36 +103,10 @@ export default function GameFiltersBar({
     onChange({ ...filters, ...patch });
   };
 
-  const toggleSteamTag = (tag) => {
-    const current = filters.steamTags ?? [];
-    const next = current.includes(tag)
-      ? current.filter((item) => item !== tag)
-      : [...current, tag];
-    updateFilter({ steamTags: next });
-  };
-
-  const toggleLibraryState = (state) => {
-    const current = filters.libraryStates ?? [];
-    const next = current.includes(state)
-      ? current.filter((item) => item !== state)
-      : [...current, state];
-    updateFilter({ libraryStates: next });
-  };
-
-  const toggleDevelopmentStatus = (status) => {
-    const current = filters.developmentStatuses ?? [];
-    const next = current.includes(status)
-      ? current.filter((item) => item !== status)
-      : [...current, status];
-    updateFilter({ developmentStatuses: next });
-  };
-
-  const toggleOwnership = (ownership) => {
-    const current = filters.ownerships ?? [];
-    const next = current.includes(ownership)
-      ? current.filter((item) => item !== ownership)
-      : [...current, ownership];
-    updateFilter({ ownerships: next });
+  const cycleDimensionValue = (dimensionKey, value) => {
+    const pair = filters[dimensionKey] ?? { include: [], exclude: [] };
+    const nextState = cycleChipState(getValueTriState(pair, value));
+    updateFilter({ [dimensionKey]: applyChipTriState(pair, value, nextState) });
   };
 
   const clearFilters = () => {
@@ -131,53 +116,69 @@ export default function GameFiltersBar({
     setExpanded(false);
   };
 
-  const toggleBooleanFilter = (key) => {
-    if (!chipEnabled(isBooleanFilterEnabled, filterSourceGames, filters, gfnSteamAppIds, key))
+  const cycleFooterFilter = (key) => {
+    if (!chipEnabled(isFooterFilterEnabled, filterSourceGames, filters, gfnSteamAppIds, key)) {
       return;
-    updateFilter({ [key]: !Boolean(filters[key]) });
+    }
+    updateFilter({ [key]: cycleChipState(filters[key] ?? 'off') });
   };
 
-  const chipClassName = (active, enabled) =>
-    `filter-chip${active ? ' filter-chip--active' : ''}${
-      enabled ? '' : ' filter-chip--disabled'
-    }`;
+  const chipClassName = (triState, enabled) => {
+    let cls = 'filter-chip';
+    if (triState === 'include') cls += ' filter-chip--include';
+    else if (triState === 'exclude') cls += ' filter-chip--exclude';
+    if (!enabled) cls += ' filter-chip--disabled';
+    return cls;
+  };
+
+  const footerSwitchClassName = (triState, enabled) => {
+    let cls = 'game-filters-switch';
+    if (triState === 'include') cls += ' game-filters-switch--include';
+    else if (triState === 'exclude') cls += ' game-filters-switch--exclude';
+    if (!enabled) cls += ' game-filters-switch--disabled';
+    return cls;
+  };
 
   return (
     <div className="game-filters-bar glass-panel" ref={barRef}>
-      <div className="game-filters-header">
-        <div className="game-filters-search-row">
-          <svg
-            className="game-filters-search-icon"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <circle
-              cx="11"
-              cy="11"
-              r="6.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+      <div
+        className={`game-filters-header${hideSearch ? ' game-filters-header--search-hidden' : ''}`}
+      >
+        {!hideSearch && (
+          <div className="game-filters-search-row">
+            <svg
+              className="game-filters-search-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="6.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <path
+                d="M16 16l4.5 4.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+            <input
+              type="search"
+              className="game-filters-search-input"
+              placeholder="Search"
+              value={filters.searchText}
+              onChange={(event) => updateFilter({ searchText: event.target.value })}
+              onFocus={() => setExpanded(true)}
+              aria-label="Search games by name"
+              aria-expanded={expanded}
             />
-            <path
-              d="M16 16l4.5 4.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-          <input
-            type="search"
-            className="game-filters-search-input"
-            placeholder="Search"
-            value={filters.searchText}
-            onChange={(event) => updateFilter({ searchText: event.target.value })}
-            onFocus={() => setExpanded(true)}
-            aria-label="Search games by name"
-            aria-expanded={expanded}
-          />
-        </div>
+          </div>
+        )}
 
         <div className="game-filters-header-actions">
           <span className="game-filters-count">
@@ -226,7 +227,7 @@ export default function GameFiltersBar({
               <span className="game-filters-label">Lifecycle</span>
               <div className="game-filters-chips">
                 {LIBRARY_STATES.map((state) => {
-                  const active = filters.libraryStates?.includes(state);
+                  const triState = getValueTriState(filters.libraryStates, state);
                   const enabled = chipEnabled(
                     isLibraryStateFilterEnabled,
                     allGames,
@@ -238,9 +239,10 @@ export default function GameFiltersBar({
                     <button
                       key={state}
                       type="button"
-                      className={chipClassName(active, enabled)}
+                      className={chipClassName(triState, enabled)}
                       disabled={!enabled}
-                      onClick={() => enabled && toggleLibraryState(state)}
+                      aria-pressed={triState !== 'off'}
+                      onClick={() => enabled && cycleDimensionValue('libraryStates', state)}
                     >
                       {getLibraryStateLabel(state)}
                     </button>
@@ -253,7 +255,10 @@ export default function GameFiltersBar({
               <span className="game-filters-label">Status</span>
               <div className="game-filters-chips">
                 {DEVELOPMENT_STATUS_OPTIONS.map((option) => {
-                  const active = filters.developmentStatuses?.includes(option.value);
+                  const triState = getValueTriState(
+                    filters.developmentStatuses,
+                    option.value
+                  );
                   const enabled = chipEnabled(
                     isDevelopmentStatusFilterEnabled,
                     filterSourceGames,
@@ -265,9 +270,12 @@ export default function GameFiltersBar({
                     <button
                       key={option.value}
                       type="button"
-                      className={chipClassName(active, enabled)}
+                      className={chipClassName(triState, enabled)}
                       disabled={!enabled}
-                      onClick={() => enabled && toggleDevelopmentStatus(option.value)}
+                      aria-pressed={triState !== 'off'}
+                      onClick={() =>
+                        enabled && cycleDimensionValue('developmentStatuses', option.value)
+                      }
                     >
                       {option.label}
                     </button>
@@ -280,7 +288,7 @@ export default function GameFiltersBar({
               <span className="game-filters-label">Ownership</span>
               <div className="game-filters-chips">
                 {OWNERSHIP_OPTIONS.map((option) => {
-                  const active = filters.ownerships?.includes(option.value);
+                  const triState = getValueTriState(filters.ownerships, option.value);
                   const enabled = chipEnabled(
                     isOwnershipFilterEnabled,
                     filterSourceGames,
@@ -292,9 +300,12 @@ export default function GameFiltersBar({
                     <button
                       key={option.value}
                       type="button"
-                      className={chipClassName(active, enabled)}
+                      className={chipClassName(triState, enabled)}
                       disabled={!enabled}
-                      onClick={() => enabled && toggleOwnership(option.value)}
+                      aria-pressed={triState !== 'off'}
+                      onClick={() =>
+                        enabled && cycleDimensionValue('ownerships', option.value)
+                      }
                     >
                       {option.label}
                     </button>
@@ -308,7 +319,7 @@ export default function GameFiltersBar({
                 <span className="game-filters-label">Steam tags</span>
                 <div className="game-filters-chips game-filters-chips--tags">
                   {availableTags.map((tag) => {
-                    const active = filters.steamTags?.includes(tag);
+                    const triState = getValueTriState(filters.steamTags, tag);
                     const enabled = chipEnabled(
                       isSteamTagFilterEnabled,
                       filterSourceGames,
@@ -320,9 +331,10 @@ export default function GameFiltersBar({
                       <button
                         key={tag}
                         type="button"
-                        className={`${chipClassName(active, enabled)} filter-chip--tag`}
+                        className={`${chipClassName(triState, enabled)} filter-chip--tag`}
                         disabled={!enabled}
-                        onClick={() => enabled && toggleSteamTag(tag)}
+                        aria-pressed={triState !== 'off'}
+                        onClick={() => enabled && cycleDimensionValue('steamTags', tag)}
                       >
                         {tag}
                       </button>
@@ -334,10 +346,10 @@ export default function GameFiltersBar({
           </div>
 
           <div className="game-filters-footer">
-            {FOOTER_BOOLEAN_FILTERS.map(({ key, label }) => {
-              const on = Boolean(filters[key]);
+            {FOOTER_FILTERS.map(({ key, label }) => {
+              const triState = filters[key] ?? 'off';
               const enabled = chipEnabled(
-                isBooleanFilterEnabled,
+                isFooterFilterEnabled,
                 filterSourceGames,
                 filters,
                 gfnSteamAppIds,
@@ -347,12 +359,10 @@ export default function GameFiltersBar({
                 <button
                   key={key}
                   type="button"
-                  className={`game-filters-switch${on ? ' game-filters-switch--on' : ''}${
-                    enabled ? '' : ' game-filters-switch--disabled'
-                  }`}
-                  aria-pressed={on}
+                  className={footerSwitchClassName(triState, enabled)}
+                  aria-pressed={triState !== 'off'}
                   disabled={!enabled}
-                  onClick={() => toggleBooleanFilter(key)}
+                  onClick={() => cycleFooterFilter(key)}
                 >
                   <span className="game-filters-switch-label">{label}</span>
                   <span className="game-filters-switch-track" aria-hidden="true">

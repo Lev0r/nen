@@ -235,12 +235,12 @@ Each tab sets a filter preset on the full library. **Active** has sub-tabs **Act
 
 | Tab | Preset |
 | :--- | :--- |
-| **Active** (sub: Active) | `libraryStates: ['active']`, exclude TBA |
-| **Active** (sub: TBA) | `libraryStates: ['active']`, `developmentStatuses: ['tba']` |
-| **Replayable** | `libraryStates: ['replayable']` |
-| **Waiting for updates** | `libraryStates: ['waiting_for_updates']` |
-| **Finished** | `libraryStates: ['finished']` |
-| **Banned** | `libraryStates: ['banned']` |
+| **Active** (sub: Active) | `libraryStates.include: ['active']`, `developmentStatuses.exclude: ['tba']` |
+| **Active** (sub: TBA) | `libraryStates.include: ['active']`, `developmentStatuses.include: ['tba']` |
+| **Replayable** | `libraryStates.include: ['replayable']` |
+| **Waiting for updates** | `libraryStates.include: ['waiting_for_updates']` |
+| **Finished** | `libraryStates.include: ['finished']` |
+| **Banned** | `libraryStates.include: ['banned']` |
 
 Lifecycle is changed via a **modal** on the game card (all states visible, optional note). Re-selecting the current state re-baselines `stateMeta` and clears `hasUpdateSinceState`.
 
@@ -250,18 +250,20 @@ Lifecycle is changed via a **modal** on the game card (all states visible, optio
 
 * **Grid and filter panel** always use the **entire library**.
 * **Sidebar tab / Active sub-tab** sets a lifecycle **filter preset** (`filtersForSidebarNav`) and clears other fields — not a separate browse pool.
-* **Active → Active:** `libraryStates: ['active']`, exclude TBA via `excludeDevelopmentStatuses: ['tba']` (games with null/unknown status remain).
-* **Active → TBA:** `libraryStates: ['active']`, `developmentStatuses: ['tba']`.
-* **Other tabs:** `libraryStates: [tabId]`.
-* **Clear filters** resets to the current sidebar preset (`hasFiltersBeyondNavPreset`), not empty filters.
+* **Active → Active:** `libraryStates.include: ['active']`, `developmentStatuses.exclude: ['tba']` (games with null/unknown status remain).
+* **Active → TBA:** `libraryStates.include: ['active']`, `developmentStatuses.include: ['tba']`.
+* **Other tabs:** `libraryStates.include: [tabId]`.
+* **Clear filters** resets to `DEFAULT_GAME_FILTERS` (entire library), not the sidebar preset.
+
+**Tri-state model:** each chip dimension uses `{ include: [], exclude: [] }`; footer toggles use `off | include | exclude`. Include non-empty → game must match at least one value; exclude non-empty → game must not match any; both empty / footer `off` → dimension ignored. Chip click cycles neutral → include (green) → exclude (red outline) → neutral.
 
 Users can refine on the full library by:
 * Game **name** (text search)
-* **Lifecycle** multi-select chips (Active / Replayable / Waiting for updates / Finished / Banned)
+* **Lifecycle** tri-state chips (Active / Replayable / Waiting for updates / Finished / Banned)
 * **Steam tags** (`steamStatic.steamTags` from scrape — chip cloud lists tags on games matching current nav/filters; co-op and `early access` excluded)
-* **Development status** — multi-select `developmentStatuses[]` (`released` / `early_access` / `tba`; OR within dimension; empty = no filter)
-* **Ownership** — multi-select `ownerships[]` (`neither` / `one` / `both`; OR within dimension; empty = no filter)
-* **On sale** (excludes games owned by both users), **GeForce NOW** (catalog match), **Update available** (`hasUpdateSinceState`)
+* **Development status** — tri-state (`released` / `early_access` / `tba`)
+* **Ownership** — tri-state (`neither` / `one` / `both`)
+* **On sale** (include excludes games owned by both users), **GeForce NOW**, **Update available**, **RU alert** — footer tri-state toggles
 
 Filter panel expands via search focus or active filters; use React state (not CSS `:focus-within`) so toggles do not collapse the panel.
 

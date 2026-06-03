@@ -14,6 +14,7 @@ export const GFN_CATALOG_DOC_ID = 'gfn-catalog';
 export const MAINTENANCE_AUDIT_DOC_ID = 'maintenance-audit';
 export const MAINTENANCE_ERRORS_DOC_ID = 'maintenance-errors';
 export const STEAM_WISHLIST_CANDIDATES_DOC_ID = 'steam-wishlist-candidates';
+export const STEAM_EVENTS_DOC_ID = 'steam-events';
 
 function configDocRef(appId, docId) {
   return doc(db, `artifacts/${appId}/public/data/config`, docId);
@@ -86,6 +87,29 @@ export function useMaintenanceErrors(appId = 'default_app') {
   }, [appId]);
 
   return { errorsDoc, loading };
+}
+
+export function useSteamEvents(appId = 'default_app') {
+  const [eventsDoc, setEventsDoc] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const ref = configDocRef(appId, STEAM_EVENTS_DOC_ID);
+    const unsubscribe = onSnapshot(
+      ref,
+      (snapshot) => {
+        setEventsDoc(snapshot.exists() ? snapshot.data() : null);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Steam events subscription error:', error);
+        setLoading(false);
+      }
+    );
+    return () => unsubscribe();
+  }, [appId]);
+
+  return { eventsDoc, loading };
 }
 
 export function useSteamWishlistCandidates(appId = 'default_app') {

@@ -15,6 +15,7 @@ const THIRD_PARTY_HEALTH_DOC_ID = 'third-party-health';
 const MAINTENANCE_ERRORS_DOC_ID = 'maintenance-errors';
 const MAINTENANCE_AUDIT_DOC_ID = 'maintenance-audit';
 const SCHEDULER_STATE_DOC_ID = 'scheduler-state';
+const STEAM_EVENTS_DOC_ID = 'steam-events';
 
 function configCollectionPath(appId = DEFAULT_APP_ID) {
   return `artifacts/${appId}/public/data/config`;
@@ -51,6 +52,7 @@ module.exports = {
   MAINTENANCE_ERRORS_DOC_ID,
   MAINTENANCE_AUDIT_DOC_ID,
   SCHEDULER_STATE_DOC_ID,
+  STEAM_EVENTS_DOC_ID,
   configCollectionPath,
   configDocPath,
   gamesCollectionPath,

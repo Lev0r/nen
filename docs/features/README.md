@@ -13,6 +13,7 @@ Minimal docs for task-focused agent onboarding. Each file links to code paths, r
 | [Filters & search](./filters-and-search.md) | Toolbar filters, scope rules, RU toggle | F2 | `gameFilters.js`, `GameFiltersBar.jsx` |
 | [UI shell & modals](./ui-shell-and-modals.md) | Sidebar, cards, dynamic BG, add/edit flow | §5 | `DashboardShell.jsx`, `GameCard.jsx` |
 | [Maintenance & errors](./maintenance-and-errors.md) | Sync UI, error log, acknowledge dot | F4 | `MaintenanceModal.jsx`, `appErrors.js` |
+| [Steam events](./steam-events.md) | Sales/festivals overview, Events sidebar view | — | `steamEventsSync.js`, `EventsPage.jsx` |
 | [Bulk import](./bulk-import.md) | CLI import of ~147 games, revet script | — | `scripts/import-games.mjs` |
 
 **Cross-cutting:** [`../OPS.md`](../OPS.md) · [`../DEV_CLI.md`](../DEV_CLI.md) · [`../DECISIONS.md`](../DECISIONS.md) · [`../FEATURE_CHECKLIST.md`](../FEATURE_CHECKLIST.md) · [`../CODE_IMPROVEMENTS.md`](../CODE_IMPROVEMENTS.md)

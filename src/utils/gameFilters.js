@@ -8,65 +8,88 @@ import {
   isFreeToPlay,
 } from './gameAccessors';
 
+const EMPTY_PAIR = { include: [], exclude: [] };
+
 export const DEFAULT_GAME_FILTERS = {
   searchText: '',
-  steamTags: [],
-  developmentStatuses: [],
-  excludeDevelopmentStatuses: [],
-  ownerships: [],
-  onSaleOnly: false,
-  gfnOnly: false,
-  updateAvailableOnly: false,
-  ruOnly: false,
-  libraryStates: [],
+  libraryStates: { include: [], exclude: [] },
+  developmentStatuses: { include: [], exclude: [] },
+  steamTags: { include: [], exclude: [] },
+  ownerships: { include: [], exclude: [] },
+  onSaleOnly: 'off',
+  gfnOnly: 'off',
+  updateAvailableOnly: 'off',
+  ruOnly: 'off',
 };
 
+export function cloneGameFilters(filters = DEFAULT_GAME_FILTERS) {
+  return {
+    searchText: filters.searchText ?? '',
+    libraryStates: {
+      include: [...(filters.libraryStates?.include ?? [])],
+      exclude: [...(filters.libraryStates?.exclude ?? [])],
+    },
+    developmentStatuses: {
+      include: [...(filters.developmentStatuses?.include ?? [])],
+      exclude: [...(filters.developmentStatuses?.exclude ?? [])],
+    },
+    steamTags: {
+      include: [...(filters.steamTags?.include ?? [])],
+      exclude: [...(filters.steamTags?.exclude ?? [])],
+    },
+    ownerships: {
+      include: [...(filters.ownerships?.include ?? [])],
+      exclude: [...(filters.ownerships?.exclude ?? [])],
+    },
+    onSaleOnly: filters.onSaleOnly ?? 'off',
+    gfnOnly: filters.gfnOnly ?? 'off',
+    updateAvailableOnly: filters.updateAvailableOnly ?? 'off',
+    ruOnly: filters.ruOnly ?? 'off',
+  };
+}
+
+export function cycleChipState(current) {
+  if (current === 'off') return 'include';
+  if (current === 'include') return 'exclude';
+  return 'off';
+}
+
+export function getValueTriState(pair, value) {
+  const include = pair?.include ?? [];
+  const exclude = pair?.exclude ?? [];
+  if (include.includes(value)) return 'include';
+  if (exclude.includes(value)) return 'exclude';
+  return 'off';
+}
+
+export function applyChipTriState(pair, value, nextState) {
+  const include = [...(pair?.include ?? [])].filter((item) => item !== value);
+  const exclude = [...(pair?.exclude ?? [])].filter((item) => item !== value);
+  if (nextState === 'include') include.push(value);
+  if (nextState === 'exclude') exclude.push(value);
+  return { include, exclude };
+}
+
 export function filtersForSidebarNav(activeTab, activeSubTab = 'active') {
-  const base = { ...DEFAULT_GAME_FILTERS };
+  const base = cloneGameFilters();
   if (activeTab === 'active' && activeSubTab === 'tba') {
     return {
       ...base,
-      libraryStates: ['active'],
-      developmentStatuses: ['tba'],
+      libraryStates: { include: ['active'], exclude: [] },
+      developmentStatuses: { include: ['tba'], exclude: [] },
     };
   }
   if (activeTab === 'active' && activeSubTab === 'active') {
     return {
       ...base,
-      libraryStates: ['active'],
-      excludeDevelopmentStatuses: ['tba'],
+      libraryStates: { include: ['active'], exclude: [] },
+      developmentStatuses: { include: [], exclude: ['tba'] },
     };
   }
   return {
     ...base,
-    libraryStates: [activeTab],
+    libraryStates: { include: [activeTab], exclude: [] },
   };
-}
-
-function sortedArrayKey(arr) {
-  return [...(arr ?? [])].sort().join('\0');
-}
-
-export function filtersMatchNavPreset(filters, activeTab, activeSubTab = 'active') {
-  const preset = filtersForSidebarNav(activeTab, activeSubTab);
-  return (
-    (filters.searchText?.trim() ?? '') === (preset.searchText?.trim() ?? '') &&
-    sortedArrayKey(filters.steamTags) === sortedArrayKey(preset.steamTags) &&
-    sortedArrayKey(filters.developmentStatuses) ===
-      sortedArrayKey(preset.developmentStatuses) &&
-    sortedArrayKey(filters.excludeDevelopmentStatuses) ===
-      sortedArrayKey(preset.excludeDevelopmentStatuses) &&
-    sortedArrayKey(filters.ownerships) === sortedArrayKey(preset.ownerships) &&
-    Boolean(filters.onSaleOnly) === Boolean(preset.onSaleOnly) &&
-    Boolean(filters.gfnOnly) === Boolean(preset.gfnOnly) &&
-    Boolean(filters.updateAvailableOnly) === Boolean(preset.updateAvailableOnly) &&
-    Boolean(filters.ruOnly) === Boolean(preset.ruOnly) &&
-    sortedArrayKey(filters.libraryStates) === sortedArrayKey(preset.libraryStates)
-  );
-}
-
-export function hasFiltersBeyondNavPreset(filters, activeTab, activeSubTab = 'active') {
-  return !filtersMatchNavPreset(filters, activeTab, activeSubTab);
 }
 
 export function getOwnershipCategory(owned) {
@@ -83,86 +106,99 @@ export function getEffectiveOwnership(game) {
   return getOwnershipCategory(game?.owned);
 }
 
+function hasTriStateArrayActivity(pair) {
+  return (pair?.include?.length ?? 0) > 0 || (pair?.exclude?.length ?? 0) > 0;
+}
+
 export function hasActiveFilters(filters) {
   return (
     Boolean(filters.searchText?.trim()) ||
-    (filters.steamTags?.length ?? 0) > 0 ||
-    (filters.developmentStatuses?.length ?? 0) > 0 ||
-    (filters.ownerships?.length ?? 0) > 0 ||
-    Boolean(filters.onSaleOnly) ||
-    Boolean(filters.gfnOnly) ||
-    Boolean(filters.updateAvailableOnly) ||
-    Boolean(filters.ruOnly) ||
-    (filters.libraryStates?.length ?? 0) > 0
+    hasTriStateArrayActivity(filters.steamTags) ||
+    hasTriStateArrayActivity(filters.developmentStatuses) ||
+    hasTriStateArrayActivity(filters.ownerships) ||
+    hasTriStateArrayActivity(filters.libraryStates) ||
+    filters.onSaleOnly !== 'off' ||
+    filters.gfnOnly !== 'off' ||
+    filters.updateAvailableOnly !== 'off' ||
+    filters.ruOnly !== 'off'
   );
+}
+
+function matchesTriStateArray(gameValue, pair) {
+  const include = pair?.include ?? [];
+  const exclude = pair?.exclude ?? [];
+  if (include.length > 0 && !include.includes(gameValue)) {
+    return false;
+  }
+  if (exclude.length > 0 && exclude.includes(gameValue)) {
+    return false;
+  }
+  return true;
+}
+
+function matchesOnSaleCondition(game) {
+  if (!getIsOnSale(game)) return false;
+  if (getEffectiveOwnership(game) === 'both') return false;
+  return true;
+}
+
+function matchesFooterTriState(condition, state) {
+  if (state === 'include') return condition;
+  if (state === 'exclude') return !condition;
+  return true;
 }
 
 export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
   const searchText = filters.searchText?.trim().toLowerCase() ?? '';
-  const selectedTags = filters.steamTags ?? [];
-  const developmentStatuses = filters.developmentStatuses ?? [];
-  const excludeDevelopmentStatuses = filters.excludeDevelopmentStatuses ?? [];
-  const ownerships = filters.ownerships ?? [];
-  const onSaleOnly = Boolean(filters.onSaleOnly);
-  const gfnOnly = Boolean(filters.gfnOnly);
-  const updateAvailableOnly = Boolean(filters.updateAvailableOnly);
-  const ruOnly = Boolean(filters.ruOnly);
-  const libraryStates = filters.libraryStates ?? [];
 
   return games.filter((game) => {
     if (searchText && !getGameName(game).toLowerCase().includes(searchText)) {
       return false;
     }
 
-    if (selectedTags.length > 0) {
-      const gameTags = getSteamTags(game);
-      const hasMatchingTag = selectedTags.some((tag) => gameTags.includes(tag));
-      if (!hasMatchingTag) return false;
+    if (!matchesTriStateArray(resolveLibraryState(game), filters.libraryStates)) {
+      return false;
+    }
+
+    if (!matchesTriStateArray(getDevelopmentStatus(game), filters.developmentStatuses)) {
+      return false;
+    }
+
+    if (!matchesTriStateArray(getEffectiveOwnership(game), filters.ownerships)) {
+      return false;
+    }
+
+    const gameTags = getSteamTags(game);
+    const tagPair = filters.steamTags ?? EMPTY_PAIR;
+    const tagInclude = tagPair.include ?? [];
+    const tagExclude = tagPair.exclude ?? [];
+    if (tagInclude.length > 0 && !tagInclude.some((tag) => gameTags.includes(tag))) {
+      return false;
+    }
+    if (tagExclude.length > 0 && tagExclude.some((tag) => gameTags.includes(tag))) {
+      return false;
+    }
+
+    if (!matchesFooterTriState(matchesOnSaleCondition(game), filters.onSaleOnly ?? 'off')) {
+      return false;
     }
 
     if (
-      developmentStatuses.length > 0 &&
-      !developmentStatuses.includes(getDevelopmentStatus(game))
+      !matchesFooterTriState(gfnSteamAppIds.has(String(game.id)), filters.gfnOnly ?? 'off')
     ) {
       return false;
     }
 
     if (
-      excludeDevelopmentStatuses.length > 0 &&
-      excludeDevelopmentStatuses.includes(getDevelopmentStatus(game))
+      !matchesFooterTriState(
+        game.hasUpdateSinceState === true,
+        filters.updateAvailableOnly ?? 'off'
+      )
     ) {
       return false;
     }
 
-    if (ownerships.length > 0 && !ownerships.includes(getEffectiveOwnership(game))) {
-      return false;
-    }
-
-    if (onSaleOnly) {
-      if (!getIsOnSale(game)) {
-        return false;
-      }
-      if (getEffectiveOwnership(game) === 'both') {
-        return false;
-      }
-    }
-
-    if (gfnOnly && !gfnSteamAppIds.has(String(game.id))) {
-      return false;
-    }
-
-    if (updateAvailableOnly && game.hasUpdateSinceState !== true) {
-      return false;
-    }
-
-    if (ruOnly && !isRuDeveloperAlert(game)) {
-      return false;
-    }
-
-    if (
-      libraryStates.length > 0 &&
-      !libraryStates.includes(resolveLibraryState(game))
-    ) {
+    if (!matchesFooterTriState(isRuDeveloperAlert(game), filters.ruOnly ?? 'off')) {
       return false;
     }
 
@@ -193,33 +229,48 @@ export function countGamesForFilterOption(games, filters, gfnSteamAppIds, overri
 }
 
 export function isLibraryStateFilterEnabled(games, filters, gfnSteamAppIds, state) {
-  if (filters.libraryStates?.includes(state)) return true;
+  if (getValueTriState(filters.libraryStates, state) !== 'off') return true;
   return (
-    countGamesForFilterOption(games, filters, gfnSteamAppIds, { libraryStates: [state] }) > 0
+    countGamesForFilterOption(games, filters, gfnSteamAppIds, {
+      libraryStates: applyChipTriState(filters.libraryStates ?? EMPTY_PAIR, state, 'include'),
+    }) > 0
   );
 }
 
 export function isDevelopmentStatusFilterEnabled(games, filters, gfnSteamAppIds, status) {
-  if (filters.developmentStatuses?.includes(status)) return true;
+  if (getValueTriState(filters.developmentStatuses, status) !== 'off') return true;
   return (
-    countGamesForFilterOption(games, filters, gfnSteamAppIds, { developmentStatuses: [status] }) >
-    0
+    countGamesForFilterOption(games, filters, gfnSteamAppIds, {
+      developmentStatuses: applyChipTriState(
+        filters.developmentStatuses ?? EMPTY_PAIR,
+        status,
+        'include'
+      ),
+    }) > 0
   );
 }
 
 export function isOwnershipFilterEnabled(games, filters, gfnSteamAppIds, ownership) {
-  if (filters.ownerships?.includes(ownership)) return true;
-  return countGamesForFilterOption(games, filters, gfnSteamAppIds, { ownerships: [ownership] }) > 0;
+  if (getValueTriState(filters.ownerships, ownership) !== 'off') return true;
+  return (
+    countGamesForFilterOption(games, filters, gfnSteamAppIds, {
+      ownerships: applyChipTriState(filters.ownerships ?? EMPTY_PAIR, ownership, 'include'),
+    }) > 0
+  );
 }
 
 export function isSteamTagFilterEnabled(games, filters, gfnSteamAppIds, tag) {
-  if (filters.steamTags?.includes(tag)) return true;
-  return countGamesForFilterOption(games, filters, gfnSteamAppIds, { steamTags: [tag] }) > 0;
+  if (getValueTriState(filters.steamTags, tag) !== 'off') return true;
+  return (
+    countGamesForFilterOption(games, filters, gfnSteamAppIds, {
+      steamTags: applyChipTriState(filters.steamTags ?? EMPTY_PAIR, tag, 'include'),
+    }) > 0
+  );
 }
 
-export function isBooleanFilterEnabled(games, filters, gfnSteamAppIds, key) {
-  if (Boolean(filters[key])) return true;
-  return countGamesForFilterOption(games, filters, gfnSteamAppIds, { [key]: true }) > 0;
+export function isFooterFilterEnabled(games, filters, gfnSteamAppIds, key) {
+  if (filters[key] !== 'off') return true;
+  return countGamesForFilterOption(games, filters, gfnSteamAppIds, { [key]: 'include' }) > 0;
 }
 
 /**
@@ -229,7 +280,7 @@ export function isBooleanFilterEnabled(games, filters, gfnSteamAppIds, key) {
 export function collectSteamTags(games, filters = null, gfnSteamAppIds = new Set()) {
   const pool =
     filters != null
-      ? filterGames(games, { ...filters, steamTags: [] }, gfnSteamAppIds)
+      ? filterGames(games, { ...filters, steamTags: EMPTY_PAIR }, gfnSteamAppIds)
       : games;
 
   const tagSet = new Set();

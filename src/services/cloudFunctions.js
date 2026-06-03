@@ -32,6 +32,9 @@ const refreshGameFromSteamFn = httpsCallable(functions, 'refreshGameFromSteam', 
 const syncDevSourcesFn = httpsCallable(functions, 'syncDevSources', {
   timeout: SYNC_CALL_TIMEOUT_MS,
 });
+const syncSteamEventsFn = httpsCallable(functions, 'syncSteamEvents', {
+  timeout: 120_000,
+});
 const revetAllGamesFn = httpsCallable(functions, 'revetAllGames', {
   timeout: SYNC_CALL_TIMEOUT_MS,
 });
@@ -88,6 +91,11 @@ export async function refreshGameFromSteam(steamAppId, appId = 'default_app') {
 
 export async function syncDevSources(appId = 'default_app', options = {}) {
   const result = await syncDevSourcesFn({ appId, ...options });
+  return result.data;
+}
+
+export async function syncSteamEvents(appId = 'default_app') {
+  const result = await syncSteamEventsFn({ appId });
   return result.data;
 }
 

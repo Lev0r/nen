@@ -1,6 +1,6 @@
 # Agent Intro — Nen?
 
-**Last updated:** 2026-06-03 (library UX batch: F2P, playtime piggyback, version/status updates, filters)  
+**Last updated:** 2026-06-03 (tri-state filters, Events page, mobile shell, modal opacity)  
 **Repo:** https://github.com/Lev0r/nen  
 **Firebase project:** `nen-tracker` (CLI alias: `staging` in `.firebaserc`)
 
@@ -57,12 +57,14 @@ nen/
 │   ├── maintenanceStore.js  # maintenance-errors + maintenance-audit
 │   ├── devSourceSync.js     # Weekly NE GRAI + curator sync
 │   ├── gfnSync.js           # GFN catalog
+│   ├── steamEventsSync.js   # Featured sales/festivals → config/steam-events
 │   ├── hltb.js / itad.js    # Third-party enrich
 │   └── data/                # Local-only CLI export (gitignored); prod reads config/dev-sources-*
 ├── public/backgrounds/      # nebula1.webp + README
 ├── scripts/                 # Admin CLI (import, revet, sync sources)
 └── src/
-    ├── components/          # DashboardShell, GameCard, DynamicBackground (nebula slides), modals, filters
+    ├── components/          # DashboardShell, EventsPage, GameCard, modals, filters
+    ├── hooks/               # useMatchMedia (mobile ≤768px)
     ├── contexts/            # AuthContext, MaintenanceDataContext (split maintenance listeners)
     ├── services/            # db.js, cloudFunctions.js
     └── utils/               # hypeScore, gameFilters, libraryState, accessors
@@ -78,6 +80,7 @@ nen/
 | `artifacts/{appId}/public/data/config/dev-bg-check` | Developer vetting cache (`developers.{cacheKey}`) |
 | `artifacts/{appId}/public/data/config/gfn-catalog` | GeForce NOW Steam app ID list |
 | `artifacts/{appId}/public/data/config/steam-library-sync` | Last library meta sync stats |
+| `artifacts/{appId}/public/data/config/steam-events` | Steam sales/festivals (`nextFeatured`, `upcoming`) |
 | `artifacts/{appId}/public/data/config/third-party-health` | HLTB/ITAD health counters |
 | `artifacts/{appId}/public/data/config/maintenance-errors` | Centralized maintenance error entries |
 | `artifacts/{appId}/public/data/config/maintenance-audit` | Denormalized Maintenance UI snapshot |
@@ -114,6 +117,7 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 | Steam sync & HLTB/ITAD/GFN | [`features/steam-sync-and-data.md`](./features/steam-sync-and-data.md) |
 | RU developer vetting | [`features/ru-developer-vetting.md`](./features/ru-developer-vetting.md) |
 | Filters & search | [`features/filters-and-search.md`](./features/filters-and-search.md) |
+| Steam events | [`features/steam-events.md`](./features/steam-events.md) |
 | UI shell & modals | [`features/ui-shell-and-modals.md`](./features/ui-shell-and-modals.md) |
 | Maintenance & errors | [`features/maintenance-and-errors.md`](./features/maintenance-and-errors.md) |
 | Bulk import | [`features/bulk-import.md`](./features/bulk-import.md) |
@@ -123,7 +127,7 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 ## Known pitfalls
 
 1. **Filter panel** — use React `expanded` state, not CSS `:focus-within` (breaks toggles).
-2. **Filter scope** — sidebar sets lifecycle preset (`filtersForSidebarNav`); grid and filter panel always use full library; Clear resets to preset.
+2. **Filter scope** — sidebar sets lifecycle preset (`filtersForSidebarNav`); grid always filters full library; **Clear filters** resets to `DEFAULT_GAME_FILTERS` (entire library, not nav preset).
 3. **Schema v2 only** — nested `steamStatic` / `steamDynamic` / `steamStats`; no v1 flat fields.
 4. **Banned games** — skip all Steam sync; **TBA** — no player stats.
 5. **GFN badge** — reads `config/gfn-catalog.steamAppIds`, not per-game scrape field.
@@ -140,7 +144,7 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 16. **Steam playtime** — only `steamOwnership` sync writes `steamPlaytime.*` from existing `GetOwnedGames`; never add per-game Web API calls for hours.
 17. **Version/status “new”** — `hasUpdateSinceState` covers version or `developmentStatus` drift; acknowledge on card rebaselines `stateMeta` without changing lifecycle; sidebar dot per tab.
 18. **Filter panel** — can collapse while filters stay active; mobile ≤768px does not auto-expand on active filters.
-19. **Filter facets** — status/ownership/tags are multi-select arrays (OR within dimension); facet gating always on (`filterMode={true}`). **Clear filters** uses `hasFiltersBeyondNavPreset` / `onResetFilters`, not `DEFAULT_GAME_FILTERS`.
+19. **Filter facets** — status/ownership/tags/lifecycle use tri-state `{ include, exclude }` (chip cycle off → include → exclude); footer toggles same tri-state. Facet gating always on (`filterMode={true}`). **Clear filters** uses `hasActiveFilters` / `onResetFilters` → `DEFAULT_GAME_FILTERS` (entire library).
 
 ---
 

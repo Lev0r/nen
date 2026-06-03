@@ -4,6 +4,7 @@ import {
   useMaintenanceAudit,
   useMaintenanceErrors,
   useSteamWishlistCandidates,
+  useSteamEvents,
 } from '../services/db';
 import { formatRelativeTimeShort } from '../utils/formatDuration';
 
@@ -22,11 +23,17 @@ export function MaintenanceDataProvider({ children, appId = 'default_app' }) {
   const { audit: maintenanceAudit } = useMaintenanceAudit(appId);
   const { errorsDoc: maintenanceErrorsDoc } = useMaintenanceErrors(appId);
   const { candidatesDoc: steamWishlistCandidatesDoc } = useSteamWishlistCandidates(appId);
+  const { eventsDoc: steamEventsDoc, loading: steamEventsLoading } = useSteamEvents(appId);
 
   const gfnSteamAppIds = useMemo(() => {
     const ids = gfnCatalog?.steamAppIds;
     return new Set(Array.isArray(ids) ? ids.map(String) : []);
   }, [gfnCatalog?.steamAppIds]);
+
+  const steamEventsSyncedAtLabel = useMemo(() => {
+    const syncedAt = steamEventsDoc?.syncedAt;
+    return formatRelativeTimeShort(syncedAt);
+  }, [steamEventsDoc?.syncedAt]);
 
   const gfnSyncedAtLabel = useMemo(() => {
     const syncedAt = maintenanceAudit?.gfn?.syncedAt ?? gfnCatalog?.syncedAt;
@@ -40,6 +47,9 @@ export function MaintenanceDataProvider({ children, appId = 'default_app' }) {
       maintenanceAudit,
       maintenanceErrorsDoc,
       steamWishlistCandidatesDoc,
+      steamEventsDoc,
+      steamEventsLoading,
+      steamEventsSyncedAtLabel,
       gfnSyncedAtLabel,
     }),
     [
@@ -48,6 +58,9 @@ export function MaintenanceDataProvider({ children, appId = 'default_app' }) {
       maintenanceAudit,
       maintenanceErrorsDoc,
       steamWishlistCandidatesDoc,
+      steamEventsDoc,
+      steamEventsLoading,
+      steamEventsSyncedAtLabel,
       gfnSyncedAtLabel,
     ]
   );

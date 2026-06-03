@@ -71,6 +71,7 @@ npm run build && firebase deploy --only hosting
 1. Confirm orchestrator runs in function logs
 2. Verify `config/scheduler-state` is populated after first tick
 3. Monitor first daily wishlist run for `cacheHits` / `cacheMisses` in `config/steam-wishlist-candidates`
+4. After deploy with `steamEvents` task: run **Sync Steam events** in Maintenance once, or wait for orchestrator (7d due) — verify `config/steam-events` has `nextFeatured` / `upcoming`
 
 ---
 
@@ -87,6 +88,7 @@ npm run build && firebase deploy --only hosting
 | `syncSteamOwnership` | ✅ | One-way ownership merge (Steam Web API) |
 | `syncSteamWishlists` | ✅ | Wishlist → co-op candidates (no auto-import) |
 | `syncDevSources` | ✅ | Refresh RU source lists |
+| `syncSteamEvents` | ✅ | Steam sales/festivals → `config/steam-events` |
 | `revetAllGames` | ✅ | Bulk re-vet all games |
 | `clearMaintenanceInfoErrors` | ✅ | Clear info-level maintenance errors |
 

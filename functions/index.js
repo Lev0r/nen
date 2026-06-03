@@ -11,6 +11,7 @@ const { syncGfnCatalog } = require('./gfnSync');
 const { syncSteamOwnership } = require('./steamOwnershipSync');
 const { syncSteamWishlists } = require('./steamWishlistSync');
 const { syncDevSources } = require('./devSourceSync');
+const { syncSteamEvents } = require('./steamEventsSync');
 const { scheduledSyncOrchestrator } = require('./schedulerOrchestrator');
 const { assertAllowedUser } = require('./lib/auth');
 const {
@@ -214,6 +215,7 @@ exports.syncGfnCatalog = syncGfnCatalog;
 exports.syncSteamOwnership = syncSteamOwnership;
 exports.syncSteamWishlists = syncSteamWishlists;
 exports.syncDevSources = syncDevSources;
+exports.syncSteamEvents = syncSteamEvents;
 exports.scheduledSyncOrchestrator = scheduledSyncOrchestrator;
 
 exports.revetAllGames = onCall(

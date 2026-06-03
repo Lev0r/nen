@@ -1,12 +1,23 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import useMatchMedia from '../hooks/useMatchMedia';
 import { useAuth } from '../contexts/AuthContext';
 import { useMaintenanceData } from '../contexts/MaintenanceDataContext';
 import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
 import GameFiltersBar from './GameFiltersBar';
+import EventsPage from './EventsPage';
 import MaintenanceModal from './MaintenanceModal';
 import { useGames } from '../services/db';
-import { syncGfnCatalog, syncSteamLibrary, syncSteamOwnership, syncSteamWishlists, syncDevSources, revetAllGames, clearMaintenanceInfoErrors } from '../services/cloudFunctions';
+import {
+  syncGfnCatalog,
+  syncSteamLibrary,
+  syncSteamOwnership,
+  syncSteamWishlists,
+  syncDevSources,
+  syncSteamEvents,
+  revetAllGames,
+  clearMaintenanceInfoErrors,
+} from '../services/cloudFunctions';
 import { getNickname } from '../utils/userConfig';
 import {
   LIBRARY_STATES,
@@ -18,7 +29,9 @@ import {
   filterGames,
   collectSteamTags,
   filtersForSidebarNav,
-  hasFiltersBeyondNavPreset,
+  DEFAULT_GAME_FILTERS,
+  cloneGameFilters,
+  hasActiveFilters,
 } from '../utils/gameFilters';
 import { isRuDeveloperAlert } from '../utils/gameHelpers';
 import { formatRelativeTimeShort } from '../utils/formatDuration';
@@ -55,6 +68,44 @@ function matchesActiveSubTab(game, subTab) {
   return subTab === 'tba' ? isTbaGame(game) : !isTbaGame(game);
 }
 
+const MOBILE_MEDIA = '(max-width: 768px)';
+
+function SearchIcon() {
+  return (
+    <svg className="app-mobile-header-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle
+        cx="11"
+        cy="11"
+        r="6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M16 16l4.5 4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg className="app-mobile-header-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 7h16M4 12h16M4 17h16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function appendRuntimeError(setter, source, message) {
   setter((prev) => [
     ...prev,
@@ -75,9 +126,13 @@ export default function DashboardShell() {
     maintenanceAudit,
     maintenanceErrorsDoc,
     steamWishlistCandidatesDoc,
+    steamEventsDoc,
+    steamEventsLoading,
+    steamEventsSyncedAtLabel,
     gfnSyncedAtLabel,
   } = useMaintenanceData();
 
+  const [topView, setTopView] = useState('library');
   const [activeTab, setActiveTab] = useState('active');
   const [activeSubTab, setActiveSubTab] = useState('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -90,12 +145,18 @@ export default function DashboardShell() {
   const [syncingSteamOwnership, setSyncingSteamOwnership] = useState(false);
   const [syncingSteamWishlists, setSyncingSteamWishlists] = useState(false);
   const [syncingDevSources, setSyncingDevSources] = useState(false);
+  const [syncingSteamEvents, setSyncingSteamEvents] = useState(false);
   const [reVettingGames, setReVettingGames] = useState(false);
   const [clearingInfo, setClearingInfo] = useState(false);
   const [runtimeErrors, setRuntimeErrors] = useState([]);
   const [acknowledgedFingerprint, setAcknowledgedFingerprint] = useState(
     readAcknowledgedFingerprint
   );
+  const isMobile = useMatchMedia(MOBILE_MEDIA);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [expandFiltersSignal, setExpandFiltersSignal] = useState(0);
+  const searchInputRef = useRef(null);
 
   const metaSyncedAtLabel = useMemo(() => {
     const syncedAt = maintenanceAudit?.metaLoad?.syncedAt;
@@ -262,6 +323,18 @@ export default function DashboardShell() {
     }
   }
 
+  async function handleSyncSteamEvents() {
+    setSyncingSteamEvents(true);
+    try {
+      await syncSteamEvents();
+    } catch (err) {
+      const message = reportError('Sync Steam events', err);
+      appendRuntimeError(setRuntimeErrors, 'Sync Steam events', message);
+    } finally {
+      setSyncingSteamEvents(false);
+    }
+  }
+
   async function handleRevetAllGames() {
     setReVettingGames(true);
     try {
@@ -367,46 +440,107 @@ export default function DashboardShell() {
     () => collectSteamTags(games, gameFilters, gfnSteamAppIds),
     [games, gameFilters, gfnSteamAppIds]
   );
-  const filtersBeyondNav = hasFiltersBeyondNavPreset(
-    gameFilters,
-    activeTab,
-    activeSubTab
-  );
+  const filtersActive = hasActiveFilters(gameFilters);
   const activeTabLabel =
     activeTab === 'active'
       ? ACTIVE_SUB_TABS.find((subTab) => subTab.id === activeSubTab)?.label ?? 'Active'
       : LIFECYCLE_TABS.find((tab) => tab.id === activeTab)?.label ?? 'Active';
 
+  useEffect(() => {
+    if (!isMobile) {
+      setSidebarOpen(false);
+      setSearchOpen(false);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (sidebarOpen || searchOpen) {
+      document.body.classList.add('scroll-locked');
+    } else {
+      document.body.classList.remove('scroll-locked');
+    }
+    return () => document.body.classList.remove('scroll-locked');
+  }, [sidebarOpen, searchOpen]);
+
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!sidebarOpen && !searchOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setSidebarOpen(false);
+        setSearchOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen, searchOpen]);
+
+  function handleEventsNavClick() {
+    setTopView('events');
+    if (isMobile) setSidebarOpen(false);
+  }
+
   function handleLifecycleTabClick(tabId) {
+    setTopView('library');
     setActiveTab(tabId);
     setActiveSubTab('active');
     setGameFilters(filtersForSidebarNav(tabId, 'active'));
+    if (isMobile) setSidebarOpen(false);
   }
 
   function handleActiveSubTabClick(subTabId) {
+    setTopView('library');
     setActiveSubTab(subTabId);
     setGameFilters(filtersForSidebarNav('active', subTabId));
+    if (isMobile) setSidebarOpen(false);
   }
 
-  function handleResetFilters() {
-    setGameFilters(filtersForSidebarNav(activeTab, activeSubTab));
+  function handleOpenFiltersFromSearch() {
+    setSearchOpen(false);
+    setExpandFiltersSignal((n) => n + 1);
   }
 
-  return (
-    <>
-      <DynamicBackground />
-      <div className="app-layout">
-      <aside className="sidebar">
+  function renderSidebarContent() {
+    const closeDrawer = () => {
+      if (isMobile) setSidebarOpen(false);
+    };
+
+    return (
+      <>
         <div className="sidebar-header">
           <h2 style={{ color: 'var(--accent-mint)' }}>Nen?</h2>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Co-op Tracker</p>
         </div>
 
         <nav className="sidebar-nav">
+          <div
+            className={`nav-item nav-item--events ${topView === 'events' ? 'active' : ''}`}
+            onClick={handleEventsNavClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleEventsNavClick();
+              }
+            }}
+          >
+            <span className="nav-item-label">Events</span>
+          </div>
+
+          <div className="sidebar-nav-divider" aria-hidden="true" />
+
           {LIFECYCLE_TABS.map((tab) => (
             <div key={tab.id} className="nav-item-group">
               <div
-                className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
+                className={`nav-item ${topView === 'library' && activeTab === tab.id ? 'active' : ''}`}
                 onClick={() => handleLifecycleTabClick(tab.id)}
               >
                 <span className="nav-item-label">
@@ -425,7 +559,7 @@ export default function DashboardShell() {
                   {ACTIVE_SUB_TABS.map((subTab) => (
                     <div
                       key={subTab.id}
-                      className={`nav-sub-item ${activeSubTab === subTab.id ? 'active' : ''}`}
+                      className={`nav-sub-item ${topView === 'library' && activeSubTab === subTab.id ? 'active' : ''}`}
                       onClick={() => handleActiveSubTabClick(subTab.id)}
                     >
                       <span className="nav-item-label">
@@ -449,14 +583,20 @@ export default function DashboardShell() {
         <div className="sidebar-footer">
           <button
             className="btn-primary sidebar-action-btn"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setIsModalOpen(true);
+              closeDrawer();
+            }}
           >
             + Add Game
           </button>
           <button
             type="button"
             className="btn-secondary sidebar-action-btn sidebar-maintenance-btn"
-            onClick={() => setMaintenanceOpen(true)}
+            onClick={() => {
+              setMaintenanceOpen(true);
+              closeDrawer();
+            }}
             aria-label={showErrorDot ? 'Maintenance (unacknowledged errors)' : 'Maintenance'}
           >
             <span className="sidebar-maintenance-btn-label">
@@ -468,14 +608,151 @@ export default function DashboardShell() {
           </button>
           <div className="sidebar-user-row">
             <span className="sidebar-user">{getNickname(userIndex)}</span>
-            <button className="btn-secondary sidebar-sign-out" onClick={logout}>
+            <button
+              className="btn-secondary sidebar-sign-out"
+              onClick={() => {
+                logout();
+                closeDrawer();
+              }}
+            >
               Sign Out
             </button>
           </div>
         </div>
-      </aside>
+      </>
+    );
+  }
+
+  function handleResetFilters() {
+    setGameFilters(cloneGameFilters(DEFAULT_GAME_FILTERS));
+  }
+
+  return (
+    <>
+      <DynamicBackground />
+      <div className="app-layout">
+      {!isMobile && (
+        <aside className="sidebar">{renderSidebarContent()}</aside>
+      )}
+
+      {isMobile && sidebarOpen && (
+        <div className="sidebar-drawer-root">
+          <button
+            type="button"
+            className="sidebar-drawer-backdrop"
+            aria-label="Close menu"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <aside className="sidebar sidebar-drawer" aria-label="Navigation">
+            <button
+              type="button"
+              className="sidebar-drawer-close"
+              aria-label="Close menu"
+              onClick={() => setSidebarOpen(false)}
+            >
+              ×
+            </button>
+            {renderSidebarContent()}
+          </aside>
+        </div>
+      )}
 
       <main className="main-content">
+        {isMobile && (
+          <header className="app-mobile-header glass-panel">
+            <button
+              type="button"
+              className="app-mobile-header-btn"
+              aria-label="Open menu"
+              aria-expanded={sidebarOpen}
+              onClick={() => {
+                setSearchOpen(false);
+                setSidebarOpen(true);
+              }}
+            >
+              <MenuIcon />
+            </button>
+            <div className="app-mobile-header-title">
+              <span className="app-mobile-header-brand">Nen?</span>
+              <span className="app-mobile-header-tab">
+                {topView === 'events' ? 'Events' : activeTabLabel}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="app-mobile-header-btn"
+              aria-label="Search games"
+              aria-expanded={searchOpen}
+              onClick={() => {
+                setSidebarOpen(false);
+                setSearchOpen(true);
+              }}
+            >
+              <SearchIcon />
+            </button>
+          </header>
+        )}
+
+        {topView === 'events' ? (
+          <EventsPage steamEventsDoc={steamEventsDoc} loading={steamEventsLoading} />
+        ) : (
+          <>
+        {isMobile && searchOpen && (
+          <div className="search-modal-root">
+            <button
+              type="button"
+              className="search-modal-backdrop"
+              aria-label="Close search"
+              onClick={() => setSearchOpen(false)}
+            />
+            <div
+              className="search-modal glass-panel"
+              role="dialog"
+              aria-label="Search games"
+            >
+              <div className="search-modal-header">
+                <label className="search-modal-label" htmlFor="mobile-game-search">
+                  Search
+                </label>
+                <button
+                  type="button"
+                  className="search-modal-close"
+                  aria-label="Close search"
+                  onClick={() => setSearchOpen(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="search-modal-input-row">
+                <SearchIcon />
+                <input
+                  ref={searchInputRef}
+                  id="mobile-game-search"
+                  type="search"
+                  className="game-filters-search-input search-modal-input"
+                  placeholder="Search games"
+                  value={gameFilters.searchText}
+                  onChange={(event) =>
+                    setGameFilters({ ...gameFilters, searchText: event.target.value })
+                  }
+                />
+              </div>
+              <p className="search-modal-count">
+                {filteredGames.length} of {games.length}
+              </p>
+              {!loading && games.length > 0 && (
+                <button
+                  type="button"
+                  className="btn-secondary search-modal-filters-link"
+                  onClick={handleOpenFiltersFromSearch}
+                >
+                  Open filters{filtersActive ? ' · on' : ''}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {!loading && games.length > 0 && (
           <GameFiltersBar
             filters={gameFilters}
@@ -487,8 +764,10 @@ export default function DashboardShell() {
             resultCount={filteredGames.length}
             totalCount={games.length}
             filterMode={true}
-            showClearFilters={filtersBeyondNav}
+            showClearFilters={filtersActive}
             onResetFilters={handleResetFilters}
+            hideSearch={isMobile}
+            expandFiltersSignal={expandFiltersSignal}
           />
         )}
 
@@ -515,7 +794,7 @@ export default function DashboardShell() {
                       : 'Use + Add Game, or bulk-import with scripts/import-games.mjs using --app-id default_app.'}
                   </p>
                 </>
-              ) : filtersBeyondNav ? (
+              ) : filtersActive ? (
                 <>
                   <p>No games match your filters.</p>
                   <p className="dashboard-empty-hint">
@@ -541,6 +820,8 @@ export default function DashboardShell() {
             </div>
           )}
         </div>
+          </>
+        )}
       </main>
 
       <AddGameModal
@@ -565,12 +846,14 @@ export default function DashboardShell() {
         syncingSteamOwnership={syncingSteamOwnership}
         syncingSteamWishlists={syncingSteamWishlists}
         syncingDevSources={syncingDevSources}
+        syncingSteamEvents={syncingSteamEvents}
         reVettingGames={reVettingGames}
         onLoadMeta={handleLoadMeta}
         onSyncGfn={handleSyncGfn}
         onSyncSteamOwnership={handleSyncSteamOwnership}
         onSyncSteamWishlists={handleSyncSteamWishlists}
         onSyncDevSources={handleSyncDevSources}
+        onSyncSteamEvents={handleSyncSteamEvents}
         onRevetAllGames={handleRevetAllGames}
         metaSyncedAtLabel={metaSyncedAtLabel}
         gfnSyncedAtLabel={gfnSyncedAtLabel}
@@ -582,6 +865,7 @@ export default function DashboardShell() {
         libraryGameIds={libraryGameIds}
         devSourcesSyncedAtLabel={devSourcesSyncedAtLabel}
         devSourceSummary={devSourceSummary}
+        steamEventsSyncedAtLabel={steamEventsSyncedAtLabel}
       />
       </div>
     </>

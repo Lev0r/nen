@@ -10,6 +10,7 @@
 | :--- | :--- | :--- |
 | Load meta info | `syncSteamLibrary` | 540s client |
 | Sync GeForce NOW | `syncGfnCatalog` | 540s client |
+| Sync Steam events | `syncSteamEvents` | 120s client |
 | Sync Steam ownership | `syncSteamOwnership` | 120s client |
 | Sync Steam wishlists | `syncSteamWishlists` | 540s client (co-op store scrape filter) |
 | Sync dev sources | `syncDevSources` | 540s client |

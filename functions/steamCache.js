@@ -4,6 +4,7 @@ const STEAM_USER_AGENT =
 
 const TTL_BY_PATTERN = [
   { pattern: /store\.steampowered\.com\/api\/appdetails/i, ttlMs: 60 * 60 * 1000 },
+  { pattern: /store\.steampowered\.com\/api\/featuredcategories/i, ttlMs: 6 * 60 * 60 * 1000 },
   { pattern: /store\.steampowered\.com\/appreviews\//i, ttlMs: 60 * 60 * 1000 },
   { pattern: /ISteamNews\/GetNewsForApp/i, ttlMs: 6 * 60 * 60 * 1000 },
   { pattern: /static\.nvidiagrid\.net\/supported-public-game-list/i, ttlMs: 24 * 60 * 60 * 1000 },
