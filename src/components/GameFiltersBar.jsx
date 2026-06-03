@@ -11,14 +11,12 @@ import {
 import { LIBRARY_STATES, getLibraryStateLabel } from '../utils/libraryState';
 
 const DEVELOPMENT_STATUS_OPTIONS = [
-  { value: 'all', label: 'All' },
   { value: 'released', label: 'Released' },
   { value: 'early_access', label: 'Early Access' },
   { value: 'tba', label: 'TBA' },
 ];
 
 const OWNERSHIP_OPTIONS = [
-  { value: 'all', label: 'All' },
   { value: 'neither', label: 'Neither' },
   { value: 'one', label: 'One owns' },
   { value: 'both', label: 'Both own' },
@@ -37,6 +35,7 @@ export default function GameFiltersBar({
   filters,
   onChange,
   filterSourceGames,
+  allGames,
   gfnSteamAppIds = new Set(),
   availableTags,
   resultCount,
@@ -103,6 +102,22 @@ export default function GameFiltersBar({
       ? current.filter((item) => item !== state)
       : [...current, state];
     updateFilter({ libraryStates: next });
+  };
+
+  const toggleDevelopmentStatus = (status) => {
+    const current = filters.developmentStatuses ?? [];
+    const next = current.includes(status)
+      ? current.filter((item) => item !== status)
+      : [...current, status];
+    updateFilter({ developmentStatuses: next });
+  };
+
+  const toggleOwnership = (ownership) => {
+    const current = filters.ownerships ?? [];
+    const next = current.includes(ownership)
+      ? current.filter((item) => item !== ownership)
+      : [...current, ownership];
+    updateFilter({ ownerships: next });
   };
 
   const clearFilters = () => {
@@ -206,7 +221,7 @@ export default function GameFiltersBar({
                 {LIBRARY_STATES.map((state) => {
                   const active = filters.libraryStates?.includes(state);
                   const enabled = isLibraryStateFilterEnabled(
-                    filterSourceGames,
+                    allGames,
                     filters,
                     gfnSteamAppIds,
                     state
@@ -230,7 +245,7 @@ export default function GameFiltersBar({
               <span className="game-filters-label">Status</span>
               <div className="game-filters-chips">
                 {DEVELOPMENT_STATUS_OPTIONS.map((option) => {
-                  const active = filters.developmentStatus === option.value;
+                  const active = filters.developmentStatuses?.includes(option.value);
                   const enabled = isDevelopmentStatusFilterEnabled(
                     filterSourceGames,
                     filters,
@@ -243,9 +258,7 @@ export default function GameFiltersBar({
                       type="button"
                       className={chipClassName(active, enabled)}
                       disabled={!enabled}
-                      onClick={() =>
-                        enabled && updateFilter({ developmentStatus: option.value })
-                      }
+                      onClick={() => enabled && toggleDevelopmentStatus(option.value)}
                     >
                       {option.label}
                     </button>
@@ -258,7 +271,7 @@ export default function GameFiltersBar({
               <span className="game-filters-label">Ownership</span>
               <div className="game-filters-chips">
                 {OWNERSHIP_OPTIONS.map((option) => {
-                  const active = filters.ownership === option.value;
+                  const active = filters.ownerships?.includes(option.value);
                   const enabled = isOwnershipFilterEnabled(
                     filterSourceGames,
                     filters,
@@ -271,7 +284,7 @@ export default function GameFiltersBar({
                       type="button"
                       className={chipClassName(active, enabled)}
                       disabled={!enabled}
-                      onClick={() => enabled && updateFilter({ ownership: option.value })}
+                      onClick={() => enabled && toggleOwnership(option.value)}
                     >
                       {option.label}
                     </button>

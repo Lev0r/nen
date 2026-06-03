@@ -487,6 +487,7 @@ export default function DashboardShell() {
             filters={gameFilters}
             onChange={setGameFilters}
             filterSourceGames={filterSourceGames}
+            allGames={games}
             gfnSteamAppIds={gfnSteamAppIds}
             availableTags={availableTags}
             resultCount={filteredGames.length}

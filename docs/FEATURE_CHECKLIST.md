@@ -130,7 +130,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Feature | Status | Notes |
 | :--- | :---: | :--- |
 | Text search (game name) | ✅ | |
-| Lifecycle / tag / status / ownership filters | ✅ | |
+| Lifecycle / tag / status / ownership filters | ✅ | Status & ownership multi-select (OR); lifecycle enablement uses full library |
 | Sale / GFN / update / RU toggles | ✅ | |
 | Global scope when any filter active | ✅ | |
 | Tab click resets filters | ✅ | |

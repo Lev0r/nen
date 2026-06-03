@@ -253,10 +253,10 @@ Lifecycle is changed via a **modal** on the game card (all states visible, optio
 
 Within the active pool, users can filter by:
 * Game **name** (text search)
-* **Lifecycle** multi-select chips (Active / Replayable / Waiting for updates / Finished / Banned)
+* **Lifecycle** multi-select chips (Active / Replayable / Waiting for updates / Finished / Banned) — chip enablement counts use the **full library**, not the current sidebar tab
 * **Steam tags** (`steamStatic.steamTags` from scrape — tag list shows tags from **full library**)
-* **Development status** (`steamStatic.developmentStatus`: `released` / `early_access` / `tba`)
-* **Ownership** (neither / one / both own)
+* **Development status** — multi-select `developmentStatuses[]` (`released` / `early_access` / `tba`; OR within dimension; empty = no filter)
+* **Ownership** — multi-select `ownerships[]` (`neither` / `one` / `both`; OR within dimension; empty = no filter)
 * **On sale** (excludes games owned by both users), **GeForce NOW** (catalog match), **Update available** (`hasUpdateSinceState`)
 
 Filter panel expands via search focus or active filters; use React state (not CSS `:focus-within`) so toggles do not collapse the panel.

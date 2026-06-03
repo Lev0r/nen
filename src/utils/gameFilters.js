@@ -11,8 +11,8 @@ import {
 export const DEFAULT_GAME_FILTERS = {
   searchText: '',
   steamTags: [],
-  developmentStatus: 'all',
-  ownership: 'all',
+  developmentStatuses: [],
+  ownerships: [],
   onSaleOnly: false,
   gfnOnly: false,
   updateAvailableOnly: false,
@@ -38,8 +38,8 @@ export function hasActiveFilters(filters) {
   return (
     Boolean(filters.searchText?.trim()) ||
     (filters.steamTags?.length ?? 0) > 0 ||
-    (filters.developmentStatus && filters.developmentStatus !== 'all') ||
-    (filters.ownership && filters.ownership !== 'all') ||
+    (filters.developmentStatuses?.length ?? 0) > 0 ||
+    (filters.ownerships?.length ?? 0) > 0 ||
     Boolean(filters.onSaleOnly) ||
     Boolean(filters.gfnOnly) ||
     Boolean(filters.updateAvailableOnly) ||
@@ -51,8 +51,8 @@ export function hasActiveFilters(filters) {
 export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
   const searchText = filters.searchText?.trim().toLowerCase() ?? '';
   const selectedTags = filters.steamTags ?? [];
-  const developmentStatus = filters.developmentStatus ?? 'all';
-  const ownership = filters.ownership ?? 'all';
+  const developmentStatuses = filters.developmentStatuses ?? [];
+  const ownerships = filters.ownerships ?? [];
   const onSaleOnly = Boolean(filters.onSaleOnly);
   const gfnOnly = Boolean(filters.gfnOnly);
   const updateAvailableOnly = Boolean(filters.updateAvailableOnly);
@@ -70,11 +70,14 @@ export function filterGames(games, filters, gfnSteamAppIds = new Set()) {
       if (!hasMatchingTag) return false;
     }
 
-    if (developmentStatus !== 'all' && getDevelopmentStatus(game) !== developmentStatus) {
+    if (
+      developmentStatuses.length > 0 &&
+      !developmentStatuses.includes(getDevelopmentStatus(game))
+    ) {
       return false;
     }
 
-    if (ownership !== 'all' && getEffectiveOwnership(game) !== ownership) {
+    if (ownerships.length > 0 && !ownerships.includes(getEffectiveOwnership(game))) {
       return false;
     }
 
@@ -139,15 +142,16 @@ export function isLibraryStateFilterEnabled(games, filters, gfnSteamAppIds, stat
 }
 
 export function isDevelopmentStatusFilterEnabled(games, filters, gfnSteamAppIds, status) {
-  if ((filters.developmentStatus ?? 'all') === status) return true;
+  if (filters.developmentStatuses?.includes(status)) return true;
   return (
-    countGamesForFilterOption(games, filters, gfnSteamAppIds, { developmentStatus: status }) > 0
+    countGamesForFilterOption(games, filters, gfnSteamAppIds, { developmentStatuses: [status] }) >
+    0
   );
 }
 
 export function isOwnershipFilterEnabled(games, filters, gfnSteamAppIds, ownership) {
-  if ((filters.ownership ?? 'all') === ownership) return true;
-  return countGamesForFilterOption(games, filters, gfnSteamAppIds, { ownership }) > 0;
+  if (filters.ownerships?.includes(ownership)) return true;
+  return countGamesForFilterOption(games, filters, gfnSteamAppIds, { ownerships: [ownership] }) > 0;
 }
 
 export function isSteamTagFilterEnabled(games, filters, gfnSteamAppIds, tag) {

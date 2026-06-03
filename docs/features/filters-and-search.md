@@ -22,8 +22,8 @@ Implemented: `src/utils/gameFilters.js`, `src/components/GameFiltersBar.jsx`, `D
 | `searchText` | Name substring (case-insensitive) |
 | `libraryStates[]` | Lifecycle chips |
 | `steamTags[]` | Tag chips (OR) — **co-op tags excluded** |
-| `developmentStatus` | released / early_access / tba / all |
-| `ownership` | neither / one / both |
+| `developmentStatuses[]` | released / early_access / tba (OR within dimension; empty = no filter) |
+| `ownerships[]` | neither / one / both (OR within dimension; empty = no filter) |
 | `onSaleOnly` | Toggle (excludes games owned by both users) |
 | `gfnOnly` | Toggle (global GFN catalog) |
 | `ruOnly` | Toggle |
@@ -47,6 +47,10 @@ Two-phase add flow — see [UI shell](./ui-shell-and-modals.md):
 ## Dynamic option disabling
 
 `filterSourceGames` is the same pool as the result count denominator (current tab or full library). For each chip/toggle option, count games matching **all other active filters** plus that option alone. An option is **enabled** when count &gt; 0 **or** it is already selected; otherwise the chip gets `filter-chip--disabled` and footer switches get `game-filters-switch--disabled` (still visible). Helpers live in `gameFilters.js` (`isLibraryStateFilterEnabled`, `isDevelopmentStatusFilterEnabled`, etc.).
+
+**Lifecycle chips** use the **full library** (`allGames` from `DashboardShell`) for enablement counts, not `filterSourceGames`, so Finished/Replayable/etc. stay clickable on a sidebar tab when those states exist anywhere in the library. Status, ownership, tags, and footer toggles still facet-count against `filterSourceGames`.
+
+Status and ownership are **additive multi-select** (OR within each dimension, AND across dimensions). No “All” chip — deselect all chips in a group to clear that dimension.
 
 ## Grid sort (filtered view)
 
