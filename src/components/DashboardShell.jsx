@@ -363,7 +363,10 @@ export default function DashboardShell() {
     });
   }, [games, gameFilters, gfnSteamAppIds]);
 
-  const availableTags = useMemo(() => collectSteamTags(games), [games]);
+  const availableTags = useMemo(
+    () => collectSteamTags(games, gameFilters, gfnSteamAppIds),
+    [games, gameFilters, gfnSteamAppIds]
+  );
   const filtersBeyondNav = hasFiltersBeyondNavPreset(
     gameFilters,
     activeTab,

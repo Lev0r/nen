@@ -258,7 +258,7 @@ Lifecycle is changed via a **modal** on the game card (all states visible, optio
 Users can refine on the full library by:
 * Game **name** (text search)
 * **Lifecycle** multi-select chips (Active / Replayable / Waiting for updates / Finished / Banned)
-* **Steam tags** (`steamStatic.steamTags` from scrape — tag list shows tags from **full library**)
+* **Steam tags** (`steamStatic.steamTags` from scrape — chip cloud lists tags on games matching current nav/filters; co-op and `early access` excluded)
 * **Development status** — multi-select `developmentStatuses[]` (`released` / `early_access` / `tba`; OR within dimension; empty = no filter)
 * **Ownership** — multi-select `ownerships[]` (`neither` / `one` / `both`; OR within dimension; empty = no filter)
 * **On sale** (excludes games owned by both users), **GeForce NOW** (catalog match), **Update available** (`hasUpdateSinceState`)

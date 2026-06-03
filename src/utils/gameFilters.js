@@ -177,6 +177,7 @@ const EXCLUDED_STEAM_FILTER_TAGS = new Set([
   'split screen co-op',
   'shared/split screen co-op',
   'cross-platform multiplayer',
+  'early access',
 ]);
 
 function isExcludedSteamFilterTag(tag) {
@@ -221,9 +222,18 @@ export function isBooleanFilterEnabled(games, filters, gfnSteamAppIds, key) {
   return countGamesForFilterOption(games, filters, gfnSteamAppIds, { [key]: true }) > 0;
 }
 
-export function collectSteamTags(games) {
+/**
+ * Tags for the filter chip cloud — only from games matching `filters` (Steam tag
+ * selection cleared so the cloud reflects the current nav + other filters).
+ */
+export function collectSteamTags(games, filters = null, gfnSteamAppIds = new Set()) {
+  const pool =
+    filters != null
+      ? filterGames(games, { ...filters, steamTags: [] }, gfnSteamAppIds)
+      : games;
+
   const tagSet = new Set();
-  for (const game of games) {
+  for (const game of pool) {
     for (const tag of getSteamTags(game)) {
       if (!isExcludedSteamFilterTag(tag)) {
         tagSet.add(tag);

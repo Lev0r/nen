@@ -42,7 +42,7 @@ Helpers: `filtersMatchNavPreset`, `hasFiltersBeyondNavPreset` (Clear button + em
 | `ruOnly` | Toggle |
 | `updateAvailableOnly` | Toggle (`hasUpdateSinceState`) |
 
-Tag list built from **full library** (`collectSteamTags(games)`). Co-op-related tags filtered out in `gameFilters.js`.
+Tag chip cloud: `collectSteamTags(games, currentFilters, gfnIds)` — only tags that appear on games matching the **current sidebar preset and other filters** (Steam tag selection ignored when building the list). Tags not in the current view (e.g. `sports` only on Finished games while browsing Active) are **omitted**, not shown disabled. Excluded from the cloud: co-op-related tags and **`early access`** (use Status chips instead). Source: `steamStatic.steamTags` from Steam scrape (genres + co-op categories).
 
 Each `GameCard` shows its **lifecycle badge** on the thumbnail (full-library view).
 
