@@ -20,9 +20,11 @@ LoginGate → DashboardShell
 
 ## Dynamic background
 
-`DynamicBackground.jsx` — layered CSS wave mesh (blurred blobs + diagonal sheen). Warm graphite base with coral, moss, and teal wave tones. **Static layout** in `index.css` (no keyframe animation — perf). No external library. Disable: `VITE_ENABLE_DYNAMIC_BG=false`.
+`DynamicBackground.jsx` — single **`nebula1.webp`** from `public/backgrounds/`. Blur is applied on **one fixed layer** behind the UI (`filter: blur` on `.app-background__image`), not `backdrop-filter` on cards. Warm **graphite overlay** keeps cards readable. No crossfade. Disable: `VITE_ENABLE_DYNAMIC_BG=false`. See [`public/backgrounds/README.md`](../../public/backgrounds/README.md).
 
-Card thumbnails: **120px** height, full color at rest; slight scale on card hover. Lifecycle badge on thumbnail: **hidden** on lifecycle tabs; shown when filters scope the full library.
+Cards and shell use **opaque glass** (`--glass-bg`) — no `backdrop-filter` on game cards or the dashboard grid (scroll/GPU perf).
+
+Card thumbnails: **120px** height, full color at rest; slight scale on card hover (disabled under reduced motion). Lifecycle badge on thumbnail: **hidden** on lifecycle tabs; shown when filters scope the full library.
 
 ## Modals
 
@@ -34,7 +36,7 @@ Card thumbnails: **120px** height, full color at rest; slight scale on card hove
 | `LifecycleModal` | Card lifecycle badge (when visible) or edit | State + note + finished stars |
 | `ScreenshotsModal` | Card footer | Fullscreen carousel |
 
-Glassmorphism: `.modal-backdrop` + `.glass-panel` in `index.css`.
+Panels: `.modal-backdrop` + `.glass-panel` in `index.css` (opaque glass, no backdrop blur on cards).
 
 ## GameCard highlights
 

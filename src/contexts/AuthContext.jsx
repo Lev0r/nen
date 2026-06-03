@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 
@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
     import.meta.env.VITE_ALLOWED_EMAIL_1
   ];
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = useCallback(async () => {
     setError('');
     try {
       await signInWithPopup(auth, googleProvider);
@@ -27,15 +27,15 @@ export const AuthProvider = ({ children }) => {
       console.error('Login failed:', err);
       setError('Failed to log in with Google.');
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await signOut(auth);
     } catch (err) {
       console.error('Logout failed:', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -65,14 +65,17 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  const value = {
-    currentUser,
-    userIndex,
-    loginWithGoogle,
-    logout,
-    error,
-    loading
-  };
+  const value = useMemo(
+    () => ({
+      currentUser,
+      userIndex,
+      loginWithGoogle,
+      logout,
+      error,
+      loading,
+    }),
+    [currentUser, userIndex, loading, error, loginWithGoogle, logout]
+  );
 
   return (
     <AuthContext.Provider value={value}>

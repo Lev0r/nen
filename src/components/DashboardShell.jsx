@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useMaintenanceData } from '../contexts/MaintenanceDataContext';
 import GameCard from './GameCard';
 import AddGameModal from './AddGameModal';
 import GameFiltersBar from './GameFiltersBar';
 import MaintenanceModal from './MaintenanceModal';
-import { useGames, useGfnCatalog, useMaintenanceAudit, useMaintenanceErrors, useSteamWishlistCandidates } from '../services/db';
+import { useGames } from '../services/db';
 import { syncGfnCatalog, syncSteamLibrary, syncSteamOwnership, syncSteamWishlists, syncDevSources, revetAllGames, clearMaintenanceInfoErrors } from '../services/cloudFunctions';
 import { getNickname } from '../utils/userConfig';
 import {
@@ -68,10 +69,13 @@ function appendRuntimeError(setter, source, message) {
 export default function DashboardShell() {
   const { userIndex, logout } = useAuth();
   const { games, loading, subscriptionError, loadErrors } = useGames('default_app');
-  const { catalog: gfnCatalog } = useGfnCatalog('default_app');
-  const { audit: maintenanceAudit } = useMaintenanceAudit('default_app');
-  const { errorsDoc: maintenanceErrorsDoc } = useMaintenanceErrors('default_app');
-  const { candidatesDoc: steamWishlistCandidatesDoc } = useSteamWishlistCandidates('default_app');
+  const {
+    gfnSteamAppIds,
+    maintenanceAudit,
+    maintenanceErrorsDoc,
+    steamWishlistCandidatesDoc,
+    gfnSyncedAtLabel,
+  } = useMaintenanceData();
 
   const [activeTab, setActiveTab] = useState('active');
   const [activeSubTab, setActiveSubTab] = useState('active');
@@ -89,16 +93,6 @@ export default function DashboardShell() {
   const [acknowledgedFingerprint, setAcknowledgedFingerprint] = useState(
     readAcknowledgedFingerprint
   );
-
-  const gfnSteamAppIds = useMemo(() => {
-    const ids = gfnCatalog?.steamAppIds;
-    return new Set(Array.isArray(ids) ? ids.map(String) : []);
-  }, [gfnCatalog?.steamAppIds]);
-
-  const gfnSyncedAtLabel = useMemo(() => {
-    const syncedAt = maintenanceAudit?.gfn?.syncedAt ?? gfnCatalog?.syncedAt;
-    return formatRelativeTimeShort(syncedAt);
-  }, [maintenanceAudit?.gfn?.syncedAt, gfnCatalog?.syncedAt]);
 
   const metaSyncedAtLabel = useMemo(() => {
     const syncedAt = maintenanceAudit?.metaLoad?.syncedAt;
@@ -294,36 +288,59 @@ export default function DashboardShell() {
     }
   }
 
-  const tabCounts = LIFECYCLE_TABS.reduce((counts, tab) => {
-    if (tab.id === 'active') {
-      counts[tab.id] = games.filter(
-        (game) => isActiveLibraryGame(game) && !isTbaGame(game)
-      ).length;
-    } else {
-      counts[tab.id] = games.filter(
-        (game) => resolveLibraryState(game) === tab.id
-      ).length;
-    }
-    return counts;
-  }, {});
+  const tabCounts = useMemo(
+    () =>
+      LIFECYCLE_TABS.reduce((counts, tab) => {
+        if (tab.id === 'active') {
+          counts[tab.id] = games.filter(
+            (game) => isActiveLibraryGame(game) && !isTbaGame(game)
+          ).length;
+        } else {
+          counts[tab.id] = games.filter(
+            (game) => resolveLibraryState(game) === tab.id
+          ).length;
+        }
+        return counts;
+      }, {}),
+    [games]
+  );
 
-  const activeSubTabCounts = ACTIVE_SUB_TABS.reduce((counts, subTab) => {
-    counts[subTab.id] = games.filter((game) =>
-      matchesActiveSubTab(game, subTab.id)
-    ).length;
-    return counts;
-  }, {});
+  const activeSubTabCounts = useMemo(
+    () =>
+      ACTIVE_SUB_TABS.reduce((counts, subTab) => {
+        counts[subTab.id] = games.filter((game) =>
+          matchesActiveSubTab(game, subTab.id)
+        ).length;
+        return counts;
+      }, {}),
+    [games]
+  );
 
-  const lifecycleGames = games.filter((game) => {
-    if (activeTab === 'active') {
-      return matchesActiveSubTab(game, activeSubTab);
-    }
-    return resolveLibraryState(game) === activeTab;
-  });
-  const filtersScopeGlobal = hasActiveFilters(gameFilters);
-  const filterSourceGames = filtersScopeGlobal ? games : lifecycleGames;
-  const filteredGames = filterGames(filterSourceGames, gameFilters, gfnSteamAppIds);
-  const availableTags = collectSteamTags(games);
+  const lifecycleGames = useMemo(() => {
+    return games.filter((game) => {
+      if (activeTab === 'active') {
+        return matchesActiveSubTab(game, activeSubTab);
+      }
+      return resolveLibraryState(game) === activeTab;
+    });
+  }, [games, activeTab, activeSubTab]);
+
+  const filtersScopeGlobal = useMemo(
+    () => hasActiveFilters(gameFilters),
+    [gameFilters]
+  );
+
+  const filterSourceGames = useMemo(
+    () => (filtersScopeGlobal ? games : lifecycleGames),
+    [filtersScopeGlobal, games, lifecycleGames]
+  );
+
+  const filteredGames = useMemo(
+    () => filterGames(filterSourceGames, gameFilters, gfnSteamAppIds),
+    [filterSourceGames, gameFilters, gfnSteamAppIds]
+  );
+
+  const availableTags = useMemo(() => collectSteamTags(games), [games]);
   const filtersActive = hasActiveFilters(gameFilters);
   const activeTabLabel =
     activeTab === 'active'
@@ -343,7 +360,7 @@ export default function DashboardShell() {
 
   return (
     <>
-      <DynamicBackground games={games} />
+      <DynamicBackground />
       <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-header">

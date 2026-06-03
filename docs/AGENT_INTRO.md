@@ -1,6 +1,6 @@
 # Agent Intro — Nen?
 
-**Last updated:** 2026-06-03 (sync orchestrator shipped in repo)  
+**Last updated:** 2026-06-03 (orchestrator deployed; static nebula BG + perf CSS)  
 **Repo:** https://github.com/Lev0r/nen  
 **Firebase project:** `nen-tracker` (CLI alias: `staging` in `.firebaserc`)
 
@@ -10,7 +10,7 @@ Onboarding entry point for AI agents and developers. Read this first, then only 
 
 ## What is Nen?
 
-**Nen?** is a two-user co-op Steam game library tracker (React + Vite SPA, Firebase). Two abstract users (**User 0** / **User 1**) import games from Steam, track lifecycle, ownership, personal hype tiers, and RU developer alerts. **Total Hype** drives sort order and the dynamic background.
+**Nen?** is a two-user co-op Steam game library tracker (React + Vite SPA, Firebase). Two abstract users (**User 0** / **User 1**) import games from Steam, track lifecycle, ownership, personal hype tiers, and RU developer alerts. **Total Hype** drives sort order; the dashboard uses a static nebula background (not hype-driven).
 
 Never hardcode personal names in UI — use `VITE_USER0_NICKNAME` / `VITE_USER1_NICKNAME`.
 
@@ -59,9 +59,11 @@ nen/
 │   ├── gfnSync.js           # GFN catalog
 │   ├── hltb.js / itad.js    # Third-party enrich
 │   └── data/                # Local-only CLI export (gitignored); prod reads config/dev-sources-*
+├── public/backgrounds/      # nebula1.webp + README
 ├── scripts/                 # Admin CLI (import, revet, sync sources)
 └── src/
-    ├── components/          # DashboardShell, GameCard, modals, filters
+    ├── components/          # DashboardShell, GameCard, DynamicBackground (nebula slides), modals, filters
+    ├── contexts/            # AuthContext, MaintenanceDataContext (split maintenance listeners)
     ├── services/            # db.js, cloudFunctions.js
     └── utils/               # hypeScore, gameFilters, libraryState, accessors
 ```
@@ -133,6 +135,7 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 11. **Scheduled sync** — single Cloud Scheduler job `scheduledSyncOrchestrator` (every 6h); per-task intervals in `config/scheduler-state`. Old jobs `syncLibrarySteam`, `syncGfnCatalogScheduled`, `syncDevSourcesScheduled` are removed.
 12. **Lifecycle badge on card** — hidden when browsing a lifecycle sidebar tab; shown when `hasActiveFilters` scopes the grid to the full library.
 13. **Post-deploy RU re-vet** — required after vetting *logic* changes only (not source re-sync); completed 2026-06-02.
+14. **Background** — `public/backgrounds/nebula1.webp` with blur on one fixed layer only; cards use opaque `--glass-bg` (no per-card `backdrop-filter`).
 
 ---
 

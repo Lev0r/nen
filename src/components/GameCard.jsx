@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserLabel, getNickname } from '../utils/userConfig';
 import { isRuDeveloperAlert } from '../utils/gameHelpers';
@@ -571,7 +571,13 @@ function OwnedTooltip({ owned = {}, userIndex }) {
   );
 }
 
-export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false }) {
+function isHypePickerDisabled(game) {
+  if (game.ruDeveloperAlert) return true;
+  const libraryState = resolveLibraryState(game);
+  return libraryState === 'finished' || libraryState === 'banned';
+}
+
+function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false }) {
   const { userIndex } = useAuth();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [screenshotsOpen, setScreenshotsOpen] = useState(false);
@@ -580,9 +586,14 @@ export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecyc
   const [editFocusRating, setEditFocusRating] = useState(false);
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
+  const [hypeTooltipActive, setHypeTooltipActive] = useState(false);
   const hypeRingRef = useRef(null);
 
-  const { total, breakdown } = calculateTotalHype(game);
+  const total = game.totalHype ?? 0;
+  const hypeBreakdown = useMemo(() => {
+    if (!hypeTooltipActive) return null;
+    return calculateTotalHype(game).breakdown;
+  }, [hypeTooltipActive, game]);
   const scoreColor = getScoreColor(total);
   const steamUrl = game.url || `https://store.steampowered.com/app/${game.id}/`;
   const steamDbUrl = `https://steamdb.info/app/${game.id}/`;
@@ -628,11 +639,11 @@ export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecyc
     ? game.ruDeveloperExplanation || 'Russian developer ties flagged.'
     : null;
 
-  const openEditModal = ({ focusNotes = false, focusRating = false } = {}) => {
+  const openEditModal = useCallback(({ focusNotes = false, focusRating = false } = {}) => {
     setEditFocusNotes(focusNotes);
     setEditFocusRating(focusRating);
     setEditOpen(true);
-  };
+  }, []);
 
   const renderHeaderPrice = () => (
     <p className="game-card-price">
@@ -663,24 +674,34 @@ export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecyc
   const showFinishedRating =
     libraryState === 'finished' && game.finishedRating != null;
 
-  const toggleOwned = async () => {
+  const toggleOwned = useCallback(async () => {
     const key = `owned.user${userIndex}`;
     const next = !game.owned?.[`user${userIndex}`];
     await updateGame(APP_ID, game.id, { [key]: next });
-  };
+  }, [game.id, game.owned, userIndex]);
 
-  const selectTier = async (tier) => {
-    await updateGame(APP_ID, game.id, { [`hypeTier.user${userIndex}`]: tier });
-  };
+  const selectTier = useCallback(
+    async (tier) => {
+      await updateGame(APP_ID, game.id, { [`hypeTier.user${userIndex}`]: tier });
+    },
+    [game.id, userIndex]
+  );
 
-  const openPicker = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (breakdown.override) return;
-    const rect = hypeRingRef.current?.getBoundingClientRect();
-    setAnchorRect(rect || null);
-    setPickerOpen(true);
-  };
+  const openPicker = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isHypePickerDisabled(game)) return;
+      const rect = hypeRingRef.current?.getBoundingClientRect();
+      setAnchorRect(rect || null);
+      setPickerOpen(true);
+    },
+    [game]
+  );
+
+  const activateHypeTooltip = useCallback(() => {
+    setHypeTooltipActive(true);
+  }, []);
 
   return (
     <>
@@ -733,12 +754,20 @@ export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecyc
           <FloatingTooltip
             wide
             anchorClassName="card-indicator card-indicator--hype"
-            content={<HypeBreakdownTooltip breakdown={breakdown} />}
+            content={
+              hypeBreakdown ? (
+                <HypeBreakdownTooltip breakdown={hypeBreakdown} />
+              ) : (
+                <CardTooltipText>Total Hype: {total}</CardTooltipText>
+              )
+            }
           >
             <button
               type="button"
               ref={hypeRingRef}
               className="card-indicator-btn card-indicator-btn--hype"
+              onMouseEnter={activateHypeTooltip}
+              onFocus={activateHypeTooltip}
               onClick={openPicker}
               aria-label={`Total Hype ${total}. Click to change your tier.`}
             >
@@ -1092,3 +1121,5 @@ export default function GameCard({ game, gfnSteamAppIds = new Set(), showLifecyc
     </>
   );
 }
+
+export default React.memo(GameCard);

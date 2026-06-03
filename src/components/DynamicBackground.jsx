@@ -1,24 +1,23 @@
 import React from 'react';
 
+const NEBULA_SRC = '/backgrounds/nebula1.webp';
+
 export function isDynamicBackgroundEnabled() {
   return import.meta.env.VITE_ENABLE_DYNAMIC_BG !== 'false';
 }
 
-export default function DynamicBackground({ games }) {
-  void games;
-
+export default function DynamicBackground() {
   if (!isDynamicBackgroundEnabled()) {
     return null;
   }
 
   return (
-    <div className="dynamic-bg" aria-hidden="true">
-      <div className="dynamic-bg-base" />
-      <div className="dynamic-bg-sheen" />
-      <div className="dynamic-bg-wave dynamic-bg-wave--a" />
-      <div className="dynamic-bg-wave dynamic-bg-wave--b" />
-      <div className="dynamic-bg-wave dynamic-bg-wave--c" />
-      <div className="dynamic-bg-overlay" />
+    <div className="app-background" aria-hidden="true">
+      <div
+        className="app-background__image"
+        style={{ backgroundImage: `url(${NEBULA_SRC})` }}
+      />
+      <div className="app-background__overlay" />
     </div>
   );
 }

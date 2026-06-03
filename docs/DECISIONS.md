@@ -27,6 +27,8 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Mint palette, no blue | User preference; **2026-06-02:** softer sage `#4cc9a0`, warm graphite glass |
 | Dynamic BG wave mesh | Pure CSS blurred layers + diagonal sheen; complements accent | 2026-06-02 |
 | **Static wave background (no CSS animation)** | Reduce GPU/CPU use; same palette/gradients as animated version | 2026-06-03 |
+| **Static nebula WebP background** | NASA nebula images in `public/backgrounds/` + graphite overlay; replaces CSS wave mesh entirely | 2026-06-03 |
+| **Removed per-card `backdrop-filter`** | Scroll/autoscroll lag from ~147 composited blurs over fixed BG; opaque `--glass-bg` instead | 2026-06-03 |
 | Browser title `Nen?` only | User preference | 2026 |
 | Dynamic BG animated gradient | Replaced screenshot slideshow (too noisy/blurry) | 2026-06-01 |
 | Dynamic BG lavender + mint palette | Lighter slate base; complements mint accent | 2026-06-02 |
@@ -115,11 +117,12 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Steam wishlist sync + library ownership sync | Web API key + public Steam profiles (`STEAM_WEB_API_KEY`, `STEAM_ID_0/1`). Ownership: `syncSteamOwnership`. Wishlist: `syncSteamWishlists` → candidates doc + Maintenance add flow. See [steam-sync-and-data.md](./features/steam-sync-and-data.md). |
 | Refresh single game from Steam | Callable `refreshGameFromSteam` in GameEditModal |
 
-## Shipped (2026-06-03 — in repo; deploy per OPS)
+## Shipped (2026-06-03)
 
 | Decision | Notes |
 | :--- | :--- |
-| Sync orchestrator + app-meta cache | `scheduledSyncOrchestrator`, `scheduler/tasks.js`, `steamAppMetaCache.js`, `gamePersist.js`, `lib/*`. Replaces three legacy schedulers. Post-deploy: delete orphaned jobs, verify `scheduler-state`. |
+| Sync orchestrator + app-meta cache | Deployed. `scheduledSyncOrchestrator`, `scheduler/tasks.js`, `steamAppMetaCache.js`, `gamePersist.js`, `lib/*`. Legacy scheduler jobs removed. |
+| SPA performance (CSS + render path) | Static nebula BG; no wave mesh; opaque glass; `React.memo(GameCard)`; `MaintenanceDataContext`; `prefers-reduced-motion`. |
 
 ## Under discussion
 

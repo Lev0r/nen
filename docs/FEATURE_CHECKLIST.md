@@ -1,6 +1,6 @@
 # Feature Checklist
 
-**Last updated:** 2026-06-03 (sync orchestrator + static BG)
+**Last updated:** 2026-06-03
 Track implemented, pending, deferred, and dropped features. Update when shipping.
 
 **Legend:** ✅ Done · 🔄 In progress / partial · ⏳ Pending ops · 📋 Planned · 🚫 Dropped · ⏸ Deferred
@@ -63,7 +63,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Per-user tier picker (DRG theme) | ✅ | |
 | MetacriticFactor + ITAD fallback | ✅ | |
 | Sort library by Total Hype | ✅ | Client-side compute |
-| Dynamic BG wave mesh (static CSS) | ✅ | Warm graphite + sage/coral/moss/teal layers; no animation (perf); `VITE_ENABLE_DYNAMIC_BG=false` to disable |
+| Static nebula background | ✅ | `public/backgrounds/nebula1.webp`; fixed-layer blur (8px) + graphite overlay; `VITE_ENABLE_DYNAMIC_BG=false` to disable |
+| **SPA performance (scroll/GPU)** | ✅ | No per-card `backdrop-filter`; opaque glass; `React.memo(GameCard)`; `MaintenanceDataContext`; `prefers-reduced-motion` |
 | **Unified warm graphite theme** | ✅ | Softer sage accent, glass panels, sidebar/filters |
 | Card thumbnails | ✅ | Full color; hover scale only (no dim filter) |
 | **Contextual lifecycle badge on card** | ✅ | Hidden on lifecycle tabs; shown when filters search full library |
@@ -168,6 +169,14 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 
 ---
 
+## Session log — 2026-06-03 (performance + static nebula BG)
+
+- Static NASA nebula WebP backgrounds (`public/backgrounds/`) replace CSS wave mesh; dark overlay preserves warm graphite mood
+- Removed per-card and grid `backdrop-filter`; opaque `--glass-bg` on cards, sidebar, filters
+- `React.memo(GameCard)`, hype `useMemo`, `MaintenanceDataContext` — fewer shell re-renders on maintenance sync
+- `prefers-reduced-motion` — disables fade-in, thumbnail scale, screenshot zoom
+- Orchestrator **deployed** to production — see [OPS.md](./OPS.md#scheduled-cloud-functions)
+
 ## Session log — 2026-06-02 / 03 (sync orchestrator + app-meta cache)
 
 - Unified `scheduledSyncOrchestrator` (6h tick) replaces 3 separate schedulers (`syncLibrarySteam`, `syncGfnCatalogScheduled`, `syncDevSourcesScheduled`)
@@ -176,8 +185,6 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - `steamRateLimiter.js` — serial store queue + Web API pool
 - `gamePersist.js` + `lib/auth.js` + `lib/firestorePaths.js` — DRY from `index.js`
 - Single appdetails fetch + price piggyback on static-only sync
-- Static wave background (removed CSS animation for perf)
-- **Ops after deploy:** delete orphaned Cloud Scheduler jobs; verify `config/scheduler-state` — see [OPS.md](./OPS.md#scheduled-cloud-functions)
 
 ## Session log — 2026-06-01 (shipped)
 
@@ -258,7 +265,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 - [x] Global filters (e.g. Banned from Active tab) — lifecycle badge appears on cards
 - [x] Co-op tags absent from filter chip list
 - [x] Sync GFN
-- [x] Dynamic gradient background visible; card thumbnails full color
+- [x] Static nebula background visible; card thumbnails full color
 - [x] Edit modal scrollable; hype picker readable; `focusRating` scroll on rating click
 - [x] Footer notes button rectangular with separator; header price row + meta finished rating
 - [x] Steam library ownership sync (`syncSteamOwnership`)

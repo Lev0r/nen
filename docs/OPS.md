@@ -2,7 +2,7 @@
 
 **Related:** [AGENT_INTRO.md](./AGENT_INTRO.md) · [FEATURE_CHECKLIST.md](./FEATURE_CHECKLIST.md) · [ru-developer-vetting.md](./features/ru-developer-vetting.md)
 
-**Last updated:** 2026-06-03 (sync orchestrator)
+**Last updated:** 2026-06-03 (orchestrator deployed; static nebula BG)
 
 ---
 
@@ -24,7 +24,7 @@
 | `VITE_ALLOWED_EMAIL_0/1` | Must match rules + functions |
 | `VITE_USER0_NICKNAME`, `VITE_USER1_NICKNAME` | Display names |
 | `VITE_FIREBASE_FUNCTIONS_REGION` | `europe-west1` |
-| `VITE_ENABLE_DYNAMIC_BG` | Default on (static wave mesh); `false` + rebuild to disable |
+| `VITE_ENABLE_DYNAMIC_BG` | Default on (`public/backgrounds/nebula1.webp`); `false` + rebuild to disable |
 | `VITE_USE_FUNCTIONS_EMULATOR` | Local emulators only |
 
 ### Functions (`functions/.env` — copy from `functions/.env.example`)
@@ -195,11 +195,11 @@ Partial wiring exists; workflow needs validation and documentation.
 
 | Item | Status |
 | :--- | :--- |
-| **Deploy sync orchestrator** | `firebase deploy --only functions,firestore:rules` — then delete old scheduler jobs (`syncLibrarySteam`, `syncGfnCatalogScheduled`, `syncDevSourcesScheduled`); verify `config/scheduler-state` |
-| **Hosting deploy (static BG)** | `npm run build && firebase deploy --only hosting` — wave mesh is static CSS (no animation) |
 | Local Functions emulator workflow | Documented in [Local Cloud Functions testing](#local-cloud-functions-testing-planned); not yet validated end-to-end |
 
-Production smoke tests and bulk RU re-vet are **complete** as of 2026-06-02 (pre-orchestrator deploy). Re-run ownership/wishlist + orchestrator checks after the functions deploy above.
+**Done (2026-06-03):** Sync orchestrator deployed (`scheduledSyncOrchestrator` live; legacy scheduler jobs removed). Background: `public/backgrounds/nebula1.webp` with fixed-layer blur (8px); deploy frontend with `npm run build && firebase deploy --only hosting` when shipping BG/perf changes.
+
+Production smoke tests and bulk RU re-vet are **complete** as of 2026-06-02. Post-orchestrator: confirm `config/scheduler-state` after first 6h tick if not already checked.
 
 ---
 

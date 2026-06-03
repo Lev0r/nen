@@ -75,94 +75,47 @@ body {
   overflow-x: hidden;
 }
 
-/* Static background — same wave mesh colors/gradients, no animation (perf) */
-.dynamic-bg {
+/* Nebula background — one fixed layer, blur on image only (not backdrop-filter on UI) */
+.app-background {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
   background: var(--bg-base);
+  isolation: isolate;
 }
 
-.dynamic-bg-base {
+.app-background__image {
+  position: absolute;
+  inset: -12%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(8px);
+  transform: translateZ(0);
+}
+
+.app-background__overlay {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(24, 22, 20, 0.95) 0%, transparent 70%),
-    linear-gradient(160deg, #141210 0%, #1a1816 45%, #121010 100%);
-}
-
-.dynamic-bg-sheen {
-  position: absolute;
-  inset: -55%;
   background: linear-gradient(
     135deg,
-    transparent 0%,
-    var(--accent-a-08) 28%,
-    rgba(130, 102, 74, 0.07) 46%,
-    rgba(52, 98, 82, 0.1) 62%,
-    transparent 88%
+    rgba(15, 13, 12, 0.5) 0%,
+    rgba(15, 13, 12, 0.62) 55%,
+    rgba(15, 13, 12, 0.72) 100%
   );
-  background-size: 220% 220%;
-  background-position: 50% 50%;
-  transform: translate3d(-3%, 4%, 0) rotate(-1deg);
 }
 
-.dynamic-bg-wave {
-  position: absolute;
-  filter: blur(64px);
-  opacity: 0.95;
-  pointer-events: none;
-}
-
-.dynamic-bg-wave--a {
-  width: 120vmax;
-  height: 90vmax;
-  top: -35%;
-  right: -30%;
-  border-radius: 42% 58% 55% 45% / 48% 42% 58% 52%;
-  background: radial-gradient(ellipse at 35% 35%, var(--wave-coral) 0%, transparent 72%);
-  transform: translate3d(-7vw, 8vh, 0) scale(1.05);
-}
-
-.dynamic-bg-wave--b {
-  width: 110vmax;
-  height: 85vmax;
-  bottom: -40%;
-  left: -25%;
-  border-radius: 55% 45% 40% 60% / 52% 58% 42% 48%;
-  background: radial-gradient(ellipse at 55% 55%, var(--wave-moss) 0%, transparent 70%);
-  transform: translate3d(6vw, -5vh, 0) scale(1);
-}
-
-.dynamic-bg-wave--c {
-  width: 95vmax;
-  height: 75vmax;
-  top: 20%;
-  right: -5%;
-  border-radius: 48% 52% 58% 42% / 44% 56% 44% 56%;
-  background: radial-gradient(ellipse at 50% 50%, var(--wave-teal) 0%, transparent 68%);
-  transform: translate3d(-4vw, 6vh, 0) scale(1.04);
-}
-
-.dynamic-bg-overlay {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(
-      135deg,
-      rgba(15, 13, 12, 0.08) 0%,
-      rgba(15, 13, 12, 0.22) 55%,
-      rgba(15, 13, 12, 0.32) 100%
-    );
+@media (prefers-reduced-motion: reduce) {
+  .app-background__image {
+    filter: blur(8px);
+  }
 }
 
 /* Glassmorphism Utilities */
 .glass-panel {
   background: var(--glass-bg);
-  backdrop-filter: blur(18px) saturate(120%);
-  -webkit-backdrop-filter: blur(18px) saturate(120%);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   box-shadow: var(--shadow-panel), var(--glass-inset);
@@ -185,7 +138,12 @@ button {
   font-family: inherit;
   border: none;
   outline: none;
-  transition: all 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    opacity 0.2s ease;
   border-radius: 8px;
   font-weight: 500;
   padding: 0.5rem 1rem;
@@ -336,8 +294,6 @@ button {
   flex-shrink: 0;
   border-right: 1px solid var(--glass-border);
   background: var(--glass-bg-sidebar);
-  backdrop-filter: blur(20px) saturate(115%);
-  -webkit-backdrop-filter: blur(20px) saturate(115%);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -549,8 +505,6 @@ button {
   border-right: none;
   border-top: none;
   background: var(--glass-bg-sidebar);
-  backdrop-filter: blur(20px) saturate(115%);
-  -webkit-backdrop-filter: blur(20px) saturate(115%);
 }
 
 .game-filters-header {
@@ -935,12 +889,12 @@ button {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.4s ease forwards;
+  animation: fadeIn 0.12s ease forwards;
 }
 
 /* Game card */
@@ -955,8 +909,6 @@ button {
   flex-shrink: 0;
   align-self: start;
   background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(115%);
-  -webkit-backdrop-filter: blur(20px) saturate(115%);
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.2),
     0 12px 28px -4px rgba(0, 0, 0, 0.35),
@@ -1001,7 +953,6 @@ button {
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s ease;
-  will-change: transform;
 }
 
 .game-card:hover .game-card-img {
@@ -1927,9 +1878,8 @@ button {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.92);
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(12, 10, 9, 0.88);
+  border: 1px solid var(--glass-border);
   pointer-events: none;
   z-index: 2;
 }
@@ -2095,9 +2045,7 @@ button {
   z-index: 1;
   padding: 1.25rem 2rem 2rem;
   border-top: 1px solid var(--glass-border);
-  background: rgba(18, 16, 14, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(18, 16, 14, 0.96);
 }
 
 .game-edit-section--errors {
@@ -2281,7 +2229,6 @@ button {
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  backdrop-filter: blur(4px);
   padding: 1rem;
 }
 
@@ -2433,18 +2380,7 @@ button {
   font-weight: 600;
   line-height: 1;
   box-sizing: border-box;
-  animation: update-pulse 2s ease-in-out infinite;
-}
-
-@keyframes update-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.35);
-    opacity: 1;
-  }
-  50% {
-    box-shadow: 0 0 12px 2px rgba(245, 158, 11, 0.45);
-    opacity: 0.85;
-  }
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.32);
 }
 
 .lifecycle-modal {
@@ -3095,4 +3031,23 @@ button {
 
 .finished-rating-display-empty {
   color: rgba(148, 163, 184, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in {
+    animation: none;
+    opacity: 1;
+  }
+
+  .screenshots-fullscreen-img {
+    animation: none;
+  }
+
+  .game-card-img {
+    transition: none;
+  }
+
+  .game-card:hover .game-card-img {
+    transform: none;
+  }
 }
