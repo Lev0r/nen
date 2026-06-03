@@ -1,6 +1,6 @@
 # Feature Checklist
 
-**Last updated:** 2026-06-03
+**Last updated:** 2026-06-03 (session wrap)
 Track implemented, pending, deferred, and dropped features. Update when shipping.
 
 **Legend:** ✅ Done · 🔄 In progress / partial · ⏳ Pending ops · 📋 Planned · 🚫 Dropped · ⏸ Deferred
@@ -92,7 +92,8 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **Steam library sync** (ownership) | ✅ | Callable `syncSteamOwnership` — one-way merge via Steam Web API |
 | **Scheduled ownership sync** (24h one-way) | ✅ | Orchestrator `steamOwnership` task — never clears `true` → `false` |
 | **Per-user Steam playtime (ownership piggyback)** | ✅ | `steamPlaytime.*` from `playtime_forever` in same `GetOwnedGames` — no extra Web API calls |
-| **Steam events** (sales/festivals overview) | ✅ | `steamEvents` 7d task + `syncSteamEvents` callable; Events sidebar — [doc](./features/steam-events.md) |
+| **Steam events** (sales/festivals overview) | ✅ | `steamEvents` 7d task + `syncSteamEvents` callable; **default home** — [doc](./features/steam-events.md) (not SteamDB data) |
+| **Steam events — SteamDB calendar** | 📋 | Blocked: CF 403 on steamdb.info; see steam-events.md § Why not SteamDB |
 | "Ready to Play" filter preset | ⏸ | Use chips instead |
 
 ---
@@ -144,6 +145,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **Hide hype ring when picker disabled** | ✅ | RU / finished / banned — no `.card-indicator--hype` |
 | **Co-op warning on add game** | ✅ | Two-phase confirm if no co-op categories 9/38/39/48 |
 | **Filter panel collapsed on load** | ✅ | No auto-expand when nav presets are active; opens via search / Filters button / user change |
+| **Filter panel stays open on sidebar nav** | ✅ | `filtersExpanded` in shell; sidebar clicks excluded from outside-click collapse |
 
 ---
 
@@ -177,6 +179,21 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **Local Cloud Functions testing** | 📋 | **User request** — emulator workflow documented + validated |
 
 ---
+
+## Session log — 2026-06-03 (Events, filters, mobile — wrap)
+
+**Shipped (commits `0a8199c`, `ef34d7c`, `4b30fe1`):**
+
+- **Tri-state filters** — chip/footer cycle off → include (green) → exclude (red); Clear → entire library (`DEFAULT_GAME_FILTERS`)
+- **Events page** — `EventsPage.jsx`, `steamEventsSync.js`, weekly `steamEvents` task, Maintenance sync; **default home view**
+- **Mobile shell** — hamburger drawer, search modal, `useMatchMedia` ≤768px
+- **Modal opacity** — `--modal-panel-bg` / `--modal-backdrop-bg`
+- **Filter panel** — collapsed on load (removed desktop auto-expand on active nav presets)
+- **Sidebar nav + filters** — open panel stays open when switching tabs; expanded state lifted to `DashboardShell`
+
+**Documented limitation:** Steam events are **not** sourced from SteamDB (Cloudflare 403 from Functions); hybrid Steam API + `KNOWN_SCHEDULE`. User asked for SteamDB — backlog item E1 in CODE_IMPROVEMENTS.
+
+**Ops:** deploy `functions,hosting`; run **Sync Steam events** once to seed `config/steam-events`.
 
 ## Session log — 2026-06-03 (library UX + sync batch)
 

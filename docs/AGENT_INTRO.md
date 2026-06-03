@@ -1,6 +1,6 @@
 # Agent Intro — Nen?
 
-**Last updated:** 2026-06-03 (tri-state filters, Events page, mobile shell, modal opacity)  
+**Last updated:** 2026-06-03 (session wrap: Events home, filter UX, Steam events data note)  
 **Repo:** https://github.com/Lev0r/nen  
 **Firebase project:** `nen-tracker` (CLI alias: `staging` in `.firebaserc`)
 
@@ -13,6 +13,19 @@ Onboarding entry point for AI agents and developers. Read this first, then only 
 **Nen?** is a two-user co-op Steam game library tracker (React + Vite SPA, Firebase). Two abstract users (**User 0** / **User 1**) import games from Steam, track lifecycle, ownership, personal hype tiers, and RU developer alerts. **Total Hype** drives sort order; the dashboard uses a static nebula background (not hype-driven).
 
 Never hardcode personal names in UI — use `VITE_USER0_NICKNAME` / `VITE_USER1_NICKNAME`.
+
+### Current product state (2026-06-03)
+
+| Area | Behavior |
+| :--- | :--- |
+| **Default view** | **Events** page (`topView: 'events'`) — hero + 6 upcoming Steam sales/fests from `config/steam-events` |
+| **Library** | Sidebar lifecycle tabs set tri-state filter presets on the **full** library; grid always `filterGames(games, …)` |
+| **Filters** | Tri-state chips (include / exclude); panel **collapsed on load**; stays open when changing sidebar nav if already expanded |
+| **Mobile (≤768px)** | Hamburger drawer nav; search in top-right modal; filter search hidden in bar |
+| **Steam events data** | **Not SteamDB** — see [steam-events.md](./features/steam-events.md#why-not-steamdb) |
+| **Deploy** | `main` includes `syncSteamEvents` callable + `steamEvents` 7d task; seed via Maintenance after functions deploy |
+
+**Recent commits (this session):** `0a8199c` (tri-state, Events, mobile, modals) · `ef34d7c` (Events default home, filters collapsed on load) · `4b30fe1` (sidebar nav preserves open filter panel).
 
 ---
 
@@ -143,8 +156,9 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 15. **F2P ownership** — `getEffectiveOwnership` treats `Free to Play` as both-own client-side; Firestore `owned` flags unchanged.
 16. **Steam playtime** — only `steamOwnership` sync writes `steamPlaytime.*` from existing `GetOwnedGames`; never add per-game Web API calls for hours.
 17. **Version/status “new”** — `hasUpdateSinceState` covers version or `developmentStatus` drift; acknowledge on card rebaselines `stateMeta` without changing lifecycle; sidebar dot per tab.
-18. **Filter panel** — collapsed on load; opens on user action (search focus, Filters button, filter change); can collapse while filters stay active.
-19. **Filter facets** — status/ownership/tags/lifecycle use tri-state `{ include, exclude }` (chip cycle off → include → exclude); footer toggles same tri-state. Facet gating always on (`filterMode={true}`). **Clear filters** uses `hasActiveFilters` / `onResetFilters` → `DEFAULT_GAME_FILTERS` (entire library).
+18. **Filter panel** — collapsed on load; opens on user action; sidebar nav does not collapse an open panel (`filtersExpanded` in shell); outside-click ignores `.sidebar` / drawer.
+19. **Events default home** — `topView` starts as `events`; lifecycle tabs switch to `library`.
+20. **Filter facets** — status/ownership/tags/lifecycle use tri-state `{ include, exclude }` (chip cycle off → include → exclude); footer toggles same tri-state. Facet gating always on (`filterMode={true}`). **Clear filters** uses `hasActiveFilters` / `onResetFilters` → `DEFAULT_GAME_FILTERS` (entire library).
 
 ---
 

@@ -2,7 +2,7 @@
 
 Chronological archive of product and technical decisions. Update when shipping material changes.
 
-**Last updated:** 2026-06-03 (library UX batch)
+**Last updated:** 2026-06-03 (Events page + filter follow-ups)
 
 ---
 
@@ -129,6 +129,10 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Filter UX batch | Collapse panel with active filters; facet disabling; RU deprioritized sort; hide hype when picker disabled; mobile collapsed default |
 | Version acknowledge on card | Inline popover rebaselines `stateMeta` (same lifecycle) — replaces tags-row Update badge |
 | HLTB search sanitization | Strip ™®© before API `searchTerms`; regression `scripts/test-hltb-matching.mjs` |
+| Steam events data source | **Not SteamDB** — `featuredcategories` + hardcoded `KNOWN_SCHEDULE`; SteamDB returns 403 from Functions. UI is SteamDB-style only. |
+| Events as default home | `topView: 'events'` on load; library via lifecycle nav |
+| Filter panel collapsed on load | Removed desktop auto-expand when nav presets are active |
+| Filter panel + sidebar nav | `filtersExpanded` in shell; outside-click ignores sidebar; nav updates presets without collapsing |
 
 ## Under discussion
 

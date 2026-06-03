@@ -2,7 +2,7 @@
 
 Categorized from codebase review, git history, and agent research (2026-05-31). Not a commitment — prioritize with user before large refactors.
 
-**Last updated:** 2026-06-03 (sync orchestrator + app-meta cache)
+**Last updated:** 2026-06-03 (Steam events data backlog)
 
 ---
 
@@ -14,6 +14,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | M4 | Ops | Post-deploy re-vet after vetting **logic** changes | `syncDevSources` only when source lists change (new curators, NE GRAI refresh) |
 | M5 | Sync | Monitor full-library sync timeout at ~400–500 games | 540s sequential job may fail |
 | M6 | HLTB | Treat HLTB as fragile; surface failures clearly | Unofficial API, auth can break |
+| E1 | Steam events | Replace `KNOWN_SCHEDULE` with real upcoming calendar | SteamDB blocked (403) from Functions; options: manual JSON, local browser sync, richer Steam parse |
 
 ---
 

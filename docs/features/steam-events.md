@@ -1,6 +1,6 @@
 # Steam Events
 
-**Last updated:** 2026-06-03
+**Last updated:** 2026-06-03 (session wrap: data-source limitations documented)
 
 **Related:** [Steam sync](./steam-sync-and-data.md) · [UI shell](./ui-shell-and-modals.md) · [Maintenance](./maintenance-and-errors.md) · [OPS](../OPS.md)
 
@@ -15,6 +15,20 @@ Steam sales and festival calendar for the dashboard **Events** view (SteamDB-sty
 - **`KNOWN_SCHEDULE`** in `functions/steamEventsSync.js` — public Steam Next Fest 2026 dates (Jun 15–22, Oct 19–26) and approximate seasonal sale placeholders
 
 All `store.steampowered.com` HTTP uses the shared **store rate limiter** (`scheduleStoreRequest`).
+
+## Why not SteamDB?
+
+The UI was requested as a [SteamDB sales history](https://steamdb.info/sales/history/)-style overview. **Production sync does not scrape or call SteamDB.**
+
+| Blocker | Detail |
+| :--- | :--- |
+| **Cloudflare 403** | `steamdb.info/sales/history/` and `/api/GetSalesHistory/` return HTTP 403 from server/Firebase Functions (no browser challenge). |
+| **No stable public API** | No documented endpoint usable from Cloud Functions without bot bypass. |
+| **Fragile scrape** | HTML structure changes; rate limits; third-party ToS risk. |
+
+**Implication:** Upcoming dated events rely on **`KNOWN_SCHEDULE`** in code until a better source is added. Live spotlights from Steam lack reliable start/end dates in the featured API.
+
+**Future options (backlog):** manual JSON seed from SteamDB; local Playwright sync → Firestore; improved Steam-only parsing; official feed if available. See [CODE_IMPROVEMENTS.md](../CODE_IMPROVEMENTS.md) item **E1**.
 
 ## Firestore
 
