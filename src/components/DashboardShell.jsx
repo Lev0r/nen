@@ -492,6 +492,7 @@ export default function DashboardShell() {
             availableTags={availableTags}
             resultCount={filteredGames.length}
             totalCount={filterSourceGames.length}
+            filterMode={filtersScopeGlobal}
           />
         )}
 

@@ -44,11 +44,18 @@ Two-phase add flow — see [UI shell](./ui-shell-and-modals.md):
 
 - **Ready to Play preset** — use ownership + lifecycle chips instead
 
-## Dynamic option disabling
+## Dynamic option disabling (facet gating)
 
-`filterSourceGames` is the same pool as the result count denominator (current tab or full library). For each chip/toggle option, count games matching **all other active filters** plus that option alone. An option is **enabled** when count &gt; 0 **or** it is already selected; otherwise the chip gets `filter-chip--disabled` and footer switches get `game-filters-switch--disabled` (still visible). Helpers live in `gameFilters.js` (`isLibraryStateFilterEnabled`, `isDevelopmentStatusFilterEnabled`, etc.).
+`DashboardShell` passes `filterMode={filtersScopeGlobal}` (`hasActiveFilters`) into `GameFiltersBar`.
 
-**Lifecycle chips** use the **full library** (`allGames` from `DashboardShell`) for enablement counts, not `filterSourceGames`, so Finished/Replayable/etc. stay clickable on a sidebar tab when those states exist anywhere in the library. Status, ownership, tags, and footer toggles still facet-count against `filterSourceGames`.
+| Mode | Condition | Chip / toggle enabled state |
+| :--- | :--- | :--- |
+| **Browse** | No active filters | **All** chips and footer toggles enabled (click any filter to enter filter mode) |
+| **Filter** | Any filter active | Dynamic facet disabling (below) |
+
+In **filter mode**, `filterSourceGames` is the full library (same pool as the result count denominator). For each chip/toggle option, count games matching **all other active filters** plus that option alone. An option is **enabled** when count &gt; 0 **or** it is already selected; otherwise the chip gets `filter-chip--disabled` and footer switches get `game-filters-switch--disabled` (still visible). Helpers live in `gameFilters.js` (`isLibraryStateFilterEnabled`, `isDevelopmentStatusFilterEnabled`, etc.); `GameFiltersBar` wraps them with `chipEnabled` so browse mode skips gating.
+
+**Lifecycle chips** use the **full library** (`allGames`) for facet counts. **Status, ownership, tags, and footer toggles** use `filterSourceGames` (equals full `games` in filter mode). On a sidebar tab in browse mode, tab-scoped `filterSourceGames` does **not** affect chip disabled state — only grid results and counts do.
 
 Status and ownership are **additive multi-select** (OR within each dimension, AND across dimensions). No “All” chip — deselect all chips in a group to clear that dimension.
 

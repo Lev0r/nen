@@ -40,8 +40,11 @@ export default function GameFiltersBar({
   availableTags,
   resultCount,
   totalCount,
+  filterMode = false,
 }) {
   const active = hasActiveFilters(filters);
+  const facetGating = filterMode;
+  const chipEnabled = (fn, ...args) => (facetGating ? fn(...args) : true);
   const barRef = useRef(null);
   const [expanded, setExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(() =>
@@ -126,7 +129,8 @@ export default function GameFiltersBar({
   };
 
   const toggleBooleanFilter = (key) => {
-    if (!isBooleanFilterEnabled(filterSourceGames, filters, gfnSteamAppIds, key)) return;
+    if (!chipEnabled(isBooleanFilterEnabled, filterSourceGames, filters, gfnSteamAppIds, key))
+      return;
     updateFilter({ [key]: !Boolean(filters[key]) });
   };
 
@@ -220,7 +224,8 @@ export default function GameFiltersBar({
               <div className="game-filters-chips">
                 {LIBRARY_STATES.map((state) => {
                   const active = filters.libraryStates?.includes(state);
-                  const enabled = isLibraryStateFilterEnabled(
+                  const enabled = chipEnabled(
+                    isLibraryStateFilterEnabled,
                     allGames,
                     filters,
                     gfnSteamAppIds,
@@ -246,7 +251,8 @@ export default function GameFiltersBar({
               <div className="game-filters-chips">
                 {DEVELOPMENT_STATUS_OPTIONS.map((option) => {
                   const active = filters.developmentStatuses?.includes(option.value);
-                  const enabled = isDevelopmentStatusFilterEnabled(
+                  const enabled = chipEnabled(
+                    isDevelopmentStatusFilterEnabled,
                     filterSourceGames,
                     filters,
                     gfnSteamAppIds,
@@ -272,7 +278,8 @@ export default function GameFiltersBar({
               <div className="game-filters-chips">
                 {OWNERSHIP_OPTIONS.map((option) => {
                   const active = filters.ownerships?.includes(option.value);
-                  const enabled = isOwnershipFilterEnabled(
+                  const enabled = chipEnabled(
+                    isOwnershipFilterEnabled,
                     filterSourceGames,
                     filters,
                     gfnSteamAppIds,
@@ -299,7 +306,8 @@ export default function GameFiltersBar({
                 <div className="game-filters-chips game-filters-chips--tags">
                   {availableTags.map((tag) => {
                     const active = filters.steamTags?.includes(tag);
-                    const enabled = isSteamTagFilterEnabled(
+                    const enabled = chipEnabled(
+                      isSteamTagFilterEnabled,
                       filterSourceGames,
                       filters,
                       gfnSteamAppIds,
@@ -325,7 +333,8 @@ export default function GameFiltersBar({
           <div className="game-filters-footer">
             {FOOTER_BOOLEAN_FILTERS.map(({ key, label }) => {
               const on = Boolean(filters[key]);
-              const enabled = isBooleanFilterEnabled(
+              const enabled = chipEnabled(
+                isBooleanFilterEnabled,
                 filterSourceGames,
                 filters,
                 gfnSteamAppIds,

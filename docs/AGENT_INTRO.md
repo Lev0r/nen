@@ -140,7 +140,7 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 16. **Steam playtime** — only `steamOwnership` sync writes `steamPlaytime.*` from existing `GetOwnedGames`; never add per-game Web API calls for hours.
 17. **Version/status “new”** — `hasUpdateSinceState` covers version or `developmentStatus` drift; acknowledge on card rebaselines `stateMeta` without changing lifecycle; sidebar dot per tab.
 18. **Filter panel** — can collapse while filters stay active; mobile ≤768px does not auto-expand on active filters.
-19. **Filter facets** — status/ownership/tags are multi-select arrays (OR within dimension); lifecycle chip disabled state uses `allGames`, not the active sidebar tab pool.
+19. **Filter facets** — status/ownership/tags are multi-select arrays (OR within dimension); lifecycle chip disabled state uses `allGames`, not the active sidebar tab pool. **Browse mode** (no active filters): all chips enabled; **filter mode**: dynamic disabling via `chipEnabled` + `filterMode` on `GameFiltersBar`.
 
 ---
 
