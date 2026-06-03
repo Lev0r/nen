@@ -2,7 +2,7 @@
 
 Chronological archive of product and technical decisions. Update when shipping material changes.
 
-**Last updated:** 2026-06-02
+**Last updated:** 2026-06-03
 
 ---
 
@@ -26,6 +26,7 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Sidebar layout (no top header) | Phase 9 redesign | 2026 |
 | Mint palette, no blue | User preference; **2026-06-02:** softer sage `#4cc9a0`, warm graphite glass |
 | Dynamic BG wave mesh | Pure CSS blurred layers + diagonal sheen; complements accent | 2026-06-02 |
+| **Static wave background (no CSS animation)** | Reduce GPU/CPU use; same palette/gradients as animated version | 2026-06-03 |
 | Browser title `Nen?` only | User preference | 2026 |
 | Dynamic BG animated gradient | Replaced screenshot slideshow (too noisy/blurry) | 2026-06-01 |
 | Dynamic BG lavender + mint palette | Lighter slate base; complements mint accent | 2026-06-02 |
@@ -50,7 +51,11 @@ Chronological archive of product and technical decisions. Update when shipping m
 
 | Decision | Reason | Date |
 | :--- | :--- | :--- |
-| Single 6h `syncLibrarySteam` job | Replaced separate version refresh | 2026 |
+| ~~Single 6h `syncLibrarySteam` scheduled export~~ | **Superseded** by unified orchestrator (`libraryMetadata` task) | 2026 → 2026-06-03 |
+| **Unified `scheduledSyncOrchestrator`** | One 6h Cloud Scheduler job; per-task intervals in `config/scheduler-state`; parallel due tasks + serial store queue | 2026-06-03 |
+| **Firestore `steam-app-meta` cache** | Wishlist co-op filter without repeated appdetails; 180d TTL; weekly purge task | 2026-06-03 |
+| **Shared `steamRateLimiter`** | Serial `store.steampowered.com` queue (400ms) + Web API pool (3×, 300ms) | 2026-06-03 |
+| **Price piggyback on static-only sync** | One appdetails fetch updates price fields when dynamic sync skipped | 2026-06-03 |
 | Banned = skip all sync | Archive state | 2026 |
 | TBA = no player stats | Meaningless counts | 2026 |
 | Official Steam player API only | No third-party player estimates | 2026 |
@@ -108,6 +113,13 @@ Chronological archive of product and technical decisions. Update when shipping m
 | Decision | Notes |
 | :--- | :--- |
 | Steam wishlist sync + library ownership sync | Web API key + public Steam profiles (`STEAM_WEB_API_KEY`, `STEAM_ID_0/1`). Ownership: `syncSteamOwnership`. Wishlist: `syncSteamWishlists` → candidates doc + Maintenance add flow. See [steam-sync-and-data.md](./features/steam-sync-and-data.md). |
+| Refresh single game from Steam | Callable `refreshGameFromSteam` in GameEditModal |
+
+## Shipped (2026-06-03 — in repo; deploy per OPS)
+
+| Decision | Notes |
+| :--- | :--- |
+| Sync orchestrator + app-meta cache | `scheduledSyncOrchestrator`, `scheduler/tasks.js`, `steamAppMetaCache.js`, `gamePersist.js`, `lib/*`. Replaces three legacy schedulers. Post-deploy: delete orphaned jobs, verify `scheduler-state`. |
 
 ## Under discussion
 

@@ -2,7 +2,7 @@
 
 Categorized from codebase review, git history, and agent research (2026-05-31). Not a commitment — prioritize with user before large refactors.
 
-**Last updated:** 2026-06-02 (evening)
+**Last updated:** 2026-06-03 (sync orchestrator + app-meta cache)
 
 ---
 
@@ -24,7 +24,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | S3 | RU vetting | Build dev-name curator index in weekly sync (`buildDevIndex`) | Dev hits without app-ID path |
 | S7 | Callables | `addGameFromSteam` client timeout aligned with 120s function | Inconsistent with sync wrappers |
 | S8 | Steam | Remove or wire `fetchGeForceNowReady` dead code | Confusing vs catalog-only badge |
-| S12 | Steam | Wishlist sync (discover new games) + library sync (ownership) | User request; needs Steam Web API key |
+| S12 | Steam | ~~Wishlist sync + library ownership sync~~ | **Done** — callables + 24h orchestrator tasks |
 | S13 | QA | Periodic release QA (syncs, RU, notifications) | Initial smoke test done 2026-06-01 |
 
 ---
@@ -39,13 +39,26 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | N5 | Hype | Use or drop `recentReviewPercent` in formula | Fetched but unused |
 | N6 | Hype | Document ITAD missing → neutral Metacritic factor | Transparency in breakdown |
 | N7 | Data | Persist `totalHype` server-side | Enable Firestore sort/query |
-| N8 | Cache | Firestore-backed Steam HTTP cache | Cold start rate limits |
+| N8 | Cache | ~~Firestore-backed Steam HTTP cache~~ | **Done** — `steam-app-meta` L2 cache (180d TTL); see [steam-app-meta-cache.md](./features/steam-app-meta-cache.md) |
 | N9 | Notes | Lighter inline note editor vs full edit modal | UX |
 | N10 | Lifecycle | `stateMeta.enteredBy` audit field | Attribution |
 | N11 | Filters | Search developers/publishers, not just name | Power user |
 | N12 | Export | Client-side library JSON backup | P1 |
 | N13 | RU | Use `lookupCuratorClearanceByAppId` in explanations | Clearer "cleared by curator" UX |
 | N15 | ITAD | Show ITAD price vs scraped Steam price | Data already fetched |
+
+---
+
+## Completed (2026-06-02 — sync orchestrator)
+
+| ID | Item |
+| :--- | :--- |
+| S14 | DRY auth/paths/gamePersist — `functions/lib/auth.js`, `functions/lib/firestorePaths.js`, `functions/gamePersist.js` extracted from `index.js` |
+| N8 | Firestore app-meta cache — `functions/steamAppMetaCache.js`, `steam-app-meta` collection |
+| — | Unified scheduler orchestrator — `scheduledSyncOrchestrator` replaces 3 separate schedulers |
+| — | Single appdetails fetch when static+dynamic due; price piggyback on static-only sync (`mapPriceData` → `steamDynamic`) |
+| — | `steamRateLimiter.js` — serial store queue (400ms) + Web API concurrent pool |
+| — | Scheduled ownership (24h one-way merge) + wishlist (24h auto-import co-op) |
 
 ---
 

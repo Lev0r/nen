@@ -6,131 +6,29 @@ const { vetAllDevelopers } = require('./devVetting');
 const { aggregateGameVetting, ensureMemoryCache, mergeVettingWithUserAcknowledgment } = require('./devBgCheck');
 const { collectVettingNames } = require('./devSources');
 const { enrichNewGameThirdParty } = require('./thirdParty');
-const { syncLibrarySteam, syncSteamLibrary, refreshGameFromSteam } = require('./steamSync');
-const { syncGfnCatalog, syncGfnCatalogScheduled } = require('./gfnSync');
+const { syncSteamLibrary, refreshGameFromSteam } = require('./steamSync');
+const { syncGfnCatalog } = require('./gfnSync');
 const { syncSteamOwnership } = require('./steamOwnershipSync');
 const { syncSteamWishlists } = require('./steamWishlistSync');
-const { syncDevSources, syncDevSourcesScheduled } = require('./devSourceSync');
+const { syncDevSources } = require('./devSourceSync');
+const { scheduledSyncOrchestrator } = require('./schedulerOrchestrator');
+const { assertAllowedUser } = require('./lib/auth');
+const {
+  serializeGameForClient,
+  restoreGameFieldValues,
+  assertGameNotDuplicate,
+  recordThirdPartyOutcomes,
+  persistSteamGame,
+} = require('./gamePersist');
 const {
   upsertMaintenanceError,
   clearMaintenanceErrorsForGame,
   clearInfoMaintenanceErrors,
   rebuildMaintenanceAudit,
-  recordSyncOutcomeError,
 } = require('./maintenanceStore');
 const { DEFAULT_APP_ID } = require('./configPaths');
 
 initializeApp();
-
-const SERVER_TIMESTAMP_SENTINEL = '__SERVER_TIMESTAMP__';
-
-function getAllowedEmails() {
-  return [process.env.ALLOWED_EMAIL_0, process.env.ALLOWED_EMAIL_1].filter(Boolean);
-}
-
-function assertAllowedUser(auth) {
-  if (!auth?.token?.email) {
-    throw new HttpsError('unauthenticated', 'Sign in required.');
-  }
-  const allowed = getAllowedEmails();
-  if (allowed.length >= 2 && !allowed.includes(auth.token.email)) {
-    throw new HttpsError('permission-denied', 'Your email is not authorized.');
-  }
-}
-
-function isServerTimestamp(value) {
-  return (
-    value &&
-    typeof value === 'object' &&
-    (value._methodName === 'serverTimestamp' ||
-      value.constructor?.name === 'ServerTimestampTransform')
-  );
-}
-
-function serializeGameForClient(game) {
-  return JSON.parse(
-    JSON.stringify(game, (_key, value) =>
-      isServerTimestamp(value) ? SERVER_TIMESTAMP_SENTINEL : value
-    )
-  );
-}
-
-function restoreGameFieldValues(value) {
-  if (value === SERVER_TIMESTAMP_SENTINEL) {
-    return FieldValue.serverTimestamp();
-  }
-  if (Array.isArray(value)) {
-    return value.map(restoreGameFieldValues);
-  }
-  if (value && typeof value === 'object') {
-    const restored = {};
-    for (const [key, entry] of Object.entries(value)) {
-      restored[key] = restoreGameFieldValues(entry);
-    }
-    return restored;
-  }
-  return value;
-}
-
-async function assertGameNotDuplicate(db, appId, gameId) {
-  const gameRef = db.doc(`artifacts/${appId}/public/data/games/${gameId}`);
-  const existing = await gameRef.get();
-  if (existing.exists) {
-    throw new HttpsError('already-exists', 'This game is already in your library.');
-  }
-  return gameRef;
-}
-
-async function recordThirdPartyOutcomes(db, appId, game, outcomes) {
-  const gameId = game?.id != null ? String(game.id) : null;
-  const gameName = game?.steamStatic?.name || null;
-
-  for (const outcome of outcomes || []) {
-    await recordSyncOutcomeError(db, appId, outcome, { gameId, gameName });
-  }
-}
-
-async function persistSteamGame(db, game, appId) {
-  const gameRef = await assertGameNotDuplicate(db, appId, game.id);
-
-  await gameRef.set(game);
-
-  const vettingNames = collectVettingNames(game);
-  const devAppIdMap = {};
-  for (const name of vettingNames) {
-    devAppIdMap[name] = [game.id];
-  }
-
-  try {
-    const { stats, memoryCache } = await vetAllDevelopers(vettingNames, {
-      db,
-      appId,
-      devAppIdMap,
-    });
-    const vetting = aggregateGameVetting(game, memoryCache);
-    await gameRef.update(vetting);
-    await clearMaintenanceErrorsForGame(db, appId, String(game.id), 'vetting');
-    await rebuildMaintenanceAudit(db, appId);
-    return { gameId: game.id, ...vetting, vettingStats: stats };
-  } catch (err) {
-    console.error('Developer vetting failed:', err);
-    const vettingError = err.message || 'Developer vetting failed';
-    await upsertMaintenanceError(db, appId, {
-      severity: 'warning',
-      source: 'vetting',
-      gameId: String(game.id),
-      gameName: game.steamStatic?.name || null,
-      message: vettingError,
-      errorKey: null,
-      detail: null,
-    });
-    await rebuildMaintenanceAudit(db, appId);
-    return {
-      gameId: game.id,
-      vettingError,
-    };
-  }
-}
 
 exports.previewSteamGame = onCall(
   {
@@ -310,15 +208,13 @@ exports.vetGameDevelopers = onCall(
   }
 );
 
-exports.syncLibrarySteam = syncLibrarySteam;
 exports.syncSteamLibrary = syncSteamLibrary;
 exports.refreshGameFromSteam = refreshGameFromSteam;
 exports.syncGfnCatalog = syncGfnCatalog;
-exports.syncGfnCatalogScheduled = syncGfnCatalogScheduled;
 exports.syncSteamOwnership = syncSteamOwnership;
 exports.syncSteamWishlists = syncSteamWishlists;
 exports.syncDevSources = syncDevSources;
-exports.syncDevSourcesScheduled = syncDevSourcesScheduled;
+exports.scheduledSyncOrchestrator = scheduledSyncOrchestrator;
 
 exports.revetAllGames = onCall(
   {

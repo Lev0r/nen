@@ -20,7 +20,7 @@ LoginGate → DashboardShell
 
 ## Dynamic background
 
-`DynamicBackground.jsx` — layered CSS wave mesh (blurred blobs + diagonal sheen, top-right → bottom-left flow). Warm graphite base with coral, moss, and teal wave tones. No external library. Disable: `VITE_ENABLE_DYNAMIC_BG=false`. Respects `prefers-reduced-motion`.
+`DynamicBackground.jsx` — layered CSS wave mesh (blurred blobs + diagonal sheen). Warm graphite base with coral, moss, and teal wave tones. **Static layout** in `index.css` (no keyframe animation — perf). No external library. Disable: `VITE_ENABLE_DYNAMIC_BG=false`.
 
 Card thumbnails: **120px** height, full color at rest; slight scale on card hover. Lifecycle badge on thumbnail: **hidden** on lifecycle tabs; shown when filters scope the full library.
 

@@ -1,10 +1,8 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { assertAllowedUser } = require('./lib/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
-const {
-  DEFAULT_APP_ID,
-  STEAM_OWNERSHIP_SYNC_DOC_ID,
-  configDocPath,
-} = require('./configPaths');
+const { STEAM_OWNERSHIP_SYNC_DOC_ID, configDocPath } = require('./configPaths');
+const { DEFAULT_APP_ID, gamesCollectionPath } = require('./lib/firestorePaths');
 const {
   buildErrorEntryId,
   rebuildMaintenanceAudit,
@@ -12,24 +10,6 @@ const {
   clearMaintenanceError,
 } = require('./maintenanceStore');
 const { getConfiguredSteamIds, getOwnedGames } = require('./steamWebApi');
-
-function getAllowedEmails() {
-  return [process.env.ALLOWED_EMAIL_0, process.env.ALLOWED_EMAIL_1].filter(Boolean);
-}
-
-function assertAllowedUser(auth) {
-  if (!auth?.token?.email) {
-    throw new HttpsError('unauthenticated', 'Sign in required.');
-  }
-  const allowed = getAllowedEmails();
-  if (allowed.length >= 2 && !allowed.includes(auth.token.email)) {
-    throw new HttpsError('permission-denied', 'Your email is not authorized.');
-  }
-}
-
-function gamesCollectionPath(appId = DEFAULT_APP_ID) {
-  return `artifacts/${appId}/public/data/games`;
-}
 
 function toOwnedSet(appIds) {
   return new Set((appIds || []).map((id) => String(id)));
@@ -135,18 +115,21 @@ async function syncSteamOwnershipCore(appId = DEFAULT_APP_ID) {
     const currentUser0 = owned.user0 === true;
     const currentUser1 = owned.user1 === true;
 
-    const nextUser0 = user0OwnedSet ? user0OwnedSet.has(doc.id) : currentUser0;
-    const nextUser1 = user1OwnedSet ? user1OwnedSet.has(doc.id) : currentUser1;
+    const nextUser0 = currentUser0 || (user0OwnedSet?.has(doc.id) ?? false);
+    const nextUser1 = currentUser1 || (user1OwnedSet?.has(doc.id) ?? false);
 
-    if (nextUser0 === currentUser0 && nextUser1 === currentUser1) {
+    const user0Transition = !currentUser0 && nextUser0;
+    const user1Transition = !currentUser1 && nextUser1;
+    if (!user0Transition && !user1Transition) {
       continue;
     }
 
+    const ownershipUpdate = {};
+    if (user0Transition) ownershipUpdate['owned.user0'] = true;
+    if (user1Transition) ownershipUpdate['owned.user1'] = true;
+
     try {
-      await doc.ref.update({
-        'owned.user0': nextUser0,
-        'owned.user1': nextUser1,
-      });
+      await doc.ref.update(ownershipUpdate);
       gamesUpdated += 1;
     } catch (err) {
       console.error(`syncSteamOwnership failed for ${doc.id}:`, err);

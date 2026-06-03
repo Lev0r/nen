@@ -42,7 +42,8 @@ Sync labels (meta load, GFN, Steam ownership, Steam wishlists, dev sources) read
 | `maintenance-audit` | UI snapshot: metaLoad, gfn, devSources, errorsSummary, lastRevet |
 | `steam-library-sync` | Last library sync counters |
 | `steam-ownership-sync` | Last Steam ownership reconcile stats |
-| `steam-wishlist-candidates` | Wishlist titles not yet in Firestore |
+| `steam-wishlist-candidates` | Wishlist co-op candidates + `cacheHits` / `cacheMisses` |
+| `scheduler-state` | Orchestrator task `lastRunAt` / `lastCompleteAt` per task id |
 | `third-party-health` | HLTB/ITAD health summary |
 
 ## Error reporting pattern

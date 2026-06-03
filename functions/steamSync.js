@@ -1,14 +1,16 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { assertAllowedUser } = require('./lib/auth');
 const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore');
 const {
-  DEFAULT_APP_ID,
   STEAM_LIBRARY_SYNC_DOC_ID,
   THIRD_PARTY_HEALTH_DOC_ID,
   configDocPath,
 } = require('./configPaths');
+const { DEFAULT_APP_ID, gamesCollectionPath } = require('./lib/firestorePaths');
 const {
-  fetchStaticSteamData,
+  fetchAppDetailsEntry,
+  mapStaticFromAppDetails,
+  mapPriceData,
   fetchDynamicSteamData,
   fetchCurrentPlayers,
   computeAvgPlayers7d,
@@ -22,7 +24,7 @@ const {
   upsertMaintenanceError,
 } = require('./maintenanceStore');
 
-const STEAM_CALL_DELAY_MS = 300;
+const THIRD_PARTY_CALL_DELAY_MS = 300;
 const MS_24H = 24 * 60 * 60 * 1000;
 const MS_7D = 7 * 24 * 60 * 60 * 1000;
 const MAX_PLAYER_SAMPLES = 28;
@@ -34,24 +36,6 @@ const LIBRARY_STATES = [
   'finished',
   'banned',
 ];
-
-function getAllowedEmails() {
-  return [process.env.ALLOWED_EMAIL_0, process.env.ALLOWED_EMAIL_1].filter(Boolean);
-}
-
-function assertAllowedUser(auth) {
-  if (!auth?.token?.email) {
-    throw new HttpsError('unauthenticated', 'Sign in required.');
-  }
-  const allowed = getAllowedEmails();
-  if (allowed.length >= 2 && !allowed.includes(auth.token.email)) {
-    throw new HttpsError('permission-denied', 'Your email is not authorized.');
-  }
-}
-
-function gamesCollectionPath(appId = DEFAULT_APP_ID) {
-  return `artifacts/${appId}/public/data/games`;
-}
 
 function resolveLibraryState(game) {
   if (game?.libraryState && LIBRARY_STATES.includes(game.libraryState)) {
@@ -267,8 +251,13 @@ async function syncOneGameSteamMetadata(db, appId, doc, { force = false } = {}) 
     let steamDynamic = game.steamDynamic ? { ...game.steamDynamic } : {};
     let steamStats = game.steamStats ? { ...game.steamStats } : null;
 
-    if (runStatic) {
-      const staticData = await fetchStaticSteamData(steamAppId);
+    let appDetails = null;
+    if (runStatic || runDynamic) {
+      appDetails = await fetchAppDetailsEntry(steamAppId);
+    }
+
+    if (runStatic && appDetails) {
+      const staticData = mapStaticFromAppDetails(appDetails);
       if (staticData) {
         const previousStatus = steamStatic.developmentStatus;
         steamStatic = { ...steamStatic, ...staticData };
@@ -292,6 +281,7 @@ async function syncOneGameSteamMetadata(db, appId, doc, { force = false } = {}) 
     if (runDynamic) {
       const dynamicData = await fetchDynamicSteamData(steamAppId, {
         developmentStatus: resolvedStatus,
+        appDetails,
       });
       if (dynamicData) {
         steamDynamic = { ...steamDynamic, ...dynamicData };
@@ -303,6 +293,13 @@ async function syncOneGameSteamMetadata(db, appId, doc, { force = false } = {}) 
 
         stats.dynamicSyncs++;
       }
+    } else if (runStatic && appDetails) {
+      steamDynamic = {
+        ...steamDynamic,
+        ...mapPriceData(appDetails),
+        syncedAt: FieldValue.serverTimestamp(),
+      };
+      updates.steamDynamic = steamDynamic;
     }
 
     if (runPlayers && resolvedStatus !== 'tba') {
@@ -326,7 +323,7 @@ async function syncOneGameSteamMetadata(db, appId, doc, { force = false } = {}) 
     }
 
     if (runHltb) {
-      await sleep(STEAM_CALL_DELAY_MS);
+      await sleep(THIRD_PARTY_CALL_DELAY_MS);
       const hltbResult = await applyHltbToStatic(steamStatic, { force });
       if (hltbResult.changed) {
         steamStatic = hltbResult.steamStatic;
@@ -344,7 +341,7 @@ async function syncOneGameSteamMetadata(db, appId, doc, { force = false } = {}) 
     }
 
     if (runItad) {
-      await sleep(STEAM_CALL_DELAY_MS);
+      await sleep(THIRD_PARTY_CALL_DELAY_MS);
       const itadResult = await applyItadToDynamic(steamAppId, steamDynamic, {
         gameTitle: steamStatic?.name || null,
       });
@@ -392,7 +389,6 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
   const db = getFirestore();
   const snapshot = await db.collection(gamesCollectionPath(appId)).get();
 
-  let gamesWithApiCalls = 0;
   let skippedBanned = 0;
   let skippedIdle = 0;
   let playerSamples = 0;
@@ -419,10 +415,6 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
       continue;
     }
 
-    if (gamesWithApiCalls > 0) {
-      await sleep(STEAM_CALL_DELAY_MS);
-    }
-
     const gameStats = await syncOneGameSteamMetadata(db, appId, doc, { force });
 
     playerSamples += gameStats.playerSamples;
@@ -438,8 +430,6 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
     if (gameStats.updated) {
       updated++;
     }
-
-    gamesWithApiCalls++;
   }
 
   const stats = {
@@ -465,14 +455,6 @@ async function syncLibrarySteamCore(appId = DEFAULT_APP_ID, { force = false } = 
   return stats;
 }
 
-async function syncLibrarySteamHandler() {
-  await purgeStaleInfoFields(DEFAULT_APP_ID);
-  const db = getFirestore();
-  const stats = await syncLibrarySteamCore(DEFAULT_APP_ID, { force: false });
-  await writeSteamLibrarySyncMeta(db, DEFAULT_APP_ID, stats);
-  await rebuildMaintenanceAudit(db, DEFAULT_APP_ID);
-}
-
 async function syncSteamLibraryCallable(request) {
   assertAllowedUser(request.auth);
 
@@ -489,16 +471,6 @@ async function syncSteamLibraryCallable(request) {
     throw new HttpsError('internal', err.message || 'Failed to sync Steam library.');
   }
 }
-
-const syncLibrarySteam = onSchedule(
-  {
-    schedule: 'every 6 hours',
-    region: 'europe-west1',
-    timeoutSeconds: 540,
-    memory: '512MiB',
-  },
-  syncLibrarySteamHandler
-);
 
 const syncSteamLibrary = onCall(
   {
@@ -584,10 +556,10 @@ const refreshGameFromSteam = onCall(
 );
 
 module.exports = {
-  syncLibrarySteam,
   syncSteamLibrary,
   syncLibrarySteamCore,
   syncOneGameSteamMetadata,
   refreshGameFromSteam,
   purgeStaleInfoFields,
+  writeSteamLibrarySyncMeta,
 };

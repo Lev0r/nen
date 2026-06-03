@@ -1,6 +1,6 @@
 # Feature Checklist
 
-**Last updated:** 2026-06-02
+**Last updated:** 2026-06-03 (sync orchestrator + static BG)
 Track implemented, pending, deferred, and dropped features. Update when shipping.
 
 **Legend:** ✅ Done · 🔄 In progress / partial · ⏳ Pending ops · 📋 Planned · 🚫 Dropped · ⏸ Deferred
@@ -63,7 +63,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Per-user tier picker (DRG theme) | ✅ | |
 | MetacriticFactor + ITAD fallback | ✅ | |
 | Sort library by Total Hype | ✅ | Client-side compute |
-| Dynamic BG animated wave mesh | ✅ | Warm graphite + sage wave CSS; `VITE_ENABLE_DYNAMIC_BG=false` to disable |
+| Dynamic BG wave mesh (static CSS) | ✅ | Warm graphite + sage/coral/moss/teal layers; no animation (perf); `VITE_ENABLE_DYNAMIC_BG=false` to disable |
 | **Unified warm graphite theme** | ✅ | Softer sage accent, glass panels, sidebar/filters |
 | Card thumbnails | ✅ | Full color; hover scale only (no dim filter) |
 | **Contextual lifecycle badge on card** | ✅ | Hidden on lifecycle tabs; shown when filters search full library |
@@ -76,15 +76,19 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Feature | Status | Notes |
 | :--- | :---: | :--- |
 | Steam scrape (UA region, UAH) | ✅ | |
-| Scheduled 6h library sync | ✅ | Gated per game/lifecycle |
+| Scheduled 6h library sync | ✅ | Via `libraryMetadata` orchestrator task |
+| **Unified scheduler orchestrator** | ✅ | Single `scheduledSyncOrchestrator` every 6h; state in `config/scheduler-state` |
 | Manual "Load meta info" | ✅ | Maintenance modal |
 | HLTB playtime | ✅ | Fragile unofficial API |
 | ITAD critics + historical low | ✅ | Needs `ITAD_API_KEY` |
-| GFN catalog sync + badge | ✅ | Weekly + manual |
+| GFN catalog sync + badge | ✅ | Weekly orchestrator task + manual |
 | Player stats (official API, 28 samples) | ✅ | Skip TBA/banned |
 | Refresh single game from Steam | ✅ | Callable `refreshGameFromSteam` — button in GameEditModal |
-| **Steam wishlist sync** (new games) | ✅ | Callable `syncSteamWishlists` — co-op-only candidates with store names in Maintenance |
-| **Steam library sync** (ownership) | ✅ | Callable `syncSteamOwnership` — reconciles `owned.user0/user1` via Steam Web API |
+| **Firestore app-meta cache** | ✅ | `steam-app-meta` collection; 180d TTL; wishlist co-op filter — [doc](./features/steam-app-meta-cache.md) |
+| **Steam wishlist sync** (new games) | ✅ | Callable `syncSteamWishlists` — co-op candidates; Maintenance UI |
+| **Scheduled wishlist sync** (24h auto-import) | ✅ | Orchestrator `steamWishlist` task — co-op auto-import via `enrichAndPersistFromSteam` |
+| **Steam library sync** (ownership) | ✅ | Callable `syncSteamOwnership` — one-way merge via Steam Web API |
+| **Scheduled ownership sync** (24h one-way) | ✅ | Orchestrator `steamOwnership` task — never clears `true` → `false` |
 | "Ready to Play" filter preset | ⏸ | Use chips instead |
 
 ---
@@ -101,7 +105,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Incremental curator sync | ✅ | Resumable weekly sync |
 | `--to-firestore` seed script | ✅ | `sync-dev-sources.mjs --to-firestore` |
 | Developer cache (`devBgCheck.developers`) | ✅ | |
-| Weekly source sync to Firestore | ✅ | Scheduled + Maintenance UI |
+| Weekly source sync to Firestore | ✅ | Orchestrator `devSources` task + Maintenance UI |
 | Game-level `aggregateGameVetting` | ✅ | App ID + dev names |
 | RU filter toggle | ✅ | |
 | Manual "Run dev check" | ✅ | |
@@ -163,6 +167,17 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | **Local Cloud Functions testing** | 📋 | **User request** — emulator workflow documented + validated |
 
 ---
+
+## Session log — 2026-06-02 / 03 (sync orchestrator + app-meta cache)
+
+- Unified `scheduledSyncOrchestrator` (6h tick) replaces 3 separate schedulers (`syncLibrarySteam`, `syncGfnCatalogScheduled`, `syncDevSourcesScheduled`)
+- Task registry: library metadata, ownership (24h one-way), wishlist (24h auto-import), GFN, dev sources, app-meta purge
+- Firestore `steam-app-meta` cache (180d TTL) for wishlist co-op filter
+- `steamRateLimiter.js` — serial store queue + Web API pool
+- `gamePersist.js` + `lib/auth.js` + `lib/firestorePaths.js` — DRY from `index.js`
+- Single appdetails fetch + price piggyback on static-only sync
+- Static wave background (removed CSS animation for perf)
+- **Ops after deploy:** delete orphaned Cloud Scheduler jobs; verify `config/scheduler-state` — see [OPS.md](./OPS.md#scheduled-cloud-functions)
 
 ## Session log — 2026-06-01 (shipped)
 

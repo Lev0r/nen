@@ -1,6 +1,25 @@
 const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 const { cachedFetchJson } = require('./steamCache');
+const { scheduleStoreRequest, scheduleSteamWebApiRequest } = require('./steamRateLimiter');
 const { GFN_CATALOG_DOC_ID, configDocPath } = require('./configPaths');
+
+function isStoreUrl(url) {
+  return /store\.steampowered\.com/i.test(url);
+}
+
+function isSteamWebApiUrl(url) {
+  return /api\.steampowered\.com/i.test(url);
+}
+
+async function rateLimitedFetchJson(url, ttlMs) {
+  if (isStoreUrl(url)) {
+    return scheduleStoreRequest(() => cachedFetchJson(url, ttlMs));
+  }
+  if (isSteamWebApiUrl(url)) {
+    return scheduleSteamWebApiRequest(() => cachedFetchJson(url, ttlMs));
+  }
+  return cachedFetchJson(url, ttlMs);
+}
 
 const STEAM_CC = 'ua';
 const STEAM_LANG = 'english';
@@ -201,7 +220,7 @@ async function fetchRecentReviewMetrics(appId) {
   const reviews = [];
 
   for (let page = 0; page < RECENT_REVIEW_MAX_PAGES; page += 1) {
-    const payload = await cachedFetchJson(REVIEW_URL_RECENT_PAGE(appId, cursor)).catch((err) => {
+    const payload = await rateLimitedFetchJson(REVIEW_URL_RECENT_PAGE(appId, cursor)).catch((err) => {
       console.warn('Steam recent reviews fetch failed:', err.message);
       return null;
     });
@@ -257,7 +276,7 @@ function computeAvgPlayers7d(samples) {
 }
 
 async function fetchAppDetailsEntry(appId) {
-  const payload = await cachedFetchJson(APP_DETAILS_URL.replace('APPID', appId));
+  const payload = await rateLimitedFetchJson(APP_DETAILS_URL.replace('APPID', appId));
   const entry = payload[appId];
   if (!entry?.success || !entry.data) {
     return null;
@@ -265,12 +284,32 @@ async function fetchAppDetailsEntry(appId) {
   return entry.data;
 }
 
-async function fetchStoreCoopAndName(appId) {
-  const data = await fetchAppDetailsEntry(appId);
+async function fetchAppDetailsForMeta(steamAppId) {
+  const data = await fetchAppDetailsEntry(steamAppId);
   if (!data) return null;
   return {
     name: typeof data.name === 'string' ? data.name : null,
+    storeType: typeof data.type === 'string' ? data.type : null,
     hasCoop: hasCoopCategory(data.categories),
+  };
+}
+
+async function fetchStoreCoopAndName(steamAppId, { db, appId } = {}) {
+  if (db && appId) {
+    const { getSteamAppMeta } = require('./steamAppMetaCache');
+    const meta = await getSteamAppMeta(db, appId, steamAppId);
+    if (!meta) return null;
+    return {
+      name: meta.name,
+      hasCoop: meta.hasCoop,
+    };
+  }
+
+  const meta = await fetchAppDetailsForMeta(steamAppId);
+  if (!meta) return null;
+  return {
+    name: meta.name,
+    hasCoop: meta.hasCoop,
   };
 }
 
@@ -296,7 +335,7 @@ async function fetchPriceData(appId) {
 
 async function fetchReviewData(appId) {
   const [allTimePayload, recentMetrics] = await Promise.all([
-    cachedFetchJson(REVIEW_URL_ALL(appId)).catch((err) => {
+    rateLimitedFetchJson(REVIEW_URL_ALL(appId)).catch((err) => {
       console.warn('Steam all-time reviews fetch failed:', err.message);
       return null;
     }),
@@ -316,7 +355,7 @@ async function fetchReviewData(appId) {
 
 async function fetchNewsData(appId) {
   try {
-    const data = await cachedFetchJson(NEWS_URL(appId));
+    const data = await rateLimitedFetchJson(NEWS_URL(appId));
     const items = data?.appnews?.newsitems || [];
     if (items.length === 0) {
       return { currentVersion: null, lastUpdateAt: null };
@@ -349,7 +388,7 @@ async function fetchCurrentVersion(appId) {
 
 async function fetchCurrentPlayers(appId) {
   try {
-    const data = await cachedFetchJson(CURRENT_PLAYERS_URL(appId));
+    const data = await rateLimitedFetchJson(CURRENT_PLAYERS_URL(appId));
     const count = data?.response?.player_count;
     return typeof count === 'number' ? count : null;
   } catch (err) {
@@ -493,6 +532,10 @@ module.exports = {
   parseAppId,
   hasCoopCategory,
   COOP_CATEGORY_IDS,
+  fetchAppDetailsEntry,
+  fetchAppDetailsForMeta,
+  mapStaticFromAppDetails,
+  mapPriceData,
   fetchStoreCoopAndName,
   fetchSteamGame,
   fetchCurrentVersion,

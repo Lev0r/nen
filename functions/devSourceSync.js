@@ -7,7 +7,7 @@ const { join } = require('path');
 const AdmZip = require('adm-zip');
 const { getFirestore } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { assertAllowedUser } = require('./lib/auth');
 const { normalizeDevName } = require('./devSources');
 const { CURATORS, getCuratorKeys } = require('./curatorRegistry');
 const { fetchJsonWithRetry } = require('./steamCache');
@@ -37,20 +37,6 @@ function emitProgress(options, message) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getAllowedEmails() {
-  return [process.env.ALLOWED_EMAIL_0, process.env.ALLOWED_EMAIL_1].filter(Boolean);
-}
-
-function assertAllowedUser(auth) {
-  if (!auth?.token?.email) {
-    throw new HttpsError('unauthenticated', 'Sign in required.');
-  }
-  const allowed = getAllowedEmails();
-  if (allowed.length >= 2 && !allowed.includes(auth.token.email)) {
-    throw new HttpsError('permission-denied', 'Your email is not authorized.');
-  }
 }
 
 async function downloadNeGraiList(options = {}) {
@@ -651,34 +637,6 @@ const syncDevSources = onCall(
   }
 );
 
-const syncDevSourcesScheduled = onSchedule(
-  {
-    schedule: 'every 168 hours',
-    region: 'europe-west1',
-    timeoutSeconds: 540,
-    memory: '512MiB',
-  },
-  async () => {
-    try {
-      const stats = await syncDevSourcesToFirestore(DEFAULT_APP_ID);
-      const curatorSummary = getCuratorKeys()
-        .map((key) => {
-          const complete = stats[`${key}Complete`] ? 'ok' : 'pending';
-          return `${key} flagged ${stats[`${key}FlaggedCount`] || 0} (${complete})`;
-        })
-        .join(', ');
-      console.log(
-        `syncDevSourcesScheduled: NE GRAI ${stats.neGraiCount}, ${curatorSummary}, ` +
-          `skipped=${(stats.curatorsSkipped || []).join(',') || 'none'}, ` +
-          `pending=${(stats.curatorsPending || []).join(',') || 'none'}`
-      );
-    } catch (err) {
-      console.error('syncDevSourcesScheduled failed:', err);
-      throw err;
-    }
-  }
-);
-
 module.exports = {
   fetchDevSourcePayload,
   syncCuratorAppIdsIncremental,
@@ -689,5 +647,4 @@ module.exports = {
   summarizeDevSourceStats,
   buildSyncProgressStats,
   syncDevSources,
-  syncDevSourcesScheduled,
 };

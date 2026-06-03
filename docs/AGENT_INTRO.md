@@ -1,6 +1,6 @@
 # Agent Intro — Nen?
 
-**Last updated:** 2026-06-02  
+**Last updated:** 2026-06-03 (sync orchestrator shipped in repo)  
 **Repo:** https://github.com/Lev0r/nen  
 **Firebase project:** `nen-tracker` (CLI alias: `staging` in `.firebaserc`)
 
@@ -41,12 +41,19 @@ nen/
 ├── docs/                    ← you are here
 ├── functions/               # Cloud Functions, europe-west1, Node 20
 │   ├── index.js             # Callables: addGame, vetGame, sync*
+│   ├── schedulerOrchestrator.js  # Single 6h scheduledSyncOrchestrator
+│   ├── scheduler/tasks.js   # Task registry (library, ownership, wishlist, GFN, dev, purge)
 │   ├── steam.js             # Steam scrape → schema v2
-│   ├── steamSync.js         # 6h library sync
+│   ├── steamSync.js         # Library metadata sync core
+│   ├── steamAppMetaCache.js # Firestore L2 app-meta cache (wishlist filter)
+│   ├── steamRateLimiter.js  # Serial store queue + Web API pool
+│   ├── gamePersist.js       # enrichAndPersistFromSteam (shared add/import path)
+│   ├── lib/auth.js          # assertAllowedUser
+│   ├── lib/firestorePaths.js # Path helpers incl. scheduler-state, steam-app-meta
 │   ├── devSources.js        # RU list lookups
 │   ├── devVetting.js        # Developer vet orchestration
 │   ├── devBgCheck.js        # Dev vetting cache (config/dev-bg-check)
-│   ├── configPaths.js       # Config doc IDs + path helpers
+│   ├── configPaths.js       # Re-exports lib/firestorePaths (backward compat)
 │   ├── maintenanceStore.js  # maintenance-errors + maintenance-audit
 │   ├── devSourceSync.js     # Weekly NE GRAI + curator sync
 │   ├── gfnSync.js           # GFN catalog
@@ -64,6 +71,8 @@ nen/
 | Path | Purpose |
 | :--- | :--- |
 | `artifacts/{appId}/public/data/games/{steamAppId}` | Game documents (`default_app`) |
+| `artifacts/{appId}/public/data/steam-app-meta/{steamAppId}` | Wishlist co-op filter cache (180d TTL) |
+| `artifacts/{appId}/public/data/config/scheduler-state` | Orchestrator task timestamps (`lastRunAt`, `lastCompleteAt`) |
 | `artifacts/{appId}/public/data/config/dev-bg-check` | Developer vetting cache (`developers.{cacheKey}`) |
 | `artifacts/{appId}/public/data/config/gfn-catalog` | GeForce NOW Steam app ID list |
 | `artifacts/{appId}/public/data/config/steam-library-sync` | Last library meta sync stats |
@@ -121,8 +130,9 @@ See **[`features/README.md`](./features/README.md)** for one-page summaries and 
 8. **Curator vetting** — only `not_recommended` + `informational` flag; `recommended` = clearance (does not override NE GRAI).
 9. **NE GRAI vetting** — exact normalized name match only (no substring; no suffix stripping on studio/games/entertainment).
 10. **RU alert text** — NE GRAI: `developer found in "Не Грай" database`; curator: markdown link + `(not recommended or informational)`; no duplicate curator line when app ID already flagged.
-11. **Lifecycle badge on card** — hidden when browsing a lifecycle sidebar tab; shown when `hasActiveFilters` scopes the grid to the full library.
-12. **Post-deploy RU re-vet** — required after vetting *logic* changes only (not source re-sync); completed 2026-06-02.
+11. **Scheduled sync** — single Cloud Scheduler job `scheduledSyncOrchestrator` (every 6h); per-task intervals in `config/scheduler-state`. Old jobs `syncLibrarySteam`, `syncGfnCatalogScheduled`, `syncDevSourcesScheduled` are removed.
+12. **Lifecycle badge on card** — hidden when browsing a lifecycle sidebar tab; shown when `hasActiveFilters` scopes the grid to the full library.
+13. **Post-deploy RU re-vet** — required after vetting *logic* changes only (not source re-sync); completed 2026-06-02.
 
 ---
 

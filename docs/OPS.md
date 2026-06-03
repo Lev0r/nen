@@ -2,7 +2,7 @@
 
 **Related:** [AGENT_INTRO.md](./AGENT_INTRO.md) · [FEATURE_CHECKLIST.md](./FEATURE_CHECKLIST.md) · [ru-developer-vetting.md](./features/ru-developer-vetting.md)
 
-**Last updated:** 2026-06-02
+**Last updated:** 2026-06-03 (sync orchestrator)
 
 ---
 
@@ -24,7 +24,7 @@
 | `VITE_ALLOWED_EMAIL_0/1` | Must match rules + functions |
 | `VITE_USER0_NICKNAME`, `VITE_USER1_NICKNAME` | Display names |
 | `VITE_FIREBASE_FUNCTIONS_REGION` | `europe-west1` |
-| `VITE_ENABLE_DYNAMIC_BG` | Default on; `false` + rebuild to disable |
+| `VITE_ENABLE_DYNAMIC_BG` | Default on (static wave mesh); `false` + rebuild to disable |
 | `VITE_USE_FUNCTIONS_EMULATOR` | Local emulators only |
 
 ### Functions (`functions/.env` — copy from `functions/.env.example`)
@@ -60,11 +60,17 @@ npm run build && firebase deploy --only hosting
 
 ## Scheduled Cloud Functions
 
-| Function | Schedule |
-| :--- | :--- |
-| `syncLibrarySteam` | Every 6 hours |
-| `syncGfnCatalogScheduled` | Every 168 hours |
-| `syncDevSourcesScheduled` | Every 168 hours (incremental curator sync) |
+| Function | Schedule | Notes |
+| :--- | :--- | :--- |
+| `scheduledSyncOrchestrator` | Every **6 hours** | Single job — runs all due tasks (library metadata, ownership, wishlist, GFN, dev sources, app-meta purge). See [steam-sync-and-data.md](./features/steam-sync-and-data.md#unified-scheduler-orchestrator). |
+
+**After deploy:** If orphaned Cloud Scheduler jobs remain from the old three-scheduler setup (`syncLibrarySteam`, `syncGfnCatalogScheduled`, `syncDevSourcesScheduled`), delete them in the [Firebase console](https://console.firebase.google.com/) → Functions → Scheduler (or Google Cloud Console → Cloud Scheduler). Only `scheduledSyncOrchestrator` should remain.
+
+**Post-deploy checks:**
+
+1. Confirm orchestrator runs in function logs
+2. Verify `config/scheduler-state` is populated after first tick
+3. Monitor first daily wishlist run for `cacheHits` / `cacheMisses` in `config/steam-wishlist-candidates`
 
 ---
 
@@ -76,12 +82,15 @@ npm run build && firebase deploy --only hosting
 | `addGameFromSteam` | ✅ | Add + vet game |
 | `vetGameDevelopers` | ✅ `runDevCheck` | Manual re-vet one game |
 | `syncSteamLibrary` | ✅ | Load meta info |
+| `refreshGameFromSteam` | ✅ | Single-game re-scrape (GameEditModal) |
 | `syncGfnCatalog` | ✅ | GFN catalog |
+| `syncSteamOwnership` | ✅ | One-way ownership merge (Steam Web API) |
+| `syncSteamWishlists` | ✅ | Wishlist → co-op candidates (no auto-import) |
 | `syncDevSources` | ✅ | Refresh RU source lists |
 | `revetAllGames` | ✅ | Bulk re-vet all games |
 | `clearMaintenanceInfoErrors` | ✅ | Clear info-level maintenance errors |
 
-Region: `europe-west1`. Sync callables: **540s** client timeout in `cloudFunctions.js`.
+Region: `europe-west1`. Client timeouts in `cloudFunctions.js`: metadata/GFN/dev/wishlist/revet **540s**; ownership + refresh **120s**.
 
 ---
 
@@ -135,7 +144,7 @@ node scripts/revet-ru-games.mjs
 
 1. **First deploy / fresh seed** — `node scripts/sync-dev-sources.mjs --to-firestore --full`
 2. **Re-vet games** — Maintenance → Re-vet all games, or `node scripts/revet-ru-games.mjs`
-3. **Ongoing** — weekly `syncDevSourcesScheduled` or Maintenance → Sync dev sources (incremental)
+3. **Ongoing** — weekly `devSources` orchestrator task or Maintenance → Sync dev sources (incremental)
 
 **Clear maintenance errors:** `node scripts/wipe-maintenance-errors.mjs`
 
@@ -186,10 +195,11 @@ Partial wiring exists; workflow needs validation and documentation.
 
 | Item | Status |
 | :--- | :--- |
-| Hosting deploy after UI changes | Run `npm run build && firebase deploy --only hosting` when ready |
-| Functions deploy after vetting changes | Already deployed + re-vetted per 2026-06-02 sign-off |
+| **Deploy sync orchestrator** | `firebase deploy --only functions,firestore:rules` — then delete old scheduler jobs (`syncLibrarySteam`, `syncGfnCatalogScheduled`, `syncDevSourcesScheduled`); verify `config/scheduler-state` |
+| **Hosting deploy (static BG)** | `npm run build && firebase deploy --only hosting` — wave mesh is static CSS (no animation) |
+| Local Functions emulator workflow | Documented in [Local Cloud Functions testing](#local-cloud-functions-testing-planned); not yet validated end-to-end |
 
-All production smoke tests and bulk RU re-vet are **complete** as of 2026-06-02.
+Production smoke tests and bulk RU re-vet are **complete** as of 2026-06-02 (pre-orchestrator deploy). Re-run ownership/wishlist + orchestrator checks after the functions deploy above.
 
 ---
 
@@ -198,9 +208,13 @@ All production smoke tests and bulk RU re-vet are **complete** as of 2026-06-02.
 `artifacts` → `default_app` → `public` → `data` →
 
 - `games/{steamAppId}` — library documents
+- `steam-app-meta/{steamAppId}` — wishlist co-op filter cache (180d TTL; see [steam-app-meta-cache.md](./features/steam-app-meta-cache.md))
+- `config/scheduler-state` — orchestrator task `lastRunAt` / `lastCompleteAt` per task id
 - `config/dev-bg-check` — developer vetting cache
 - `config/gfn-catalog` — GeForce NOW Steam app IDs
 - `config/steam-library-sync` — last meta sync stats
+- `config/steam-ownership-sync` — last ownership merge stats
+- `config/steam-wishlist-candidates` — wishlist co-op candidates + cache hit/miss stats
 - `config/third-party-health` — HLTB/ITAD health
 - `config/maintenance-errors` — centralized error entries
 - `config/maintenance-audit` — Maintenance UI snapshot
@@ -211,4 +225,4 @@ All production smoke tests and bulk RU re-vet are **complete** as of 2026-06-02.
 
 ## Cost notes
 
-~700 Firestore writes/day @ 147 games — free tier OK. Full-library function sync may timeout at ~400–500 games.
+~700 Firestore writes/day @ 147 games — free tier OK. Daily wishlist with ~90% app-meta cache hits adds negligible store traffic (~0–5 calls/day after warm-up). Full-library function sync may timeout at ~400–500 games.

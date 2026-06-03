@@ -1,11 +1,7 @@
+const { scheduleSteamWebApiRequest } = require('./steamRateLimiter');
+
 const STEAM_WEB_API_BASE = 'https://api.steampowered.com';
 const STEAM_WEB_API_DELAY_MS = 300;
-
-let apiCallCount = 0;
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function normalizeSteamWebApiKey(raw) {
   const trimmed = String(raw ?? '').trim();
@@ -73,44 +69,41 @@ async function steamWebApiFetch(servicePath, params = {}) {
     return { data: null, error: 'STEAM_WEB_API_KEY not configured' };
   }
 
-  if (apiCallCount > 0) {
-    await sleep(STEAM_WEB_API_DELAY_MS);
-  }
-  apiCallCount += 1;
-
-  const url = new URL(`${STEAM_WEB_API_BASE}/${servicePath}`);
-  url.searchParams.set('key', apiKey);
-  for (const [key, value] of Object.entries(params)) {
-    if (value != null) {
-      url.searchParams.set(key, String(value));
+  return scheduleSteamWebApiRequest(async () => {
+    const url = new URL(`${STEAM_WEB_API_BASE}/${servicePath}`);
+    url.searchParams.set('key', apiKey);
+    for (const [key, value] of Object.entries(params)) {
+      if (value != null) {
+        url.searchParams.set(key, String(value));
+      }
     }
-  }
 
-  let response;
-  try {
-    response = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'NenCoopTracker/1.0',
-      },
-    });
-  } catch (err) {
-    return { data: null, error: err.message || 'Steam Web API request failed' };
-  }
+    let response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'NenCoopTracker/1.0',
+        },
+      });
+    } catch (err) {
+      return { data: null, error: err.message || 'Steam Web API request failed' };
+    }
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    return {
-      data: null,
-      error: `Steam Web API ${response.status}${text ? `: ${text.slice(0, 120)}` : ''}`,
-    };
-  }
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      return {
+        data: null,
+        error: `Steam Web API ${response.status}${text ? `: ${text.slice(0, 120)}` : ''}`,
+      };
+    }
 
-  try {
-    return { data: await response.json(), error: null };
-  } catch (err) {
-    return { data: null, error: err.message || 'Steam Web API returned invalid JSON' };
-  }
+    try {
+      return { data: await response.json(), error: null };
+    } catch (err) {
+      return { data: null, error: err.message || 'Steam Web API returned invalid JSON' };
+    }
+  });
 }
 
 async function getOwnedGames(steamId) {

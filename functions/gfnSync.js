@@ -10,7 +10,7 @@
  * Config doc: artifacts/{appId}/public/data/config/gfn-catalog
  */
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { assertAllowedUser } = require('./lib/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const {
   DEFAULT_APP_ID,
@@ -54,20 +54,6 @@ query AppsPage($first: Int!, $after: String, $vpcId: String!, $language: String!
 
 function getVpcId() {
   return process.env.GFN_VPC_ID || DEFAULT_VPC_ID;
-}
-
-function getAllowedEmails() {
-  return [process.env.ALLOWED_EMAIL_0, process.env.ALLOWED_EMAIL_1].filter(Boolean);
-}
-
-function assertAllowedUser(auth) {
-  if (!auth?.token?.email) {
-    throw new HttpsError('unauthenticated', 'Sign in required.');
-  }
-  const allowed = getAllowedEmails();
-  if (allowed.length >= 2 && !allowed.includes(auth.token.email)) {
-    throw new HttpsError('permission-denied', 'Your email is not authorized.');
-  }
 }
 
 function isSteamStore(store) {
@@ -253,29 +239,8 @@ const syncGfnCatalog = onCall(
   syncGfnCatalogCallable
 );
 
-const syncGfnCatalogScheduled = onSchedule(
-  {
-    schedule: 'every 168 hours',
-    region: 'europe-west1',
-    timeoutSeconds: 540,
-    memory: '512MiB',
-  },
-  async () => {
-    try {
-      const catalog = await syncGfnCatalogToFirestore(DEFAULT_APP_ID);
-      console.log(
-        `syncGfnCatalogScheduled: synced ${catalog.gameCount} Steam titles via ${catalog.vpcId}`
-      );
-    } catch (err) {
-      console.error('syncGfnCatalogScheduled failed:', err);
-      throw err;
-    }
-  }
-);
-
 module.exports = {
   fetchGfnCatalogFromGraphQL,
   syncGfnCatalogToFirestore,
   syncGfnCatalog,
-  syncGfnCatalogScheduled,
 };

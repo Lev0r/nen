@@ -477,7 +477,7 @@ The dashboard should feel like a premium, sleek gaming platform (similar to Stea
 
 * **Color Palette**: Dark obsidian base (`#121620`), **mint accent** (`#14e8a0`) for scores and primary actions — **no blue** in primary UI. Crimson red for RU alerts; yellow for early access / warnings.
 * **Layout**: Lifecycle navigation and actions live in the **left sidebar** (no top header bar). Browser tab title: **`Nen?`**.
-* **Dynamic background**: Layered CSS wave mesh — warm graphite base, coral/moss/teal blobs drifting along a top-right → bottom-left diagonal. Disable via `VITE_ENABLE_DYNAMIC_BG=false`.
+* **Dynamic background**: Layered CSS wave mesh — warm graphite base, coral/moss/teal blobs on a fixed diagonal layout (static; no animation). Disable via `VITE_ENABLE_DYNAMIC_BG=false`.
 * **Lifecycle badge on thumbnail**: Hidden when viewing a sidebar lifecycle tab; shown when any filter is active (full-library scope).
 * **Aero Glassmorphism**: Cards and panels use translucent backdrop filters.
 * **Total Hype ring**: Bottom-right; vertical center aligned with the **thumbnail bottom border** (overlaps thumbnail and card body). Opaque graphite center and track; graphite outline; score-colored glow. Shows the Total Hype integer **without a `%` symbol**. Color scales red → yellow → mint by score. Click opens a small tier picker for the **active user only** (opaque panel for readability). Hover shows the full score breakdown tooltip.

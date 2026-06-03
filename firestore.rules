@@ -17,5 +17,13 @@ service cloud.firestore {
       );
       allow write: if false;
     }
+
+    match /artifacts/{appId}/public/data/steam-app-meta/{steamAppId} {
+      allow read: if request.auth != null && (
+        request.auth.token.email == 'kir.matienko@gmail.com' ||
+        request.auth.token.email == 'xalex.yavorskiyx@gmail.com'
+      );
+      allow write: if false;
+    }
   }
 }
