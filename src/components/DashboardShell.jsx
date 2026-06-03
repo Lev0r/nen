@@ -156,6 +156,7 @@ export default function DashboardShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [expandFiltersSignal, setExpandFiltersSignal] = useState(0);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const searchInputRef = useRef(null);
 
   const metaSyncedAtLabel = useMemo(() => {
@@ -768,6 +769,8 @@ export default function DashboardShell() {
             onResetFilters={handleResetFilters}
             hideSearch={isMobile}
             expandFiltersSignal={expandFiltersSignal}
+            filtersExpanded={filtersExpanded}
+            onFiltersExpandedChange={setFiltersExpanded}
           />
         )}
 

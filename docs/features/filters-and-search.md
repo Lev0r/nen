@@ -84,6 +84,7 @@ After `filterGames`, the grid applies a **stable** sort: non–RU-alert games fi
 
 - Panel starts **collapsed** on page load (sidebar nav presets do not auto-expand it)
 - Opens on search focus, **Filters** button (mobile), chip/toggle change (`updateFilter`), or mobile search modal “Open filters”
-- Collapse: **×** in expanded panel header, click outside the bar, or **Escape** — filters and grid results stay unchanged
+- Collapse: **×** in expanded panel header, click outside the bar (not sidebar nav), or **Escape** — filters and grid results stay unchanged
+- Sidebar nav clicks update filter presets without collapsing an open panel; expanded state persists when switching library tabs or returning from Events
 - **Clear filters** when `hasActiveFilters` (any include/exclude/search/footer not `off`); `onResetFilters` sets `DEFAULT_GAME_FILTERS`
 - Do not use CSS `:focus-within` for panel expand (breaks toggles)

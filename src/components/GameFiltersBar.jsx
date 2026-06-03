@@ -47,12 +47,19 @@ export default function GameFiltersBar({
   onResetFilters,
   hideSearch = false,
   expandFiltersSignal = 0,
+  filtersExpanded = false,
+  onFiltersExpandedChange,
 }) {
   const active = hasActiveFilters(filters);
   const facetGating = filterMode;
   const chipEnabled = (fn, ...args) => (facetGating ? fn(...args) : true);
   const barRef = useRef(null);
-  const [expanded, setExpanded] = useState(false);
+  const setExpanded = (value) => {
+    if (onFiltersExpandedChange) {
+      onFiltersExpandedChange(value);
+    }
+  };
+  const expanded = filtersExpanded;
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia(MOBILE_MEDIA).matches : false
   );
@@ -74,6 +81,9 @@ export default function GameFiltersBar({
   useEffect(() => {
     const handlePointerDown = (event) => {
       if (barRef.current && !barRef.current.contains(event.target)) {
+        if (event.target.closest('.sidebar, .sidebar-drawer-root')) {
+          return;
+        }
         setExpanded(false);
       }
     };
