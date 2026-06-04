@@ -550,6 +550,7 @@ function isHypePickerDisabled(game) {
 }
 
 export {
+  formatPlayerCount,
   CardTooltipText,
   buildStatusTooltip,
   buildReviewsTooltip,

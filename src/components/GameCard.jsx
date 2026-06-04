@@ -61,6 +61,7 @@ import {
   normalizeFinishedRating,
 } from '../utils/libraryState';
 import {
+  formatPlayerCount,
   CardTooltipText,
   buildStatusTooltip,
   buildReviewsTooltip,
