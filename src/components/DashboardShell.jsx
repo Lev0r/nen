@@ -157,6 +157,7 @@ export default function DashboardShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [expandFiltersSignal, setExpandFiltersSignal] = useState(0);
+  const [dismissFiltersSignal, setDismissFiltersSignal] = useState(0);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const searchInputRef = useRef(null);
 
@@ -484,9 +485,16 @@ export default function DashboardShell() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [sidebarOpen, searchOpen]);
 
+  function dismissMobileFilters() {
+    setDismissFiltersSignal((n) => n + 1);
+  }
+
   function handleEventsNavClick() {
     setTopView('events');
-    if (isMobile) setSidebarOpen(false);
+    if (isMobile) {
+      setSidebarOpen(false);
+      dismissMobileFilters();
+    }
   }
 
   function handleLifecycleTabClick(tabId) {
@@ -494,14 +502,20 @@ export default function DashboardShell() {
     setActiveTab(tabId);
     setActiveSubTab('active');
     setGameFilters(filtersForSidebarNav(tabId, 'active'));
-    if (isMobile) setSidebarOpen(false);
+    if (isMobile) {
+      setSidebarOpen(false);
+      dismissMobileFilters();
+    }
   }
 
   function handleActiveSubTabClick(subTabId) {
     setTopView('library');
     setActiveSubTab(subTabId);
     setGameFilters(filtersForSidebarNav('active', subTabId));
-    if (isMobile) setSidebarOpen(false);
+    if (isMobile) {
+      setSidebarOpen(false);
+      dismissMobileFilters();
+    }
   }
 
   function handleOpenFiltersFromSearch() {
@@ -695,11 +709,7 @@ export default function DashboardShell() {
           </header>
         )}
 
-        {topView === 'events' ? (
-          <EventsPage steamEventsDoc={steamEventsDoc} loading={steamEventsLoading} />
-        ) : (
-          <>
-        {isMobile && (
+        {isMobile && topView === 'library' && (
           <MobileSearchModal
             open={searchOpen}
             onClose={() => setSearchOpen(false)}
@@ -716,6 +726,10 @@ export default function DashboardShell() {
           />
         )}
 
+        {topView === 'events' ? (
+          <EventsPage steamEventsDoc={steamEventsDoc} loading={steamEventsLoading} />
+        ) : (
+          <>
         {!loading && games.length > 0 && (
           <GameFiltersBar
             filters={gameFilters}
@@ -731,6 +745,7 @@ export default function DashboardShell() {
             onResetFilters={handleResetFilters}
             hideSearch={isMobile}
             expandFiltersSignal={expandFiltersSignal}
+            dismissFiltersSignal={dismissFiltersSignal}
             filtersExpanded={filtersExpanded}
             onFiltersExpandedChange={setFiltersExpanded}
           />

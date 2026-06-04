@@ -26,6 +26,7 @@ export default function GameFiltersBar({
   onResetFilters,
   hideSearch = false,
   expandFiltersSignal = 0,
+  dismissFiltersSignal = 0,
   filtersExpanded = false,
   onFiltersExpandedChange,
 }) {
@@ -35,6 +36,7 @@ export default function GameFiltersBar({
   const barRef = useRef(null);
   const isMobile = useMatchMedia(MOBILE_MEDIA);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const prevExpandFiltersSignal = useRef(expandFiltersSignal);
 
   const setExpanded = (value) => {
     if (onFiltersExpandedChange) {
@@ -55,14 +57,21 @@ export default function GameFiltersBar({
   };
 
   useEffect(() => {
-    if (expandFiltersSignal > 0) {
+    if (expandFiltersSignal > prevExpandFiltersSignal.current) {
       if (isMobile) {
         setFilterSheetOpen(true);
       } else {
         setExpanded(true);
       }
     }
+    prevExpandFiltersSignal.current = expandFiltersSignal;
   }, [expandFiltersSignal, isMobile]);
+
+  useEffect(() => {
+    if (dismissFiltersSignal > 0) {
+      setFilterSheetOpen(false);
+    }
+  }, [dismissFiltersSignal]);
 
   useEffect(() => {
     if (isMobile) return undefined;
