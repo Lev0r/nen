@@ -884,7 +884,7 @@ button {
   padding: 2rem;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   grid-auto-rows: max-content;
   align-content: start;
   align-items: start;
@@ -1468,14 +1468,25 @@ body.scroll-locked {
     overflow: hidden;
     flex: 1 1 auto;
     min-height: 0;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .library-view {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   .game-filters-bar {
     padding: 0.75rem 1rem 1rem;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .game-filters-header {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   .game-filters-header--search-hidden .game-filters-header-actions {
@@ -1506,33 +1517,58 @@ body.scroll-locked {
 
   .dashboard-grid {
     padding: 1rem;
-    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .events-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .game-card {
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
     overflow: hidden;
+  }
+
+  .game-card:hover .game-card-img {
+    transform: none;
   }
 
   .game-card-thumb {
     overflow: hidden;
   }
 
-  .floating-tooltip-anchor.card-indicator--hype {
-    bottom: 8px;
+  .game-card-body {
+    min-width: 0;
+    max-width: 100%;
   }
 
-  .game-card-meta {
-    flex-wrap: wrap;
-    row-gap: 0.25rem;
+  .floating-tooltip-anchor.card-indicator--hype {
+    bottom: 8px;
+    right: 8px;
+  }
+
+  .game-card-meta-line {
+    max-width: 100%;
+    min-width: 0;
   }
 
   .game-card-meta-item {
     white-space: normal;
+    max-width: 100%;
+  }
+
+  .game-card-title-row,
+  .game-card-price-row,
+  .game-card-footer-group {
+    min-width: 0;
+    max-width: 100%;
   }
 }
 
