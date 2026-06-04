@@ -20,143 +20,56 @@ function configDocRef(appId, docId) {
   return doc(db, `artifacts/${appId}/public/data/config`, docId);
 }
 
-export function useGfnCatalog(appId = 'default_app') {
-  const [catalog, setCatalog] = useState(null);
+function useConfigDoc(appId, docId, logLabel) {
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const ref = configDocRef(appId, GFN_CATALOG_DOC_ID);
+    const ref = configDocRef(appId, docId);
     const unsubscribe = onSnapshot(
       ref,
       (snapshot) => {
-        setCatalog(snapshot.exists() ? snapshot.data() : null);
+        setData(snapshot.exists() ? snapshot.data() : null);
         setLoading(false);
       },
       (error) => {
-        console.error('GFN catalog subscription error:', error);
+        console.error(`${logLabel} subscription error:`, error);
         setLoading(false);
       }
     );
     return () => unsubscribe();
-  }, [appId]);
+  }, [appId, docId, logLabel]);
 
-  return { catalog, loading };
+  return { data, loading };
+}
+
+export function useGfnCatalog(appId = 'default_app') {
+  const { data, loading } = useConfigDoc(appId, GFN_CATALOG_DOC_ID, 'GFN catalog');
+  return { catalog: data, loading };
 }
 
 export function useMaintenanceAudit(appId = 'default_app') {
-  const [audit, setAudit] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const ref = configDocRef(appId, MAINTENANCE_AUDIT_DOC_ID);
-    const unsubscribe = onSnapshot(
-      ref,
-      (snapshot) => {
-        setAudit(snapshot.exists() ? snapshot.data() : null);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Maintenance audit subscription error:', error);
-        setLoading(false);
-      }
-    );
-    return () => unsubscribe();
-  }, [appId]);
-
-  return { audit, loading };
+  const { data, loading } = useConfigDoc(appId, MAINTENANCE_AUDIT_DOC_ID, 'Maintenance audit');
+  return { audit: data, loading };
 }
 
 export function useMaintenanceErrors(appId = 'default_app') {
-  const [errorsDoc, setErrorsDoc] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const ref = configDocRef(appId, MAINTENANCE_ERRORS_DOC_ID);
-    const unsubscribe = onSnapshot(
-      ref,
-      (snapshot) => {
-        setErrorsDoc(snapshot.exists() ? snapshot.data() : null);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Maintenance errors subscription error:', error);
-        setLoading(false);
-      }
-    );
-    return () => unsubscribe();
-  }, [appId]);
-
-  return { errorsDoc, loading };
+  const { data, loading } = useConfigDoc(appId, MAINTENANCE_ERRORS_DOC_ID, 'Maintenance errors');
+  return { errorsDoc: data, loading };
 }
 
 export function useSteamEvents(appId = 'default_app') {
-  const [eventsDoc, setEventsDoc] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const ref = configDocRef(appId, STEAM_EVENTS_DOC_ID);
-    const unsubscribe = onSnapshot(
-      ref,
-      (snapshot) => {
-        setEventsDoc(snapshot.exists() ? snapshot.data() : null);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Steam events subscription error:', error);
-        setLoading(false);
-      }
-    );
-    return () => unsubscribe();
-  }, [appId]);
-
-  return { eventsDoc, loading };
+  const { data, loading } = useConfigDoc(appId, STEAM_EVENTS_DOC_ID, 'Steam events');
+  return { eventsDoc: data, loading };
 }
 
 export function useSteamWishlistCandidates(appId = 'default_app') {
-  const [candidatesDoc, setCandidatesDoc] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const ref = configDocRef(appId, STEAM_WISHLIST_CANDIDATES_DOC_ID);
-    const unsubscribe = onSnapshot(
-      ref,
-      (snapshot) => {
-        setCandidatesDoc(snapshot.exists() ? snapshot.data() : null);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Steam wishlist candidates subscription error:', error);
-        setLoading(false);
-      }
-    );
-    return () => unsubscribe();
-  }, [appId]);
-
-  return { candidatesDoc, loading };
-}
-
-/** @deprecated Prefer useMaintenanceAudit().audit.devSources */
-export function useDevSourcesMeta(appId = 'default_app') {
-  const [meta, setMeta] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const metaRef = configDocRef(appId, DEV_SOURCES_META_DOC_ID);
-    const unsubscribe = onSnapshot(
-      metaRef,
-      (snapshot) => {
-        setMeta(snapshot.exists() ? snapshot.data() : null);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Dev sources meta subscription error:', error);
-        setLoading(false);
-      }
-    );
-    return () => unsubscribe();
-  }, [appId]);
-
-  return { meta, loading };
+  const { data, loading } = useConfigDoc(
+    appId,
+    STEAM_WISHLIST_CANDIDATES_DOC_ID,
+    'Steam wishlist candidates'
+  );
+  return { candidatesDoc: data, loading };
 }
 
 export function updateGame(appId, gameId, updates) {

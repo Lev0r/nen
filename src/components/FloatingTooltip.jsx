@@ -1,7 +1,9 @@
-import { useState, useRef, useLayoutEffect } from 'react';
+import { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import useMatchMedia from '../hooks/useMatchMedia';
 
 const VIEWPORT_MARGIN = 10;
+const COARSE_POINTER_MEDIA = '(pointer: coarse)';
 
 function computeTooltipStyle(anchorRect, tooltipRect) {
   const anchorCenterX = anchorRect.left + anchorRect.width / 2;
@@ -40,11 +42,24 @@ function computeTooltipStyle(anchorRect, tooltipRect) {
   return { top, left, transform };
 }
 
+function findInteractiveTarget(target, anchorEl) {
+  if (!anchorEl) return null;
+  const interactive = target.closest('button, a[href], [role="button"]');
+  if (interactive && anchorEl.contains(interactive)) {
+    return interactive;
+  }
+  return null;
+}
+
 export default function FloatingTooltip({ content, wide, anchorClassName = '', children }) {
-  const [visible, setVisible] = useState(false);
+  const isCoarsePointer = useMatchMedia(COARSE_POINTER_MEDIA);
+  const [hoverVisible, setHoverVisible] = useState(false);
+  const [touchOpen, setTouchOpen] = useState(false);
   const [style, setStyle] = useState({ top: 0, left: 0, transform: 'translate(-50%, -100%)' });
   const anchorRef = useRef(null);
   const tooltipRef = useRef(null);
+
+  const visible = isCoarsePointer ? touchOpen : hoverVisible;
 
   const reposition = () => {
     const anchorRect = anchorRef.current?.getBoundingClientRect();
@@ -53,8 +68,71 @@ export default function FloatingTooltip({ content, wide, anchorClassName = '', c
     setStyle(computeTooltipStyle(anchorRect, tooltipRect));
   };
 
-  const show = () => {
-    setVisible(true);
+  const showHover = () => {
+    if (!isCoarsePointer) {
+      setHoverVisible(true);
+    }
+  };
+
+  const hideHover = () => {
+    if (!isCoarsePointer) {
+      setHoverVisible(false);
+    }
+  };
+
+  const closeTouch = useCallback(() => {
+    setTouchOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isCoarsePointer) {
+      setTouchOpen(false);
+    }
+  }, [isCoarsePointer]);
+
+  useEffect(() => {
+    if (!touchOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (anchorRef.current?.contains(event.target)) {
+        return;
+      }
+      closeTouch();
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeTouch();
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [touchOpen, closeTouch]);
+
+  const handleAnchorClick = (event) => {
+    if (!isCoarsePointer) return;
+
+    const interactive = findInteractiveTarget(event.target, anchorRef.current);
+
+    if (!touchOpen) {
+      event.preventDefault();
+      event.stopPropagation();
+      setTouchOpen(true);
+      return;
+    }
+
+    if (interactive) {
+      setTouchOpen(false);
+      return;
+    }
+
+    event.preventDefault();
+    closeTouch();
   };
 
   useLayoutEffect(() => {
@@ -77,8 +155,10 @@ export default function FloatingTooltip({ content, wide, anchorClassName = '', c
       <div
         ref={anchorRef}
         className={`floating-tooltip-anchor ${anchorClassName}`}
-        onMouseEnter={show}
-        onMouseLeave={() => setVisible(false)}
+        onMouseEnter={showHover}
+        onMouseLeave={hideHover}
+        onClick={handleAnchorClick}
+        aria-expanded={isCoarsePointer ? touchOpen : undefined}
       >
         {children}
       </div>
@@ -93,6 +173,7 @@ export default function FloatingTooltip({ content, wide, anchorClassName = '', c
               transform: style.transform,
               visibility: style.top === 0 && style.left === 0 ? 'hidden' : 'visible',
             }}
+            role={isCoarsePointer ? 'status' : undefined}
           >
             {content}
           </div>,

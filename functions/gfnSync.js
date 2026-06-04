@@ -16,7 +16,7 @@ const {
   DEFAULT_APP_ID,
   GFN_CATALOG_DOC_ID,
   configDocPath,
-} = require('./configPaths');
+} = require('./lib/firestorePaths');
 const { rebuildMaintenanceAudit } = require('./maintenanceStore');
 
 const GFN_GRAPHQL_URL = 'https://games.geforce.com/graphql';

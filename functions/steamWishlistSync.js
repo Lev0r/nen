@@ -1,7 +1,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { assertAllowedUser } = require('./lib/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
-const { STEAM_WISHLIST_CANDIDATES_DOC_ID, configDocPath } = require('./configPaths');
+const { STEAM_WISHLIST_CANDIDATES_DOC_ID, configDocPath } = require('./lib/firestorePaths');
 const {
   DEFAULT_APP_ID,
   gamesCollectionPath,

@@ -9,7 +9,7 @@
  */
 const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 const { getCuratorKeys, CURATORS } = require('./curatorRegistry');
-const { DEFAULT_APP_ID, configCollectionPath, configDocPath } = require('./configPaths');
+const { DEFAULT_APP_ID, configCollectionPath, configDocPath } = require('./lib/firestorePaths');
 
 const SCHEMA_VERSION = 2;
 const META_DOC_ID = 'dev-sources-meta';

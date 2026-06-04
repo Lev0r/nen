@@ -12,7 +12,7 @@ const {
   MAINTENANCE_ERRORS_DOC_ID,
   MAINTENANCE_AUDIT_DOC_ID,
   configDocPath,
-} = require('./configPaths');
+} = require('./lib/firestorePaths');
 const { META_DOC_ID } = require('./devSourceStore');
 
 const ERRORS_SCHEMA_VERSION = 1;

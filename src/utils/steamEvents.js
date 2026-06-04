@@ -1,3 +1,5 @@
+import { formatRelativeTimeUntil } from './formatDuration';
+
 function parseDateMs(isoDate) {
   if (!isoDate) return null;
   const ms = Date.parse(`${isoDate}T12:00:00Z`);
@@ -45,4 +47,35 @@ export function formatEventStatus(event, now = Date.now()) {
   const endMs = parseDateMs(event?.endDate);
   if (endMs != null && endMs < now) return 'Ended';
   return null;
+}
+
+function formatEventRelativePhrase(event, now = Date.now()) {
+  if (isEventUpcoming(event, now)) {
+    return formatRelativeTimeUntil(
+      event?.startDate ? `${event.startDate}T12:00:00Z` : null,
+      new Date(now)
+    );
+  }
+
+  if (isEventCurrent(event, now)) {
+    const endMs = parseDateMs(event?.endDate);
+    if (endMs != null && endMs > now) {
+      const until = formatRelativeTimeUntil(`${event.endDate}T12:00:00Z`, new Date(now));
+      return until ? until.replace(/^in /, 'ends in ') : null;
+    }
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Absolute date range plus optional relative phrase for Events UI.
+ */
+export function formatEventDateDisplay(event, now = Date.now()) {
+  const absolute = formatEventDateRange(event);
+  const relative = formatEventRelativePhrase(event, now);
+
+  if (!absolute && !relative) return null;
+  return { absolute, relative };
 }

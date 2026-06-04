@@ -9,7 +9,7 @@ const {
   DEFAULT_APP_ID,
   STEAM_EVENTS_DOC_ID,
   configDocPath,
-} = require('./configPaths');
+} = require('./lib/firestorePaths');
 const { cachedFetchJson } = require('./steamCache');
 const { scheduleStoreRequest } = require('./steamRateLimiter');
 

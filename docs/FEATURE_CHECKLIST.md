@@ -1,6 +1,6 @@
 # Feature Checklist
 
-**Last updated:** 2026-06-03 (session wrap)
+**Last updated:** 2026-06-04 (mobile UX + events UI polish)
 Track implemented, pending, deferred, and dropped features. Update when shipping.
 
 **Legend:** ✅ Done · 🔄 In progress / partial · ⏳ Pending ops · 📋 Planned · 🚫 Dropped · ⏸ Deferred
@@ -159,7 +159,7 @@ Track implemented, pending, deferred, and dropped features. Update when shipping
 | Error acknowledge dot | ✅ | |
 | **Errors panel — group by source/severity** | ✅ | Counters, clear info, weekly purge |
 | **UI polish round 2 + follow-ups** | ✅ | See session logs below |
-| **Mobile UX pass** | ✅ | Hamburger drawer nav; search modal; filter panel collapsed default; hover→click tooltips deferred |
+| **Mobile UX pass** | ✅ | Drawer/search opaque modals; filter sheet; touch toggletips; card grid containment |
 | News feed UI | 🚫 | Dropped |
 
 ---

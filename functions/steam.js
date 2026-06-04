@@ -1,7 +1,7 @@
 const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 const { cachedFetchJson } = require('./steamCache');
 const { scheduleStoreRequest, scheduleSteamWebApiRequest } = require('./steamRateLimiter');
-const { GFN_CATALOG_DOC_ID, configDocPath } = require('./configPaths');
+const { GFN_CATALOG_DOC_ID, configDocPath } = require('./lib/firestorePaths');
 
 function isStoreUrl(url) {
   return /store\.steampowered\.com/i.test(url);
@@ -72,19 +72,6 @@ async function loadGfnCatalogSteamAppIds(appId = 'default_app') {
       });
   }
   return gfnCatalogPromise;
-}
-
-async function fetchGeForceNowReady(appId, configAppId = 'default_app') {
-  try {
-    const ids = await loadGfnCatalogSteamAppIds(configAppId);
-    if (!ids) {
-      return false;
-    }
-    return ids.has(String(appId));
-  } catch (err) {
-    console.warn('GeForce NOW lookup failed:', err.message);
-    return false;
-  }
 }
 
 function mapSteamTags(genres, categories) {
@@ -540,7 +527,6 @@ module.exports = {
   fetchStoreCoopAndName,
   fetchSteamGame,
   fetchCurrentVersion,
-  fetchGeForceNowReady,
   fetchReviewData,
   fetchPriceData,
   fetchStaticSteamData,

@@ -11,7 +11,7 @@ const { assertAllowedUser } = require('./lib/auth');
 const { normalizeDevName } = require('./devSources');
 const { CURATORS, getCuratorKeys } = require('./curatorRegistry');
 const { fetchJsonWithRetry } = require('./steamCache');
-const { DEFAULT_APP_ID } = require('./configPaths');
+const { DEFAULT_APP_ID } = require('./lib/firestorePaths');
 const {
   loadExistingCuratorStates,
   writeDevSourcesToFirestore,

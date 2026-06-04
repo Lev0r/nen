@@ -1,6 +1,6 @@
 # Filters & Search
 
-**Last updated:** 2026-06-03 (collapsed on load; nav preserves expanded panel)
+**Last updated:** 2026-06-04 (mobile filter sheet)
 
 **Spec:** [`manifest_of_understanding.md`](../manifest_of_understanding.md) § F2  
 **Related:** [Lifecycle](./lifecycle-and-ownership.md) · [RU vetting](./ru-developer-vetting.md) · [UI shell](./ui-shell-and-modals.md)
@@ -83,7 +83,8 @@ After `filterGames`, the grid applies a **stable** sort: non–RU-alert games fi
 ## UX notes
 
 - Panel starts **collapsed** on page load (sidebar nav presets do not auto-expand it)
-- Opens on search focus, **Filters** button (mobile), chip/toggle change (`updateFilter`), or mobile search modal “Open filters”
+- **Desktop:** opens on search focus, chip/toggle change (`updateFilter`), or mobile search modal “Open filters” (library view)
+- **Mobile:** **Filters** header button or search modal “Open filters” → `FilterSheetModal` (full-screen scrollable sheet); in-page expand panel not used
 - Collapse: **×** in expanded panel header, click outside the bar (not sidebar nav), or **Escape** — filters and grid results stay unchanged
 - Sidebar nav clicks update filter presets without collapsing an open panel; `filtersExpanded` / `onFiltersExpandedChange` in `DashboardShell` persist across library tabs and Events ↔ library
 - **Clear filters** when `hasActiveFilters` (any include/exclude/search/footer not `off`); `onResetFilters` sets `DEFAULT_GAME_FILTERS`

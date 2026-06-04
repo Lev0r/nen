@@ -1,28 +1,26 @@
 rules_version = '2';
+// Allowlist must match ALLOWED_EMAIL_0/1 (functions/.env) and VITE_ALLOWED_EMAIL_0/1 (.env.local).
+// Firestore rules cannot read env vars — update these literals whenever allowlist emails change.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /artifacts/{appId}/public/data/games/{gameId} {
-      // The frontend strictly gates users, but backend defense requires you 
-      // to replace these emails with your actual Google emails in production!
-      allow read, write: if request.auth != null && (
-        request.auth.token.email == 'kir.matienko@gmail.com' || 
+    function isAllowedUser() {
+      return request.auth != null && (
+        request.auth.token.email == 'kir.matienko@gmail.com' ||
         request.auth.token.email == 'xalex.yavorskiyx@gmail.com'
       );
     }
 
+    match /artifacts/{appId}/public/data/games/{gameId} {
+      allow read, write: if isAllowedUser();
+    }
+
     match /artifacts/{appId}/public/data/config/{configDocId} {
-      allow read: if request.auth != null && (
-        request.auth.token.email == 'kir.matienko@gmail.com' ||
-        request.auth.token.email == 'xalex.yavorskiyx@gmail.com'
-      );
+      allow read: if isAllowedUser();
       allow write: if false;
     }
 
     match /artifacts/{appId}/public/data/steam-app-meta/{steamAppId} {
-      allow read: if request.auth != null && (
-        request.auth.token.email == 'kir.matienko@gmail.com' ||
-        request.auth.token.email == 'xalex.yavorskiyx@gmail.com'
-      );
+      allow read: if isAllowedUser();
       allow write: if false;
     }
   }

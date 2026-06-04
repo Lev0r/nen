@@ -1,0 +1,570 @@
+import React from 'react';
+import { getUserLabel, getNickname } from '../utils/userConfig';
+import {
+  getReleaseDate,
+  getEarlyAccessDate,
+  getReviewPercent,
+  getReviewCount,
+  getRecentReviewPercent,
+  getRecentReviewCount,
+  getReviewScoreDesc,
+  getCurrentVersion,
+  getLastUpdateAt,
+  getHltbData,
+  getHistoricalLowPrice,
+  getCurrentPlayers,
+  getAvgPlayers7d,
+} from '../utils/gameAccessors';
+import {
+  getScoreColor,
+  getStatusColor,
+  formatStatusLabel,
+  getSteamReviewColor,
+} from '../utils/hypeScore';
+import { formatDurationSince, formatDurationBetween, getUpdateRecencyColor } from '../utils/formatDuration';
+import { STATE_DESCRIPTIONS, resolveLibraryState } from '../utils/libraryState';
+
+function CardTooltipText({ children }) {
+  return <p className="card-tooltip-text">{children}</p>;
+}
+
+function formatPlayerCount(value) {
+  if (value == null || Number.isNaN(value)) return null;
+  const n = Math.round(Number(value));
+  if (n >= 1_000_000) {
+    const compact = (n / 1_000_000).toFixed(1).replace(/\.0$/, '');
+    return `${compact}M`;
+  }
+  if (n >= 10_000) {
+    const compact = (n / 1000).toFixed(1).replace(/\.0$/, '');
+    return `${compact}K`;
+  }
+  return n.toLocaleString();
+}
+
+function formatReleaseDateLabel(isoDate) {
+  const date = isoDate ? new Date(isoDate) : null;
+  if (!date || Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function buildStatusTooltip(developmentStatus, game) {
+  if (developmentStatus === 'released') {
+    const since = formatDurationSince(getReleaseDate(game));
+    return since ? `Released ${since}` : 'Released';
+  }
+  if (developmentStatus === 'early_access') {
+    const duration = formatDurationBetween(getEarlyAccessDate(game));
+    return duration ? `In Early Access ${duration}` : 'In Early Access';
+  }
+  if (developmentStatus === 'tba') {
+    const dateLabel = formatReleaseDateLabel(getReleaseDate(game));
+    return dateLabel ? `Coming soon · ${dateLabel}` : 'Coming soon';
+  }
+  return formatStatusLabel(developmentStatus);
+}
+
+function buildReviewsTooltip(game) {
+  const reviewPercent = getReviewPercent(game);
+  const reviewCount = getReviewCount(game);
+  const recentPercent = getRecentReviewPercent(game);
+  const recentCount = getRecentReviewCount(game);
+  const scoreDesc = getReviewScoreDesc(game);
+
+  if (reviewPercent == null && recentPercent == null) {
+    return 'No Steam review data';
+  }
+
+  const lines = [];
+  if (reviewPercent != null) {
+    lines.push({
+      key: 'all-time',
+      label: 'All-time',
+      percent: reviewPercent,
+      count: reviewCount,
+      countLabel: 'reviews',
+    });
+  }
+  if (recentPercent != null) {
+    lines.push({
+      key: 'recent',
+      label: 'Recent (30d)',
+      percent: recentPercent,
+      count: recentCount,
+      countLabel: null,
+    });
+  }
+
+  return (
+    <div className="card-tooltip-breakdown">
+      {lines.map(({ key, label, percent, count, countLabel }) => (
+        <p key={key} className="card-tooltip-line">
+          {label}:{' '}
+          <span
+            className="card-tooltip-percent"
+            style={{ color: getSteamReviewColor(percent) }}
+          >
+            {percent}%
+          </span>
+          {count != null && (
+            <span>
+              {' '}
+              ({count.toLocaleString()}
+              {countLabel ? ` ${countLabel}` : ''})
+            </span>
+          )}
+        </p>
+      ))}
+      {scoreDesc && <p className="card-tooltip-line">{scoreDesc}</p>}
+    </div>
+  );
+}
+
+function buildCriticsTooltip(game, criticsSource) {
+  const lines = [];
+  if (criticsSource) {
+    lines.push(`Source: ${criticsSource}`);
+  }
+  const count = game?.steamDynamic?.criticsCount;
+  if (count != null) {
+    lines.push(`${count.toLocaleString()} critic reviews`);
+  }
+  if (lines.length === 0) {
+    return <CardTooltipText>Professional critic score</CardTooltipText>;
+  }
+  return (
+    <div className="card-tooltip-breakdown">
+      <p className="card-tooltip-heading">Critics</p>
+      {lines.map((line) => (
+        <p key={line} className="card-tooltip-line">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function buildHltbTooltip(game) {
+  const hltb = getHltbData(game);
+  if (!hltb) return null;
+
+  const lines = [];
+  if (hltb.mainStoryHours != null) {
+    lines.push(`Main story: ${hltb.mainStoryHours}h`);
+  }
+  if (hltb.mainExtraHours != null) {
+    lines.push(`Main + extras: ${hltb.mainExtraHours}h`);
+  }
+  if (hltb.completionistHours != null) {
+    lines.push(`Completionist: ${hltb.completionistHours}h`);
+  }
+  if (hltb.allStylesHours != null) {
+    lines.push(`All playstyles: ${hltb.allStylesHours}h`);
+  }
+  if (hltb.releaseYear != null) {
+    lines.push(`Release year: ${hltb.releaseYear}`);
+  }
+  if (hltb.platforms) {
+    lines.push(`Platforms: ${hltb.platforms}`);
+  }
+  if (hltb.reviewScore != null) {
+    lines.push(`HLTB score: ${hltb.reviewScore}`);
+  }
+  if (hltb.matchedName && hltb.matchedName !== hltb.steamName) {
+    lines.push(`Matched as: ${hltb.matchedName}`);
+  }
+
+  if (lines.length === 0) {
+    return <CardTooltipText>HowLongToBeat data</CardTooltipText>;
+  }
+
+  return (
+    <div className="card-tooltip-breakdown">
+      <p className="card-tooltip-heading">HowLongToBeat</p>
+      {lines.map((line) => (
+        <p key={line} className="card-tooltip-line">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function buildHistoricalLowTooltip(game) {
+  const historicalLow = getHistoricalLowPrice(game);
+  if (!historicalLow) {
+    return <CardTooltipText>At or below all-time Steam low (ITAD)</CardTooltipText>;
+  }
+
+  const amount =
+    historicalLow.amount != null
+      ? `${historicalLow.amount}${historicalLow.currency ? ` ${historicalLow.currency}` : ''}`
+      : 'Unknown';
+  const when = historicalLow.at
+    ? new Date(historicalLow.at).toLocaleDateString()
+    : null;
+
+  return (
+    <div className="card-tooltip-breakdown">
+      <p className="card-tooltip-heading">Historical low</p>
+      <p className="card-tooltip-line">All-time Steam low: {amount}</p>
+      {when && <p className="card-tooltip-line">Recorded: {when}</p>}
+      <p className="card-tooltip-line">Current price is at or below this low.</p>
+    </div>
+  );
+}
+
+function HistoricalLowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="game-card-historical-low-icon" aria-hidden="true">
+      <path
+        d="M4 16l6-6 4 4 6-8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4 20h16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function buildPlayersTooltip(game) {
+  const currentPlayers = getCurrentPlayers(game);
+  const avgPlayers7d = getAvgPlayers7d(game);
+  const lines = [];
+
+  if (currentPlayers != null) {
+    lines.push(`Now: ${currentPlayers.toLocaleString()}`);
+  }
+  if (avgPlayers7d != null) {
+    lines.push(`7-day avg: ${Math.round(avgPlayers7d).toLocaleString()}`);
+  }
+
+  if (lines.length === 0) return null;
+
+  return (
+    <div className="card-tooltip-breakdown">
+      <p className="card-tooltip-heading">Players</p>
+      {lines.map((line) => (
+        <p key={line} className="card-tooltip-line">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function withAgo(duration) {
+  if (!duration || duration === 'just now' || duration.includes('ago')) {
+    return duration;
+  }
+  return `${duration} ago`;
+}
+
+function LastUpdateLine({ game }) {
+  const lastUpdateAt = getLastUpdateAt(game);
+  const lastUpdate = withAgo(formatDurationSince(lastUpdateAt));
+  if (!lastUpdate) return null;
+
+  return (
+    <span>
+      Last update:{' '}
+      <span
+        className="card-tooltip-update-age"
+        style={{ color: getUpdateRecencyColor(lastUpdateAt) }}
+      >
+        {lastUpdate}
+      </span>
+    </span>
+  );
+}
+
+function buildVersionTooltip(game) {
+  const currentVersion = getCurrentVersion(game);
+  const lastUpdateAt = getLastUpdateAt(game);
+  const hasLastUpdate = Boolean(withAgo(formatDurationSince(lastUpdateAt)));
+
+  if (!currentVersion && !hasLastUpdate) {
+    return null;
+  }
+
+  return (
+    <>
+      {currentVersion && <span>{currentVersion}</span>}
+      {currentVersion && hasLastUpdate && <span> · </span>}
+      {hasLastUpdate && <LastUpdateLine game={game} />}
+    </>
+  );
+}
+
+function buildPendingUpdateTooltip(game, developmentStatus) {
+  const versionAtEntry = game.stateMeta?.versionAtEntry;
+  const currentVersion = getCurrentVersion(game);
+  const statusAtEntry = game.stateMeta?.developmentStatusAtEntry;
+  const versionChanged =
+    versionAtEntry != null &&
+    currentVersion != null &&
+    versionAtEntry !== currentVersion;
+  const statusChanged =
+    statusAtEntry != null && statusAtEntry !== developmentStatus;
+  const lastUpdateAt = getLastUpdateAt(game);
+  const lastUpdate = withAgo(formatDurationSince(lastUpdateAt));
+
+  return (
+    <div className="card-tooltip-breakdown">
+      <p className="card-tooltip-line">
+        Changed since this state was set. Click version to acknowledge.
+      </p>
+      {versionChanged && (
+        <p className="card-tooltip-line">
+          Version: {versionAtEntry} → {currentVersion}
+        </p>
+      )}
+      {statusChanged && (
+        <p className="card-tooltip-line">
+          Status:{' '}
+          <span style={{ color: getStatusColor(statusAtEntry) }}>
+            {formatStatusLabel(statusAtEntry)}
+          </span>
+          {' → '}
+          <span style={{ color: getStatusColor(developmentStatus) }}>
+            {formatStatusLabel(developmentStatus)}
+          </span>
+        </p>
+      )}
+      {lastUpdate && (
+        <p className="card-tooltip-line">
+          <LastUpdateLine game={game} />
+        </p>
+      )}
+    </div>
+  );
+}
+
+function buildLifecycleTooltip(libraryState, game) {
+  const description = STATE_DESCRIPTIONS[libraryState];
+  const note = game.stateMeta?.note?.trim();
+
+  return (
+    <div className="card-tooltip-breakdown">
+      {description && <p className="card-tooltip-line">{description}</p>}
+      {note && (
+        <p className="card-tooltip-line">
+          <strong>Note:</strong> {note}
+        </p>
+      )}
+      {!description && !note && (
+        <p className="card-tooltip-line">Change library lifecycle state</p>
+      )}
+    </div>
+  );
+}
+
+function buildNotesTooltip(game, hasUserNotes) {
+  if (!hasUserNotes) {
+    return <CardTooltipText>No notes yet — click to add</CardTooltipText>;
+  }
+
+  return (
+    <div className="card-tooltip-breakdown">
+      <p className="card-tooltip-heading">Notes</p>
+      {game.userNotes?.user0 && (
+        <p className="card-tooltip-line">
+          <strong>{getNickname(0)}:</strong> {game.userNotes.user0}
+        </p>
+      )}
+      {game.userNotes?.user1 && (
+        <p className="card-tooltip-line">
+          <strong>{getNickname(1)}:</strong> {game.userNotes.user1}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function NotesChatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="game-card-notes-icon" aria-hidden="true">
+      <path
+        d="M7 10h10M7 14h6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <path
+        d="M5 5.5h14a2 2 0 012 2v7.5a2 2 0 01-2 2H10l-3.5 3v-3H5a2 2 0 01-2-2V7.5a2 2 0 012-2z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const ownedIconStroke = {
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.75,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+};
+
+function OwnedIcon({ stage }) {
+  if (stage === 0) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="owned-icon owned-icon--none"
+        aria-hidden="true"
+      >
+        <g {...ownedIconStroke}>
+          <path d="M6 12.5c0-2.2 1-3.8 2.2-3.8 1 0 1.8 1.2 1.8 2.6" />
+          <path d="M6 12.5V18" />
+          <path d="M18 12.5c0-2.2-1-3.8-2.2-3.8-1 0-1.8 1.2-1.8 2.6" />
+          <path d="M18 12.5V18" />
+          <path d="M8.5 18h7" />
+        </g>
+      </svg>
+    );
+  }
+
+  if (stage === 1) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="owned-icon owned-icon--half"
+        aria-hidden="true"
+      >
+        <g {...ownedIconStroke}>
+          <path d="M12 2.5v14.5" />
+          <path d="M9 17h6" />
+          <path d="M10.5 20h3" />
+          <path d="M10 5.5 12 3l2 2.5" />
+        </g>
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="owned-icon owned-icon--full"
+      aria-hidden="true"
+    >
+      <g {...ownedIconStroke}>
+        <path d="M5.5 19.5l8.5-8.5" />
+        <path d="M12.5 5.5l1.75-2.75 2.25 1.25-1.75 2.75" />
+        <path d="M18.5 19.5l-8.5-8.5" />
+        <path d="M11.5 5.5L9.75 2.75 7.5 4l1.75 2.75" />
+      </g>
+    </svg>
+  );
+}
+
+function HypeBreakdownTooltip({ breakdown }) {
+  if (breakdown.override) {
+    return <p className="card-tooltip-text">{breakdown.message}</p>;
+  }
+
+  const { users, tierBase, ownership, status, steamReview, metacritic, final } =
+    breakdown;
+
+  return (
+    <div className="card-tooltip-breakdown">
+      <p className="card-tooltip-heading">Total Hype breakdown</p>
+      {users.map((u) => (
+        <p key={u.userIndex} className="card-tooltip-line">
+          <strong>{u.nickname}:</strong> {u.tierLabel} → {u.effective} pts
+        </p>
+      ))}
+      <p className="card-tooltip-line">
+        Tier base: <strong>{tierBase}</strong>
+      </p>
+      <p
+        className="card-tooltip-line card-tooltip-line--ownership"
+        style={{ color: ownership.color }}
+      >
+        Ownership ×{ownership.factor} — {ownership.label}
+      </p>
+      <p
+        className="card-tooltip-line card-tooltip-line--status"
+        style={{ color: status.color }}
+      >
+        Status ×{status.factor} — {status.label}
+      </p>
+      <p
+        className="card-tooltip-line card-tooltip-line--steam"
+        style={{ color: steamReview.color }}
+      >
+        Steam ×{steamReview.factor.toFixed(2)} — {steamReview.label}
+      </p>
+      <p
+        className="card-tooltip-line card-tooltip-line--metacritic"
+        style={{ color: metacritic.color }}
+      >
+        Critics ×{metacritic.factor.toFixed(2)} — {metacritic.label}
+      </p>
+      <p className="card-tooltip-final">Total Hype: {final}</p>
+    </div>
+  );
+}
+
+function OwnedTooltip({ owned = {}, userIndex }) {
+  const rows = [
+    { index: 0, owned: Boolean(owned.user0) },
+    { index: 1, owned: Boolean(owned.user1) },
+  ];
+  return (
+    <div className="card-tooltip-breakdown">
+      <p className="card-tooltip-heading">Ownership</p>
+      {rows.map(({ index, owned: isOwned }) => (
+        <p
+          key={index}
+          className={`card-tooltip-line ${isOwned ? 'card-tooltip-line--owned-yes' : 'card-tooltip-line--owned-no'}`}
+        >
+          {getUserLabel(index, userIndex)}: {isOwned ? 'Owned' : 'Not owned'}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function isHypePickerDisabled(game) {
+  if (game.ruDeveloperAlert) return true;
+  const libraryState = resolveLibraryState(game);
+  return libraryState === 'finished' || libraryState === 'banned';
+}
+
+export {
+  CardTooltipText,
+  buildStatusTooltip,
+  buildReviewsTooltip,
+  buildCriticsTooltip,
+  buildHltbTooltip,
+  buildHistoricalLowTooltip,
+  HistoricalLowIcon,
+  buildPlayersTooltip,
+  buildVersionTooltip,
+  buildPendingUpdateTooltip,
+  buildLifecycleTooltip,
+  buildNotesTooltip,
+  NotesChatIcon,
+  OwnedIcon,
+  HypeBreakdownTooltip,
+  OwnedTooltip,
+  isHypePickerDisabled,
+};

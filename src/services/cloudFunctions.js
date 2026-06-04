@@ -25,7 +25,11 @@ const syncSteamOwnershipFn = httpsCallable(functions, 'syncSteamOwnership', {
 const syncSteamWishlistsFn = httpsCallable(functions, 'syncSteamWishlists', {
   timeout: SYNC_CALL_TIMEOUT_MS,
 });
-const vetGameDevelopersFn = httpsCallable(functions, 'vetGameDevelopers');
+const VET_GAME_CALL_TIMEOUT_MS = 60_000;
+
+const vetGameDevelopersFn = httpsCallable(functions, 'vetGameDevelopers', {
+  timeout: VET_GAME_CALL_TIMEOUT_MS,
+});
 const refreshGameFromSteamFn = httpsCallable(functions, 'refreshGameFromSteam', {
   timeout: STEAM_GAME_CALL_TIMEOUT_MS,
 });

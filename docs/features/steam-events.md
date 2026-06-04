@@ -1,6 +1,6 @@
 # Steam Events
 
-**Last updated:** 2026-06-03 (session wrap: data-source limitations documented)
+**Last updated:** 2026-06-04 (relative dates, centered layout)
 
 **Related:** [Steam sync](./steam-sync-and-data.md) · [UI shell](./ui-shell-and-modals.md) · [Maintenance](./maintenance-and-errors.md) · [OPS](../OPS.md)
 
@@ -52,8 +52,10 @@ Client: `syncSteamEvents()` in `src/services/cloudFunctions.js` (120s timeout).
 | Piece | Path |
 | :--- | :--- |
 | Events page | `src/components/EventsPage.jsx` |
+| Date display | `formatEventDateDisplay` — absolute range + relative phrase (`formatRelativeTimeUntil` in `formatDuration.js`) |
 | Subscription | `useSteamEvents` in `src/services/db.js` via `MaintenanceDataContext` |
 | Nav | Sidebar **Events** (top, above lifecycle tabs); default `topView` is `events` on load; lifecycle tabs set `library` |
+| Layout | `.events-page` max-width 1200px, centered (`margin: 0 auto`) |
 
 ## Deploy
 

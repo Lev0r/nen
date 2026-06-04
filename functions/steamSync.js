@@ -5,7 +5,7 @@ const {
   STEAM_LIBRARY_SYNC_DOC_ID,
   THIRD_PARTY_HEALTH_DOC_ID,
   configDocPath,
-} = require('./configPaths');
+} = require('./lib/firestorePaths');
 const { DEFAULT_APP_ID, gamesCollectionPath } = require('./lib/firestorePaths');
 const {
   fetchAppDetailsEntry,

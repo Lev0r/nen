@@ -44,6 +44,7 @@ import {
   writeAcknowledgedFingerprint,
 } from '../utils/appErrors';
 import DynamicBackground from './DynamicBackground';
+import MobileSearchModal from './MobileSearchModal';
 
 const LIFECYCLE_TABS = LIBRARY_STATES.map((id) => ({
   id,
@@ -698,60 +699,21 @@ export default function DashboardShell() {
           <EventsPage steamEventsDoc={steamEventsDoc} loading={steamEventsLoading} />
         ) : (
           <>
-        {isMobile && searchOpen && (
-          <div className="search-modal-root">
-            <button
-              type="button"
-              className="search-modal-backdrop"
-              aria-label="Close search"
-              onClick={() => setSearchOpen(false)}
-            />
-            <div
-              className="search-modal glass-panel"
-              role="dialog"
-              aria-label="Search games"
-            >
-              <div className="search-modal-header">
-                <label className="search-modal-label" htmlFor="mobile-game-search">
-                  Search
-                </label>
-                <button
-                  type="button"
-                  className="search-modal-close"
-                  aria-label="Close search"
-                  onClick={() => setSearchOpen(false)}
-                >
-                  ×
-                </button>
-              </div>
-              <div className="search-modal-input-row">
-                <SearchIcon />
-                <input
-                  ref={searchInputRef}
-                  id="mobile-game-search"
-                  type="search"
-                  className="game-filters-search-input search-modal-input"
-                  placeholder="Search games"
-                  value={gameFilters.searchText}
-                  onChange={(event) =>
-                    setGameFilters({ ...gameFilters, searchText: event.target.value })
-                  }
-                />
-              </div>
-              <p className="search-modal-count">
-                {filteredGames.length} of {games.length}
-              </p>
-              {!loading && games.length > 0 && (
-                <button
-                  type="button"
-                  className="btn-secondary search-modal-filters-link"
-                  onClick={handleOpenFiltersFromSearch}
-                >
-                  Open filters{filtersActive ? ' · on' : ''}
-                </button>
-              )}
-            </div>
-          </div>
+        {isMobile && (
+          <MobileSearchModal
+            open={searchOpen}
+            onClose={() => setSearchOpen(false)}
+            searchInputRef={searchInputRef}
+            searchText={gameFilters.searchText}
+            onSearchTextChange={(searchText) =>
+              setGameFilters({ ...gameFilters, searchText })
+            }
+            resultCount={filteredGames.length}
+            totalCount={games.length}
+            showFiltersLink={!loading && games.length > 0}
+            filtersActive={filtersActive}
+            onOpenFilters={handleOpenFiltersFromSearch}
+          />
         )}
 
         {!loading && games.length > 0 && (

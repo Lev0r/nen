@@ -113,6 +113,19 @@ export function formatDurationBetween(startDate, endDate) {
 }
 
 /**
+ * Human-readable time until a future date (e.g. "in 5 days", "in 1 month and 2 days").
+ */
+export function formatRelativeTimeUntil(input, now = new Date()) {
+  const target = parseDate(input);
+  if (!target || target <= now) return null;
+
+  const parts = diffCalendar(now, target);
+  const compound = formatCompound(parts);
+  if (!compound) return 'soon';
+  return `in ${compound}`;
+}
+
+/**
  * Compact relative time (e.g. "3m ago", "5h ago", "1d ago").
  */
 export function formatRelativeTimeShort(input) {

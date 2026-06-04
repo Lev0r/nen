@@ -1,5 +1,17 @@
 import React, { useMemo } from 'react';
-import { formatEventDateRange, formatEventStatus } from '../utils/steamEvents';
+import { formatEventDateDisplay, formatEventStatus } from '../utils/steamEvents';
+
+function EventDateLines({ event, className = '' }) {
+  const display = formatEventDateDisplay(event);
+  if (!display) return null;
+
+  return (
+    <div className={className}>
+      {display.absolute && <p className="events-date-absolute">{display.absolute}</p>}
+      {display.relative && <p className="events-date-relative">{display.relative}</p>}
+    </div>
+  );
+}
 
 function EventHero({ event }) {
   if (!event) {
@@ -14,7 +26,6 @@ function EventHero({ event }) {
   }
 
   const status = formatEventStatus(event);
-  const dateLabel = formatEventDateRange(event);
 
   return (
     <a
@@ -29,7 +40,7 @@ function EventHero({ event }) {
       <div className="events-hero-body">
         {status && <span className="events-status-badge">{status}</span>}
         <h2 className="events-hero-title">{event.name}</h2>
-        {dateLabel && <p className="events-hero-dates">{dateLabel}</p>}
+        <EventDateLines event={event} className="events-hero-dates" />
         {event.type && <p className="events-hero-type">{event.type}</p>}
       </div>
     </a>
@@ -38,7 +49,6 @@ function EventHero({ event }) {
 
 function EventCard({ event }) {
   const status = formatEventStatus(event);
-  const dateLabel = formatEventDateRange(event);
 
   return (
     <a
@@ -53,7 +63,7 @@ function EventCard({ event }) {
       <div className="events-card-body">
         {status && <span className="events-status-badge events-status-badge--small">{status}</span>}
         <h3 className="events-card-title">{event.name}</h3>
-        {dateLabel && <p className="events-card-dates">{dateLabel}</p>}
+        <EventDateLines event={event} className="events-card-dates" />
       </div>
     </a>
   );

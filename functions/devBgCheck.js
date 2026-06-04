@@ -9,7 +9,7 @@ const {
   DEFAULT_APP_ID,
   DEV_BG_CHECK_DOC_ID,
   configDocPath,
-} = require('./configPaths');
+} = require('./lib/firestorePaths');
 
 /** Stable Firestore map key — lowercase, unsafe chars replaced. */
 function devCacheKey(name) {

@@ -27,7 +27,7 @@ const {
   clearInfoMaintenanceErrors,
   rebuildMaintenanceAudit,
 } = require('./maintenanceStore');
-const { DEFAULT_APP_ID } = require('./configPaths');
+const { DEFAULT_APP_ID } = require('./lib/firestorePaths');
 
 initializeApp();
 

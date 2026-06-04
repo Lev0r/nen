@@ -14,7 +14,7 @@ LoginGate → DashboardShell
 ```
 
 - **Sidebar** — **Events** nav first (sales/festivals view); lifecycle tabs with counts and **update dot** (`nav-item-update-dot`) when any game in that tab (or Active sub-tab) has `hasUpdateSinceState`; Add Game, Maintenance (no top header)
-- **Mobile (≤768px)** — hamburger opens drawer with same nav; search in top-right icon → modal; inline filter search hidden (`hideSearch` on `GameFiltersBar`)
+- **Mobile (≤768px)** — hamburger opens drawer with same nav; search in top-right icon → `MobileSearchModal`; **Filters** opens full-screen `FilterSheetModal` (scrollable chip groups); inline filter search hidden (`hideSearch` on `GameFiltersBar`); drawer/search use `--modal-backdrop-bg` / `--modal-panel-bg`
 - **Palette** — warm graphite glass + softer sage `#4cc9a0`; no blue in primary UI
 - **Typography** — Clash Display (titles/headings), General Sans (body/UI) — see `index.css`
 - **Title** — browser tab `Nen?`
@@ -67,6 +67,9 @@ Escape + backdrop dismiss supported (disabled while loading). See [Bulk import](
 
 `EventsPage.jsx` — hero for `nextFeatured`, grid of six `upcoming` events from `config/steam-events`. See [Steam events](./steam-events.md).
 
-## Deferred
+## Touch tooltips (`FloatingTooltip`)
 
-- Mobile tooltips (hover → tap) polish
+- **Desktop:** hover to show (unchanged)
+- **Coarse pointer (touch):** tap toggles tooltip; tap outside or Escape dismisses
+- **Controls with actions** (ownership, hype, lifecycle): first tap shows tooltip (suppresses button click); second tap on the control runs the action
+- Anchors use `user-select: none` and `touch-action: manipulation` to avoid text-selection conflicts

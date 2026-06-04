@@ -1,6 +1,6 @@
 # Agent Intro — Nen?
 
-**Last updated:** 2026-06-03 (session wrap: Events home, filter UX, Steam events data note)  
+**Last updated:** 2026-06-04 (mobile UX polish, events relative dates, structure refactors)  
 **Repo:** https://github.com/Lev0r/nen  
 **Firebase project:** `nen-tracker` (CLI alias: `staging` in `.firebaserc`)
 
@@ -21,7 +21,7 @@ Never hardcode personal names in UI — use `VITE_USER0_NICKNAME` / `VITE_USER1_
 | **Default view** | **Events** page (`topView: 'events'`) — hero + 6 upcoming Steam sales/fests from `config/steam-events` |
 | **Library** | Sidebar lifecycle tabs set tri-state filter presets on the **full** library; grid always `filterGames(games, …)` |
 | **Filters** | Tri-state chips (include / exclude); panel **collapsed on load**; stays open when changing sidebar nav if already expanded |
-| **Mobile (≤768px)** | Hamburger drawer nav; search in top-right modal; filter search hidden in bar |
+| **Mobile (≤768px)** | Hamburger drawer; `MobileSearchModal`; `FilterSheetModal`; touch toggletips; opaque modal tokens |
 | **Steam events data** | **Not SteamDB** — see [steam-events.md](./features/steam-events.md#why-not-steamdb) |
 | **Deploy** | `main` includes `syncSteamEvents` callable + `steamEvents` 7d task; seed via Maintenance after functions deploy |
 

@@ -2,7 +2,7 @@
 
 Categorized from codebase review, git history, and agent research (2026-05-31). Not a commitment — prioritize with user before large refactors.
 
-**Last updated:** 2026-06-03 (Steam events data backlog)
+**Last updated:** 2026-06-04 (mobile UX, quick debt closed)
 
 ---
 
@@ -10,11 +10,11 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 
 | ID | Area | Item | Rationale |
 | :--- | :--- | :--- | :--- |
-| M1 | Auth | Unify allowlist — env vars vs hardcoded `firestore.rules` emails | Drift / security footgun |
+| M1 | Auth | Unify allowlist — env vars vs hardcoded `firestore.rules` emails | **Partial** — `isAllowedUser()` DRY in rules + sync comment; literals still manual |
 | M4 | Ops | Post-deploy re-vet after vetting **logic** changes | `syncDevSources` only when source lists change (new curators, NE GRAI refresh) |
 | M5 | Sync | Monitor full-library sync timeout at ~400–500 games | 540s sequential job may fail |
 | M6 | HLTB | Treat HLTB as fragile; surface failures clearly | Unofficial API, auth can break |
-| E1 | Steam events | Replace `KNOWN_SCHEDULE` with real upcoming calendar | SteamDB blocked (403) from Functions; options: manual JSON, local browser sync, richer Steam parse |
+| E1 | Steam events | Replace `KNOWN_SCHEDULE` with real upcoming calendar | SteamDB blocked (403); `steam_sales_calendar` assessed — stale (2025), no license, no URLs; UI-only dates polish shipped 2026-06-04 |
 
 ---
 
@@ -23,8 +23,8 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | ID | Area | Item | Rationale |
 | :--- | :--- | :--- | :--- |
 | S3 | RU vetting | Build dev-name curator index in weekly sync (`buildDevIndex`) | Dev hits without app-ID path |
-| S7 | Callables | `addGameFromSteam` client timeout aligned with 120s function | Inconsistent with sync wrappers |
-| S8 | Steam | Remove or wire `fetchGeForceNowReady` dead code | Confusing vs catalog-only badge |
+| S7 | Callables | ~~`vetGameDevelopers` client timeout (60s)~~ | **Done** 2026-06-04; `addGameFromSteam` already 120s |
+| S8 | Steam | ~~Remove or wire `fetchGeForceNowReady` dead code~~ | **Done** 2026-06-04 |
 | S12 | Steam | ~~Wishlist sync + library ownership sync~~ | **Done** — callables + 24h orchestrator tasks |
 | S13 | QA | Periodic release QA (syncs, RU, notifications) | Initial smoke test done 2026-06-01 |
 
@@ -34,7 +34,7 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 
 | ID | Area | Item | Rationale |
 | :--- | :--- | :--- | :--- |
-| N1 | UI | Mobile pass — tooltips, grid, modals, sidebar drawer | P1 polish; may follow round 2 |
+| N1 | UI | ~~Mobile pass — tooltips, grid, modals, filter sheet~~ | **Done** 2026-06-04 |
 | N3 | UI | ~~"Refresh from Steam" in GameEditModal~~ | Single-game re-scrape — **done** (2026-06-02) |
 | N4 | UI | Live Total Hype preview in edit modal | UX clarity |
 | N5 | Hype | Use or drop `recentReviewPercent` in formula | Fetched but unused |
@@ -47,6 +47,18 @@ Categorized from codebase review, git history, and agent research (2026-05-31). 
 | N12 | Export | Client-side library JSON backup | P1 |
 | N13 | RU | Use `lookupCuratorClearanceByAppId` in explanations | Clearer "cleared by curator" UX |
 | N15 | ITAD | Show ITAD price vs scraped Steam price | Data already fetched |
+
+---
+
+## Completed (2026-06-04 — mobile UX + structure)
+
+| ID | Item |
+| :--- | :--- |
+| N1 | Mobile pass — opaque modals, card containment, filter sheet, touch toggletips |
+| S8 | Removed `fetchGeForceNowReady` |
+| S7 | `vetGameDevelopers` client 60s timeout |
+| — | `useConfigDoc` DRY in `db.js`; `GameCardTooltips.jsx` extract; `MobileSearchModal.jsx`; functions import `lib/firestorePaths` |
+| — | Removed deprecated `useDevSourcesMeta` |
 
 ---
 
