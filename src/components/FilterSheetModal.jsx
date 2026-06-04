@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function FilterSheetModal({
   open,
@@ -29,7 +30,7 @@ export default function FilterSheetModal({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="filter-sheet-root">
       <button
         type="button"
@@ -64,6 +65,7 @@ export default function FilterSheetModal({
           </button>
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

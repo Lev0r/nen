@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 function SearchIcon() {
   return (
@@ -36,7 +37,7 @@ export default function MobileSearchModal({
 }) {
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="search-modal-root">
       <button
         type="button"
@@ -83,6 +84,7 @@ export default function MobileSearchModal({
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

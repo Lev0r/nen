@@ -156,8 +156,7 @@ export default function DashboardShell() {
   const isMobile = useMatchMedia(MOBILE_MEDIA);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [expandFiltersSignal, setExpandFiltersSignal] = useState(0);
-  const [dismissFiltersSignal, setDismissFiltersSignal] = useState(0);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const searchInputRef = useRef(null);
 
@@ -485,16 +484,15 @@ export default function DashboardShell() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [sidebarOpen, searchOpen]);
 
-  function dismissMobileFilters() {
-    setDismissFiltersSignal((n) => n + 1);
+  function closeMobileOverlays() {
+    setSidebarOpen(false);
+    setSearchOpen(false);
+    setFilterSheetOpen(false);
   }
 
   function handleEventsNavClick() {
     setTopView('events');
-    if (isMobile) {
-      setSidebarOpen(false);
-      dismissMobileFilters();
-    }
+    if (isMobile) closeMobileOverlays();
   }
 
   function handleLifecycleTabClick(tabId) {
@@ -502,26 +500,27 @@ export default function DashboardShell() {
     setActiveTab(tabId);
     setActiveSubTab('active');
     setGameFilters(filtersForSidebarNav(tabId, 'active'));
-    if (isMobile) {
-      setSidebarOpen(false);
-      dismissMobileFilters();
-    }
+    if (isMobile) closeMobileOverlays();
   }
 
   function handleActiveSubTabClick(subTabId) {
     setTopView('library');
     setActiveSubTab(subTabId);
     setGameFilters(filtersForSidebarNav('active', subTabId));
-    if (isMobile) {
-      setSidebarOpen(false);
-      dismissMobileFilters();
-    }
+    if (isMobile) closeMobileOverlays();
   }
 
   function handleOpenFiltersFromSearch() {
     setSearchOpen(false);
-    setExpandFiltersSignal((n) => n + 1);
+    setFilterSheetOpen(true);
   }
+
+  useEffect(() => {
+    if (topView !== 'library') {
+      setFilterSheetOpen(false);
+      setSearchOpen(false);
+    }
+  }, [topView]);
 
   function renderSidebarContent() {
     const closeDrawer = () => {
@@ -729,7 +728,7 @@ export default function DashboardShell() {
         {topView === 'events' ? (
           <EventsPage steamEventsDoc={steamEventsDoc} loading={steamEventsLoading} />
         ) : (
-          <>
+          <div className="library-view">
         {!loading && games.length > 0 && (
           <GameFiltersBar
             filters={gameFilters}
@@ -744,8 +743,8 @@ export default function DashboardShell() {
             showClearFilters={filtersActive}
             onResetFilters={handleResetFilters}
             hideSearch={isMobile}
-            expandFiltersSignal={expandFiltersSignal}
-            dismissFiltersSignal={dismissFiltersSignal}
+            filterSheetOpen={filterSheetOpen}
+            onFilterSheetOpenChange={setFilterSheetOpen}
             filtersExpanded={filtersExpanded}
             onFiltersExpandedChange={setFiltersExpanded}
           />
@@ -800,7 +799,7 @@ export default function DashboardShell() {
             </div>
           )}
         </div>
-          </>
+          </div>
         )}
       </main>
 

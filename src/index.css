@@ -870,6 +870,14 @@ button {
   margin-top: 0.25rem;
 }
 
+.library-view {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .dashboard-grid {
   flex: 1 1 0;
   min-height: 0;

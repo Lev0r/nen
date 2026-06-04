@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import useMatchMedia from '../hooks/useMatchMedia';
 import {
   hasActiveFilters,
@@ -25,18 +25,16 @@ export default function GameFiltersBar({
   showClearFilters = false,
   onResetFilters,
   hideSearch = false,
-  expandFiltersSignal = 0,
-  dismissFiltersSignal = 0,
   filtersExpanded = false,
   onFiltersExpandedChange,
+  filterSheetOpen = false,
+  onFilterSheetOpenChange,
 }) {
   const active = hasActiveFilters(filters);
   const facetGating = filterMode;
   const chipEnabled = (fn, ...args) => (facetGating ? fn(...args) : true);
   const barRef = useRef(null);
   const isMobile = useMatchMedia(MOBILE_MEDIA);
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
-  const prevExpandFiltersSignal = useRef(expandFiltersSignal);
 
   const setExpanded = (value) => {
     if (onFiltersExpandedChange) {
@@ -44,6 +42,12 @@ export default function GameFiltersBar({
     }
   };
   const expanded = filtersExpanded;
+
+  const setFilterSheetOpen = (value) => {
+    if (onFilterSheetOpenChange) {
+      onFilterSheetOpenChange(value);
+    }
+  };
 
   const applyFilterPatch = (patch) => {
     onChange({ ...filters, ...patch });
@@ -57,28 +61,11 @@ export default function GameFiltersBar({
   };
 
   useEffect(() => {
-    if (expandFiltersSignal > prevExpandFiltersSignal.current) {
-      if (isMobile) {
-        setFilterSheetOpen(true);
-      } else {
-        setExpanded(true);
-      }
-    }
-    prevExpandFiltersSignal.current = expandFiltersSignal;
-  }, [expandFiltersSignal, isMobile]);
-
-  useEffect(() => {
-    if (dismissFiltersSignal > 0) {
-      setFilterSheetOpen(false);
-    }
-  }, [dismissFiltersSignal]);
-
-  useEffect(() => {
     if (isMobile) return undefined;
 
     const handlePointerDown = (event) => {
       if (barRef.current && !barRef.current.contains(event.target)) {
-        if (event.target.closest('.sidebar, .sidebar-drawer-root')) {
+        if (event.target.closest('.sidebar, .sidebar-drawer-root, .filter-sheet-root')) {
           return;
         }
         setExpanded(false);
