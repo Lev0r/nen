@@ -174,6 +174,15 @@ export default function GameFiltersBar({
           <span className="game-filters-count">
             {resultCount} of {totalCount}
           </span>
+          {isMobile && showClearFilters && (
+            <button
+              type="button"
+              className="btn-secondary game-filters-clear"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </button>
+          )}
           {isMobile && (
             <button
               type="button"

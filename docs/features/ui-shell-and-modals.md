@@ -14,7 +14,7 @@ LoginGate → DashboardShell
 ```
 
 - **Sidebar** — **Events** nav first (sales/festivals view); lifecycle tabs with counts and **update dot** (`nav-item-update-dot`) when any game in that tab (or Active sub-tab) has `hasUpdateSinceState`; Add Game, Maintenance (no top header)
-- **Mobile (≤768px)** — hamburger opens drawer with same nav; search in top-right icon → `MobileSearchModal`; **Filters** opens full-screen `FilterSheetModal` (scrollable chip groups); inline filter search hidden (`hideSearch` on `GameFiltersBar`); drawer/search use `--modal-backdrop-bg` / `--modal-panel-bg`
+- **Mobile (≤768px)** — hamburger opens drawer with same nav; search in top-right icon → `MobileSearchModal`; **Filters** opens full-screen `FilterSheetModal` (full-width list chips, stacked toggles); **Clear filters** in library bar header and sheet header; inline filter search hidden (`hideSearch` on `GameFiltersBar`); drawer/search use `--modal-backdrop-bg` / `--modal-panel-bg`
 - **Palette** — warm graphite glass + softer sage `#4cc9a0`; no blue in primary UI
 - **Typography** — Clash Display (titles/headings), General Sans (body/UI) — see `index.css`
 - **Title** — browser tab `Nen?`
@@ -70,6 +70,6 @@ Escape + backdrop dismiss supported (disabled while loading). See [Bulk import](
 ## Touch tooltips (`FloatingTooltip`)
 
 - **Desktop:** hover to show (unchanged)
-- **Coarse pointer (touch):** tap toggles tooltip; tap outside or Escape dismisses
-- **Controls with actions** (ownership, hype, lifecycle): first tap shows tooltip (suppresses button click); second tap on the control runs the action
+- **Mobile / coarse pointer (≤768px or `pointer: coarse`):** tap toggles tooltip; tap outside or Escape dismisses
+- **Controls with actions** (ownership, hype, lifecycle): first tap shows tooltip (click suppressed via capture phase); second tap runs the button action
 - Anchors use `user-select: none` and `touch-action: manipulation` to avoid text-selection conflicts

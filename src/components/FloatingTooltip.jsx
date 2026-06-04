@@ -4,6 +4,7 @@ import useMatchMedia from '../hooks/useMatchMedia';
 
 const VIEWPORT_MARGIN = 10;
 const COARSE_POINTER_MEDIA = '(pointer: coarse)';
+const MOBILE_MEDIA = '(max-width: 768px)';
 
 function computeTooltipStyle(anchorRect, tooltipRect) {
   const anchorCenterX = anchorRect.left + anchorRect.width / 2;
@@ -53,13 +54,17 @@ function findInteractiveTarget(target, anchorEl) {
 
 export default function FloatingTooltip({ content, wide, anchorClassName = '', children }) {
   const isCoarsePointer = useMatchMedia(COARSE_POINTER_MEDIA);
+  const isMobileViewport = useMatchMedia(MOBILE_MEDIA);
+  const useTouchToggle = isCoarsePointer || isMobileViewport;
+
   const [hoverVisible, setHoverVisible] = useState(false);
   const [touchOpen, setTouchOpen] = useState(false);
   const [style, setStyle] = useState({ top: 0, left: 0, transform: 'translate(-50%, -100%)' });
   const anchorRef = useRef(null);
   const tooltipRef = useRef(null);
+  const blockNextClickRef = useRef(false);
 
-  const visible = isCoarsePointer ? touchOpen : hoverVisible;
+  const visible = useTouchToggle ? touchOpen : hoverVisible;
 
   const reposition = () => {
     const anchorRect = anchorRef.current?.getBoundingClientRect();
@@ -69,13 +74,13 @@ export default function FloatingTooltip({ content, wide, anchorClassName = '', c
   };
 
   const showHover = () => {
-    if (!isCoarsePointer) {
+    if (!useTouchToggle) {
       setHoverVisible(true);
     }
   };
 
   const hideHover = () => {
-    if (!isCoarsePointer) {
+    if (!useTouchToggle) {
       setHoverVisible(false);
     }
   };
@@ -85,10 +90,10 @@ export default function FloatingTooltip({ content, wide, anchorClassName = '', c
   }, []);
 
   useEffect(() => {
-    if (!isCoarsePointer) {
+    if (!useTouchToggle) {
       setTouchOpen(false);
     }
-  }, [isCoarsePointer]);
+  }, [useTouchToggle]);
 
   useEffect(() => {
     if (!touchOpen) return undefined;
@@ -114,25 +119,42 @@ export default function FloatingTooltip({ content, wide, anchorClassName = '', c
     };
   }, [touchOpen, closeTouch]);
 
-  const handleAnchorClick = (event) => {
-    if (!isCoarsePointer) return;
+  const handlePointerDownCapture = (event) => {
+    if (!useTouchToggle) return;
 
     const interactive = findInteractiveTarget(event.target, anchorRef.current);
 
-    if (!touchOpen) {
+    if (interactive) {
+      if (!touchOpen) {
+        event.preventDefault();
+        event.stopPropagation();
+        setTouchOpen(true);
+        blockNextClickRef.current = true;
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
-      setTouchOpen(true);
-      return;
-    }
-
-    if (interactive) {
       setTouchOpen(false);
+      blockNextClickRef.current = false;
+      requestAnimationFrame(() => {
+        interactive.click();
+      });
       return;
     }
 
     event.preventDefault();
-    closeTouch();
+    event.stopPropagation();
+    setTouchOpen((open) => !open);
+  };
+
+  const handleClickCapture = (event) => {
+    if (!useTouchToggle) return;
+    if (blockNextClickRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      blockNextClickRef.current = false;
+    }
   };
 
   useLayoutEffect(() => {
@@ -157,8 +179,9 @@ export default function FloatingTooltip({ content, wide, anchorClassName = '', c
         className={`floating-tooltip-anchor ${anchorClassName}`}
         onMouseEnter={showHover}
         onMouseLeave={hideHover}
-        onClick={handleAnchorClick}
-        aria-expanded={isCoarsePointer ? touchOpen : undefined}
+        onPointerDownCapture={handlePointerDownCapture}
+        onClickCapture={handleClickCapture}
+        aria-expanded={useTouchToggle ? touchOpen : undefined}
       >
         {children}
       </div>
@@ -173,7 +196,7 @@ export default function FloatingTooltip({ content, wide, anchorClassName = '', c
               transform: style.transform,
               visibility: style.top === 0 && style.left === 0 ? 'hidden' : 'visible',
             }}
-            role={isCoarsePointer ? 'status' : undefined}
+            role={useTouchToggle ? 'status' : undefined}
           >
             {content}
           </div>,

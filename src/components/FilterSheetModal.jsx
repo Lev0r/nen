@@ -41,25 +41,31 @@ export default function FilterSheetModal({
       <div className="filter-sheet" role="dialog" aria-label="Game filters">
         <header className="filter-sheet-header">
           <h2 className="filter-sheet-title">Filters</h2>
-          <span className="filter-sheet-count">
-            {resultCount} of {totalCount}
-          </span>
-          <button
-            type="button"
-            className="filter-sheet-close"
-            aria-label="Close filters"
-            onClick={onClose}
-          >
-            ×
-          </button>
+          <div className="filter-sheet-header-actions">
+            <span className="filter-sheet-count">
+              {resultCount} of {totalCount}
+            </span>
+            {showClearFilters && onClearFilters && (
+              <button
+                type="button"
+                className="btn-secondary filter-sheet-clear"
+                onClick={onClearFilters}
+              >
+                Clear filters
+              </button>
+            )}
+            <button
+              type="button"
+              className="filter-sheet-close"
+              aria-label="Close filters"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          </div>
         </header>
         <div className="filter-sheet-body">{children}</div>
         <footer className="filter-sheet-footer">
-          {showClearFilters && onClearFilters && (
-            <button type="button" className="btn-secondary" onClick={onClearFilters}>
-              Clear filters
-            </button>
-          )}
           <button type="button" className="btn-primary filter-sheet-done" onClick={onClose}>
             Done
           </button>
