@@ -71,5 +71,6 @@ Escape + backdrop dismiss supported (disabled while loading). See [Bulk import](
 
 - **Desktop:** hover to show (unchanged)
 - **Mobile / coarse pointer (≤768px or `pointer: coarse`):** tap toggles tooltip; tap outside or Escape dismisses
-- **Controls with actions** (ownership, hype, lifecycle): first tap shows tooltip (click suppressed via capture phase); second tap runs the button action
+- **Controls with actions** (ownership, hype, lifecycle): first tap shows tooltip (click suppressed via capture phase); second tap runs the button action (native click blocked; popovers use open grace so they are not dismissed by the same gesture)
+- **Hype breakdown** on touch/mobile viewports is computed whenever the hype tooltip is shown (not only after `mouseenter`)
 - Anchors use `user-select: none` and `touch-action: manipulation` to avoid text-selection conflicts

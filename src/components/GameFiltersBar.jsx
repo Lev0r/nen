@@ -242,6 +242,7 @@ export default function GameFiltersBar({
         >
           <GameFiltersPanelContent
             {...panelProps}
+            variant="sheet"
             onCycleDimensionValue={cycleDimensionValueInSheet}
             onCycleFooterFilter={cycleFooterFilterInSheet}
           />

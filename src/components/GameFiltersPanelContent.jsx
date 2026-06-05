@@ -35,6 +35,7 @@ export default function GameFiltersPanelContent({
   gfnSteamAppIds = new Set(),
   availableTags,
   facetGating = false,
+  variant = 'bar',
   onCycleDimensionValue,
   onCycleFooterFilter,
 }) {
@@ -55,6 +56,67 @@ export default function GameFiltersPanelContent({
     if (!enabled) cls += ' game-filters-switch--disabled';
     return cls;
   };
+
+  const footerFilters = (
+    <div className="game-filters-footer">
+      {FOOTER_FILTERS.map(({ key, label }) => {
+        const triState = filters[key] ?? 'off';
+        const enabled = chipEnabled(
+          isFooterFilterEnabled,
+          filterSourceGames,
+          filters,
+          gfnSteamAppIds,
+          key
+        );
+        return (
+          <button
+            key={key}
+            type="button"
+            className={footerSwitchClassName(triState, enabled)}
+            aria-pressed={triState !== 'off'}
+            disabled={!enabled}
+            onClick={() => onCycleFooterFilter(key)}
+          >
+            <span className="game-filters-switch-label">{label}</span>
+            <span className="game-filters-switch-track" aria-hidden="true">
+              <span className="game-filters-switch-thumb" />
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const tagGroup =
+    availableTags.length > 0 ? (
+      <div className="game-filters-group game-filters-group--tags">
+        <span className="game-filters-label">Steam tags</span>
+        <div className="game-filters-chips game-filters-chips--tags">
+          {availableTags.map((tag) => {
+            const triState = getValueTriState(filters.steamTags, tag);
+            const enabled = chipEnabled(
+              isSteamTagFilterEnabled,
+              filterSourceGames,
+              filters,
+              gfnSteamAppIds,
+              tag
+            );
+            return (
+              <button
+                key={tag}
+                type="button"
+                className={`${chipClassName(triState, enabled)} filter-chip--tag`}
+                disabled={!enabled}
+                aria-pressed={triState !== 'off'}
+                onClick={() => enabled && onCycleDimensionValue('steamTags', tag)}
+              >
+                {tag}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    ) : null;
 
   return (
     <>
@@ -145,64 +207,12 @@ export default function GameFiltersPanelContent({
           </div>
         </div>
 
-        {availableTags.length > 0 && (
-          <div className="game-filters-group game-filters-group--tags">
-            <span className="game-filters-label">Steam tags</span>
-            <div className="game-filters-chips game-filters-chips--tags">
-              {availableTags.map((tag) => {
-                const triState = getValueTriState(filters.steamTags, tag);
-                const enabled = chipEnabled(
-                  isSteamTagFilterEnabled,
-                  filterSourceGames,
-                  filters,
-                  gfnSteamAppIds,
-                  tag
-                );
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    className={`${chipClassName(triState, enabled)} filter-chip--tag`}
-                    disabled={!enabled}
-                    aria-pressed={triState !== 'off'}
-                    onClick={() => enabled && onCycleDimensionValue('steamTags', tag)}
-                  >
-                    {tag}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {variant !== 'sheet' && tagGroup}
       </div>
 
-      <div className="game-filters-footer">
-        {FOOTER_FILTERS.map(({ key, label }) => {
-          const triState = filters[key] ?? 'off';
-          const enabled = chipEnabled(
-            isFooterFilterEnabled,
-            filterSourceGames,
-            filters,
-            gfnSteamAppIds,
-            key
-          );
-          return (
-            <button
-              key={key}
-              type="button"
-              className={footerSwitchClassName(triState, enabled)}
-              aria-pressed={triState !== 'off'}
-              disabled={!enabled}
-              onClick={() => onCycleFooterFilter(key)}
-            >
-              <span className="game-filters-switch-label">{label}</span>
-              <span className="game-filters-switch-track" aria-hidden="true">
-                <span className="game-filters-switch-thumb" />
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {variant === 'sheet' && footerFilters}
+      {variant === 'sheet' && tagGroup}
+      {variant !== 'sheet' && footerFilters}
     </>
   );
 }

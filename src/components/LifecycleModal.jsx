@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useOpenGrace } from '../hooks/useOutsidePointerDismiss';
 import { setGameLifecycle } from '../services/db';
 import { reportError } from '../utils/errorReport';
 import {
@@ -18,6 +19,7 @@ import {
 const APP_ID = 'default_app';
 
 export default function LifecycleModal({ game, isOpen, onClose }) {
+  const withinOpenGrace = useOpenGrace(400, isOpen);
   const [selectedState, setSelectedState] = useState('active');
   const [note, setNote] = useState('');
   const [finishedRating, setFinishedRating] = useState(null);
@@ -65,7 +67,12 @@ export default function LifecycleModal({ game, isOpen, onClose }) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div
+      className="modal-backdrop"
+      onClick={() => {
+        if (!withinOpenGrace()) onClose();
+      }}
+    >
       <div
         className="glass-panel animate-fade-in lifecycle-modal"
         onClick={(e) => e.stopPropagation()}

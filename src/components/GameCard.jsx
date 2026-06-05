@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
+import useMatchMedia from '../hooks/useMatchMedia';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserLabel, getNickname } from '../utils/userConfig';
 import { isRuDeveloperAlert } from '../utils/gameHelpers';
@@ -98,12 +99,13 @@ function GameCard({ game, gfnSteamAppIds = new Set(), showLifecycleBadge = false
   const [anchorRect, setAnchorRect] = useState(null);
   const [hypeTooltipActive, setHypeTooltipActive] = useState(false);
   const hypeRingRef = useRef(null);
+  const isTouchUI = useMatchMedia('(max-width: 768px), (pointer: coarse)');
 
   const total = game.totalHype ?? 0;
   const hypeBreakdown = useMemo(() => {
-    if (!hypeTooltipActive) return null;
+    if (!isTouchUI && !hypeTooltipActive) return null;
     return calculateTotalHype(game).breakdown;
-  }, [hypeTooltipActive, game]);
+  }, [isTouchUI, hypeTooltipActive, game]);
   const scoreColor = getScoreColor(total);
   const steamUrl = game.url || `https://store.steampowered.com/app/${game.id}/`;
   const steamDbUrl = `https://steamdb.info/app/${game.id}/`;

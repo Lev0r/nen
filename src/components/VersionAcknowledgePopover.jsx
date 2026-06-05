@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import useOutsidePointerDismiss, { useOpenGrace } from '../hooks/useOutsidePointerDismiss';
 
 export default function VersionAcknowledgePopover({
   anchorRect,
@@ -7,22 +8,16 @@ export default function VersionAcknowledgePopover({
   saving = false,
 }) {
   const ref = useRef(null);
+  const withinOpenGrace = useOpenGrace();
+
+  useOutsidePointerDismiss(ref, onClose);
 
   useEffect(() => {
-    const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        onClose();
-      }
-    };
     const handleKey = (e) => {
       if (e.key === 'Escape') onClose();
     };
-    document.addEventListener('mousedown', handleClick);
     document.addEventListener('keydown', handleKey);
-    return () => {
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKey);
-    };
+    return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
   const style = anchorRect
@@ -41,7 +36,12 @@ export default function VersionAcknowledgePopover({
       };
 
   return (
-    <div className="version-ack-backdrop" onClick={onClose}>
+    <div
+      className="version-ack-backdrop"
+      onClick={() => {
+        if (!withinOpenGrace()) onClose();
+      }}
+    >
       <div
         ref={ref}
         className="version-ack-popover glass-panel"

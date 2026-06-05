@@ -1,26 +1,21 @@
 import React, { useEffect, useRef } from 'react';
 import { HYPE_TIERS } from '../utils/hypeScore';
+import useOutsidePointerDismiss, { useOpenGrace } from '../hooks/useOutsidePointerDismiss';
 
 const TIER_ORDER = ['worthless_crystal', 'morkite_found', 'we_rich'];
 
 export default function HypePicker({ currentTier, onSelect, onClose, anchorRect }) {
   const ref = useRef(null);
+  const withinOpenGrace = useOpenGrace();
+
+  useOutsidePointerDismiss(ref, onClose);
 
   useEffect(() => {
-    const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        onClose();
-      }
-    };
     const handleKey = (e) => {
       if (e.key === 'Escape') onClose();
     };
-    document.addEventListener('mousedown', handleClick);
     document.addEventListener('keydown', handleKey);
-    return () => {
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKey);
-    };
+    return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
   const style = anchorRect
@@ -33,7 +28,12 @@ export default function HypePicker({ currentTier, onSelect, onClose, anchorRect 
     : { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1000 };
 
   return (
-    <div className="hype-picker-backdrop" onClick={onClose}>
+    <div
+      className="hype-picker-backdrop"
+      onClick={() => {
+        if (!withinOpenGrace()) onClose();
+      }}
+    >
       <div
         ref={ref}
         className="hype-picker glass-panel"

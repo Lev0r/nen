@@ -136,8 +136,8 @@ export default function FloatingTooltip({ content, wide, anchorClassName = '', c
       event.preventDefault();
       event.stopPropagation();
       setTouchOpen(false);
-      blockNextClickRef.current = false;
-      requestAnimationFrame(() => {
+      blockNextClickRef.current = true;
+      queueMicrotask(() => {
         interactive.click();
       });
       return;
